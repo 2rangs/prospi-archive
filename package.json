@@ -14,7 +14,6 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@rolldown/binding-darwin-arm64": "^1.2.5",
     "drizzle-orm": "0.45.2",
     "react": "19.2.6",
     "react-dom": "19.2.6"
