@@ -98,10 +98,13 @@ function draw(frame: number) {
       const tex = cellTexture(dr.cell, dr.vcol, bl === "add");
       if (!tex) continue;
       /**
-       * 상세 화면과 같은 UV/정점 변형 경로를 쓴다. 셀 조각만 Sprite 로 그리면
-       * UV 이동이 사라져 시리즈 배경이 전혀 다른 무늬처럼 보인다.
+       * _S 는 _L 을 줄인 파일이 아니라 128px 아이콘용으로 색과 프레임을 이미
+       * 구워 둔 별도 저작본이다. 상세용 시트/정점색/좌표 보정을 다시 적용하면
+       * 채도가 빠지고 원본과 다른 합성이 된다. _S 는 베이크 셀을 그대로 그리고,
+       * _S 가 없어 _L 로 되돌아온 소수의 아이콘만 상세 렌더링 경로를 쓴다.
        */
-      const wantMesh = !!dr.hasUv || !!dr.hasVert;
+      const detailedFallback = s.size === "L";
+      const wantMesh = detailedFallback && (!!dr.hasUv || !!dr.hasVert);
       const sheetTex = wantMesh && dr.cell.sheet
         ? sheetTexture(dr.cell.sheet, bl === "add") : null;
       const sp = wantMesh
@@ -150,11 +153,16 @@ function draw(frame: number) {
         map(u0, v0, 0); map(u1, v0, 2); map(u1, v1, 4); map(u0, v1, 6);
         pos.update(); uvb.update();
       }
-      sp.tint = flatTint(dr.vcol);
+      sp.tint = detailedFallback ? flatTint(dr.vcol) : 0xffffff;
       sp.blendMode = bl;
       sp.alpha = dr.alpha;
-      // ANSS 좌표는 y-up, PIXI 캔버스는 y-down이다. 상세 화면과 동일하게 뒤집는다.
-      m.set(dr.a, -dr.b, -dr.c, dr.d, dr.x, -dr.y);
+      if (detailedFallback) {
+        // _L 폴백만 상세 화면과 동일한 y-up → y-down 변환을 한다.
+        m.set(dr.a, -dr.b, -dr.c, dr.d, dr.x, -dr.y);
+      } else {
+        // _S 는 128px 아이콘 좌표로 베이크된 원본 변환을 그대로 쓴다.
+        m.set(dr.a, dr.b, dr.c, dr.d, dr.x, dr.y);
+      }
       sp.setFromMatrix(m);
       sp.zIndex = dr.prio;
       cell.addChild(sp);
