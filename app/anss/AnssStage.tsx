@@ -57,7 +57,7 @@ export function pixiBlend(bl?: number) {
  * [처리] 확정될 때까지 종전 동작(Mix 를 곱셈 tint 로) 유지.
  * [신뢰도] 분포 CONFIRMED · Mix=대체 REJECTED · rate 필드 자체 UNKNOWN
  */
-function flatTint(v?: VCol) {
+export function flatTint(v?: VCol) {
   if (!v || v.blend !== 0) return 0xffffff;
   const [r, g, b] = v.c[0];
   return (r << 16) | (g << 8) | b;
@@ -89,7 +89,7 @@ const intensityCache = new Map<string, Texture | null>();
 const sheetCache = new Map<string, Texture | null>();
 
 /** 렌더 루프용: 준비 단계에서 만들어 둔 것만 쓴다. */
-function sheetTexture(sheet: string, additive: boolean): Texture | null {
+export function sheetTexture(sheet: string, additive: boolean): Texture | null {
   const url = `/effects/sheets-webp/${sheet}.webp`;
   if (!additive) return Texture.from(url);
   if (sheetCache.has(sheet)) return sheetCache.get(sheet) ?? Texture.from(url);

@@ -1,9 +1,9 @@
 "use client";
 
-import { Application, Assets, Container, Matrix, Sprite } from "pixi.js";
+import { Application, Assets, Container, Matrix, Mesh, MeshGeometry, Sprite } from "pixi.js";
 import { useEffect, useState } from "react";
 import { evaluate } from "./evaluate";
-import { cellTexture, cellUrls, pixiBlend, prepare } from "./AnssStage";
+import { cellTexture, cellUrls, flatTint, pixiBlend, prepare, sheetTexture } from "./AnssStage";
 import { AnssSize, loadAnssIcon } from "./useAnss";
 import { AnssDocument, CARD_ART_H } from "./types";
 
@@ -97,11 +97,64 @@ function draw(frame: number) {
       const bl = pixiBlend(dr.part.bl);
       const tex = cellTexture(dr.cell, dr.vcol, bl === "add");
       if (!tex) continue;
-      const sp = new Sprite(tex);
-      sp.anchor.set(0.5);
+      /**
+       * 상세 화면과 같은 UV/정점 변형 경로를 쓴다. 셀 조각만 Sprite 로 그리면
+       * UV 이동이 사라져 시리즈 배경이 전혀 다른 무늬처럼 보인다.
+       */
+      const wantMesh = !!dr.hasUv || !!dr.hasVert;
+      const sheetTex = wantMesh && dr.cell.sheet
+        ? sheetTexture(dr.cell.sheet, bl === "add") : null;
+      const sp = wantMesh
+        ? new Mesh({
+            geometry: new MeshGeometry({
+              positions: new Float32Array(8),
+              uvs: new Float32Array(8),
+              indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+            }),
+            texture: sheetTex ?? tex,
+          })
+        : new Sprite(tex);
+      if (sp instanceof Sprite) sp.anchor.set(0.5);
+      if (sp instanceof Mesh) {
+        const uv = dr.uv ?? { x: 0, y: 0, sx: 1, sy: 1, rot: 0 };
+        const hw = dr.cell.w / 2, hh = dr.cell.h / 2;
+        const pos = sp.geometry.getBuffer("aPosition");
+        const uvb = sp.geometry.getBuffer("aUV");
+        const pd = pos.data as Float32Array;
+        const ud = uvb.data as Float32Array;
+        const u0 = 0.5 - 0.5 * uv.sx + uv.x, u1 = 0.5 + 0.5 * uv.sx + uv.x;
+        const v0 = 0.5 - 0.5 * uv.sy + uv.y, v1 = 0.5 + 0.5 * uv.sy + uv.y;
+        const c = dr.cell;
+        const useSheet = !!(sheetTex && c.sheet && c.sw && c.sh && c.rw && c.rh);
+        const rx = useSheet ? (c.rx ?? 0) / c.sw! : 0;
+        const ry = useSheet ? (c.ry ?? 0) / c.sh! : 0;
+        const rw = useSheet ? c.rw! / c.sw! : 1;
+        const rh = useSheet ? c.rh! / c.sh! : 1;
+        const r = uv.rot * Math.PI / 180;
+        const cr = Math.cos(r), sr = Math.sin(r);
+        const map = (u: number, v: number, i: number) => {
+          let cu = u, cv = v;
+          if (uv.rot) {
+            const du = u - 0.5, dv = v - 0.5;
+            cu = 0.5 + du * cr - dv * sr;
+            cv = 0.5 + du * sr + dv * cr;
+          }
+          ud[i] = rx + cu * rw;
+          ud[i + 1] = ry + cv * rh;
+        };
+        const vt = dr.vert;
+        pd[0] = -hw + (vt?.[4] ?? 0); pd[1] = -hh - (vt?.[5] ?? 0);
+        pd[2] =  hw + (vt?.[6] ?? 0); pd[3] = -hh - (vt?.[7] ?? 0);
+        pd[4] =  hw + (vt?.[2] ?? 0); pd[5] =  hh - (vt?.[3] ?? 0);
+        pd[6] = -hw + (vt?.[0] ?? 0); pd[7] =  hh - (vt?.[1] ?? 0);
+        map(u0, v0, 0); map(u1, v0, 2); map(u1, v1, 4); map(u0, v1, 6);
+        pos.update(); uvb.update();
+      }
+      sp.tint = flatTint(dr.vcol);
       sp.blendMode = bl;
       sp.alpha = dr.alpha;
-      m.set(dr.a, dr.b, dr.c, dr.d, dr.x, dr.y);
+      // ANSS 좌표는 y-up, PIXI 캔버스는 y-down이다. 상세 화면과 동일하게 뒤집는다.
+      m.set(dr.a, -dr.b, -dr.c, dr.d, dr.x, -dr.y);
       sp.setFromMatrix(m);
       sp.zIndex = dr.prio;
       cell.addChild(sp);
