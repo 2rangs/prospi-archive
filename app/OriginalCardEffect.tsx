@@ -192,7 +192,7 @@ export default function OriginalCardEffect({
         key={`${item.role}-${item.name}-${index}`}
         className={`fx-sprite fx-${item.kind}`}
         style={spriteStyle(item, plan)}
-        src={`/effects/sprites/${src}.png`}
+        src={`/effects/sprites-webp/${src}.webp`}
         alt=""
         loading="lazy"
         decoding="async"

@@ -242,7 +242,7 @@ function lightTexture(cv: HTMLCanvasElement, px: Uint8ClampedArray,
 }
 
 function computeIntensity(cell: Cell, additive = true): Texture | null {
-  const url = `/effects/sprites/${cell.file}.png`;
+  const url = `/effects/sprites-webp/${cell.file}.webp`;
   const key = `${cell.file}|${additive ? "a" : "m"}`;
   const plain = Texture.from(url);
   if (!plain) return null;
@@ -361,7 +361,7 @@ function computeIntensity(cell: Cell, additive = true): Texture | null {
 const urlCache = new Map<string, string>();
 function spriteUrl(file: string): string {
   let u = urlCache.get(file);
-  if (!u) { u = `/effects/sprites/${file}.png`; urlCache.set(file, u); }
+  if (!u) { u = `/effects/sprites-webp/${file}.webp`; urlCache.set(file, u); }
   return u;
 }
 
@@ -446,7 +446,7 @@ export function cellUrls(doc: AnssDocument) {
        *   버려진 뒤였다.
        * [신뢰도] CONFIRMED (드롭 카운터 계측)
        */
-      if (c.file) set.add(`/effects/sprites/${c.file}.png`);
+      if (c.file) set.add(`/effects/sprites-webp/${c.file}.webp`);
       if (uv && c.sheet) set.add(`/effects/sheets/${c.sheet}.png`);
     }
   }
