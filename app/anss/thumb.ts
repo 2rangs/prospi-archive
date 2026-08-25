@@ -184,7 +184,9 @@ async function mount(effectId: number) {
   slot.size = got.size;
   const urls = cellUrls(doc);
   if (urls.length) await Assets.load(urls).catch(() => undefined);
-  await prepare(doc);
+  // _S 는 UV 트랙이 있어도 전체 시트가 아니라 베이크된 아이콘 셀을 그리므로
+  // 그 셀까지 캐시에 올려야 한다. 빠지면 캔버스만 있고 배경은 투명해진다.
+  await prepare(doc, true);
   slot.doc = doc; slot.ready = true;
 }
 

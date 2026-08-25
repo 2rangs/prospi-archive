@@ -464,7 +464,7 @@ export function cellUrls(doc: AnssDocument) {
  * [처리] 문서를 바꿀 때 필요한 셀·시트를 모두 훑어 미리 계산하고, 8개마다 한 번씩
  *   프레임을 양보해 한 번에 오래 멈추지 않게 한다. 렌더 루프는 캐시만 조회한다.
  */
-export async function prepare(doc: AnssDocument): Promise<void> {
+export async function prepare(doc: AnssDocument, includeUvCells = false): Promise<void> {
   const cells = new Map<string, { cell: Cell; additive: boolean; uv: boolean }>();
   const sheets = new Map<string, boolean>();
   for (const p of doc.parts) {
@@ -489,8 +489,9 @@ export async function prepare(doc: AnssDocument): Promise<void> {
     await yieldSoon();
   }
   for (const { cell, additive, uv } of cells.values()) {
-    // UV 파츠는 시트 텍스처를 쓰므로 셀 크롭 변환은 필요 없다
-    if (!uv) computeIntensity(cell, additive);
+    // 상세(_L)는 UV 파츠에 시트를 쓰지만 아이콘(_S)은 베이크된 셀을 그대로
+    // 그린다. 아이콘 로더는 includeUvCells=true 로 셀 텍스처도 준비해야 한다.
+    if (!uv || includeUvCells) computeIntensity(cell, additive);
     await yieldSoon();
   }
 }
