@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Application, Container, Sprite, Texture, Matrix, Assets } from "pixi.js";
+import { fetchGzipJson } from "./anss/fetchGzip";
 
 /**
  * WebGL(PixiJS) 재현. AnimSSPlayer(DOM)와 같은 키프레임 모델을 쓰되,
@@ -33,9 +34,7 @@ type AnimDoc = { effectId: number; canvasW: number; canvasH: number; stageW?: nu
 const docCache = new Map<number, AnimDoc | null>();
 function loadDoc(effectId: number) {
   if (docCache.has(effectId)) return Promise.resolve(docCache.get(effectId)!);
-  return fetch(`/effects/anim/${effectId}.json`)
-    .then(r => (r.ok ? r.json() : null))
-    .catch(() => null)
+  return fetchGzipJson<AnimDoc>(`/effects/anim-gz/${effectId}.json.gz`)
     .then((d: AnimDoc | null) => { docCache.set(effectId, d); return d; });
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { fetchGzipJson } from "./anss/fetchGzip";
 
 /**
  * Plays the app's own AnimSS animation data. (v2)
@@ -68,9 +69,7 @@ function loadDoc(effectId: number) {
   if (docCache.has(effectId)) return Promise.resolve(docCache.get(effectId)!);
   let p = inflight.get(effectId);
   if (!p) {
-    p = fetch(`/effects/anim/${effectId}.json`)
-      .then(r => (r.ok ? r.json() : null))
-      .catch(() => null)
+    p = fetchGzipJson<AnimDoc>(`/effects/anim-gz/${effectId}.json.gz`)
       .then((doc: AnimDoc | null) => { docCache.set(effectId, doc); inflight.delete(effectId); return doc; });
     inflight.set(effectId, p);
   }
