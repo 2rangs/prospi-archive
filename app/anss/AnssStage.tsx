@@ -97,8 +97,10 @@ const loadedTextureCache = new Map<string, Texture>();
  */
 export async function loadCellTextures(urls: string[]): Promise<void> {
   await Promise.all(urls.map(async url => {
-    const tex = await Assets.load<Texture>(url);
-    if (tex?.source) loadedTextureCache.set(url, tex);
+    // 배포 서버가 WebP를 application/octet-stream으로 보내므로 확장자 자동 감지에
+    // 맡기지 않는다. 카드 이미지와 동일하게 Pixi 텍스처 파서를 명시한다.
+    const tex = await Assets.load<Texture>({ src: url, parser: "loadTextures" });
+    if (tex) loadedTextureCache.set(url, tex);
   }));
 }
 
