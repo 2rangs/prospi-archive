@@ -90,14 +90,14 @@ const sheetCache = new Map<string, Texture | null>();
 
 /** 렌더 루프용: 준비 단계에서 만들어 둔 것만 쓴다. */
 function sheetTexture(sheet: string, additive: boolean): Texture | null {
-  const url = `/effects/sheets/${sheet}.png`;
+  const url = `/effects/sheets-webp/${sheet}.webp`;
   if (!additive) return Texture.from(url);
   if (sheetCache.has(sheet)) return sheetCache.get(sheet) ?? Texture.from(url);
   return Texture.from(url);
 }
 
 function computeSheet(sheet: string, additive: boolean): Texture | null {
-  const url = `/effects/sheets/${sheet}.png`;
+  const url = `/effects/sheets-webp/${sheet}.webp`;
   const plain = Texture.from(url);
   if (!plain) return null;
   if (!additive) return plain;
@@ -447,7 +447,7 @@ export function cellUrls(doc: AnssDocument) {
        * [신뢰도] CONFIRMED (드롭 카운터 계측)
        */
       if (c.file) set.add(`/effects/sprites-webp/${c.file}.webp`);
-      if (uv && c.sheet) set.add(`/effects/sheets/${c.sheet}.png`);
+      if (uv && c.sheet) set.add(`/effects/sheets-webp/${c.sheet}.webp`);
     }
   }
   return Array.from(set);

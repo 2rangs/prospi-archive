@@ -29,9 +29,8 @@ export function loadAnss(effectId: number, size: AnssSize = "L") {
   if (cache.has(key)) return Promise.resolve(cache.get(key)!);
   let p = inflight.get(key);
   if (!p) {
-    p = (size === "S"
-      ? fetchDoc(`/effects/anim-s/${effectId}.json`)
-      : fetchGzipJson<AnssDocument>(`/effects/anim-gz/${effectId}.json.gz`))
+    p = fetchGzipJson<AnssDocument>(
+      `/effects/anim${size === "S" ? "-s" : ""}-gz/${effectId}.json.gz`)
       .then((doc: AnssDocument | null) => {
         cache.set(key, doc);
         inflight.delete(key);
