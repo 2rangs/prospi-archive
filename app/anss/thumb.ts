@@ -1,9 +1,9 @@
 "use client";
 
-import { Application, Assets, Container, Matrix, Mesh, MeshGeometry, Sprite } from "pixi.js";
+import { Application, Container, Matrix, Mesh, MeshGeometry, Sprite } from "pixi.js";
 import { useEffect, useState } from "react";
 import { evaluate } from "./evaluate";
-import { cellTexture, cellUrls, flatTint, pixiBlend, prepare, sheetTexture } from "./AnssStage";
+import { cellTexture, cellUrls, flatTint, loadCellTextures, pixiBlend, prepare, sheetTexture } from "./AnssStage";
 import { AnssSize, loadAnssIcon } from "./useAnss";
 import { AnssDocument, CARD_ART_H } from "./types";
 
@@ -183,7 +183,7 @@ async function mount(effectId: number) {
   const { doc } = got;
   slot.size = got.size;
   const urls = cellUrls(doc);
-  if (urls.length) await Assets.load(urls).catch(() => undefined);
+  if (urls.length) await loadCellTextures(urls).catch(() => undefined);
   // _S 는 UV 트랙이 있어도 전체 시트가 아니라 베이크된 아이콘 셀을 그리므로
   // 그 셀까지 캐시에 올려야 한다. 빠지면 캔버스만 있고 배경은 투명해진다.
   await prepare(doc, true);

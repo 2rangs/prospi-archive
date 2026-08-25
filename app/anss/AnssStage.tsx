@@ -87,18 +87,36 @@ const intensityCache = new Map<string, Texture | null>();
  * 바꿔야 한다(셀 크롭과 같은 규칙). 시트 해시로 캐시한다.
  */
 const sheetCache = new Map<string, Texture | null>();
+const loadedTextureCache = new Map<string, Texture>();
+
+/**
+ * Assets.load(array)의 반환값만 믿고 뒤에서 Texture.from(url)을 호출하면 Pixi v8의
+ * URL alias 캐시에 없는 경우가 있다. 실제로 아이콘 캔버스에서 파일은 200인데
+ * `Asset id ... was not found in the Cache`가 반복되며 투명 배경이 됐다.
+ * 로드된 Texture를 URL별로 직접 보관해 두 렌더러가 같은 객체를 사용한다.
+ */
+export async function loadCellTextures(urls: string[]): Promise<void> {
+  await Promise.all(urls.map(async url => {
+    const tex = await Assets.load<Texture>(url);
+    if (tex?.source) loadedTextureCache.set(url, tex);
+  }));
+}
+
+function loadedTexture(url: string): Texture {
+  return loadedTextureCache.get(url) ?? Texture.from(url);
+}
 
 /** 렌더 루프용: 준비 단계에서 만들어 둔 것만 쓴다. */
 export function sheetTexture(sheet: string, additive: boolean): Texture | null {
   const url = `/effects/sheets-webp/${sheet}.webp`;
-  if (!additive) return Texture.from(url);
-  if (sheetCache.has(sheet)) return sheetCache.get(sheet) ?? Texture.from(url);
-  return Texture.from(url);
+  if (!additive) return loadedTexture(url);
+  if (sheetCache.has(sheet)) return sheetCache.get(sheet) ?? loadedTexture(url);
+  return loadedTexture(url);
 }
 
 function computeSheet(sheet: string, additive: boolean): Texture | null {
   const url = `/effects/sheets-webp/${sheet}.webp`;
-  const plain = Texture.from(url);
+  const plain = loadedTexture(url);
   if (!plain) return null;
   if (!additive) return plain;
   const key = sheet;
@@ -155,8 +173,8 @@ function computeSheet(sheet: string, additive: boolean): Texture | null {
 function intensityTexture(cell: Cell, additive = true): Texture | null {
   const url = spriteUrl(cell.file);
   const ikey = `${cell.file}|${additive ? "a" : "m"}`;
-  if (intensityCache.has(ikey)) return intensityCache.get(ikey) ?? Texture.from(url);
-  return Texture.from(url);
+  if (intensityCache.has(ikey)) return intensityCache.get(ikey) ?? loadedTexture(url);
+  return loadedTexture(url);
 }
 
 /**
@@ -244,7 +262,7 @@ function lightTexture(cv: HTMLCanvasElement, px: Uint8ClampedArray,
 function computeIntensity(cell: Cell, additive = true): Texture | null {
   const url = `/effects/sprites-webp/${cell.file}.webp`;
   const key = `${cell.file}|${additive ? "a" : "m"}`;
-  const plain = Texture.from(url);
+  const plain = loadedTexture(url);
   if (!plain) return null;
   if (intensityCache.has(key)) return intensityCache.get(key) ?? plain;
   const src = plain.source?.resource as CanvasImageSource | undefined;
@@ -370,7 +388,7 @@ export function cellTexture(cell: Cell, v?: VCol, additive = false): Texture | n
   // prepare()가 강도맵 변환뿐 아니라 atlas crop 경계도 판정한다. 알파가 있는
   // 일반 블렌드 셀도 가장자리 보정 대상일 수 있으므로 같은 캐시를 통과시킨다.
   const base = intensityTexture(cell, additive);
-  const plain = base ?? Texture.from(url);
+  const plain = base ?? loadedTexture(url);
   if (!plain) return null;
   if (!v || v.blend === 0) return plain;
 
@@ -985,7 +1003,7 @@ export default function AnssStage({
     if (!doc) return;
     let alive = true;
     const urls = cellUrls(doc);
-    (urls.length ? Assets.load(urls).catch(() => undefined) : Promise.resolve())
+    (urls.length ? loadCellTextures(urls).catch(() => undefined) : Promise.resolve())
       .then(() => (alive ? prepare(doc) : undefined))
       .then(() => { if (alive) readyRef.current = doc.effectId; });
     return () => { alive = false; };
