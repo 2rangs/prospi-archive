@@ -1,64 +1,109 @@
 @import "tailwindcss";
-:root{--ink:#15171a;--muted:#70747b;--line:#e1e3e6;--red:#e62935;--green:#00a66a}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#eceeed;color:var(--ink);font-family:Arial,"Noto Sans KR","Noto Sans JP",sans-serif}button,input,select{font:inherit}button,a{color:inherit}button{cursor:pointer}main{max-width:1280px;margin:auto;min-height:100vh;background:#fafaf9;box-shadow:0 0 50px rgba(0,0,0,.05)}
-.topbar{height:78px;display:flex;align-items:center;padding:0 4.5vw;border-bottom:1px solid var(--line);background:rgba(250,250,249,.92);position:sticky;top:0;z-index:20;backdrop-filter:blur(14px)}.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:11px;line-height:1.05;letter-spacing:.12em}.brand b{font-size:13px}.brand-glyph{display:grid;place-items:center;width:36px;height:36px;color:#fff;background:var(--red);font-weight:900;font-size:21px;font-style:italic;clip-path:polygon(0 0,100% 0,82% 100%,0 100%)}nav{display:flex;gap:34px;margin-left:8vw;height:100%;align-items:center}nav a{text-decoration:none;font-size:13px;font-weight:700;color:#8b8e92;position:relative;height:100%;display:flex;align-items:center}nav a.active{color:var(--ink)}nav a.active:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--red)}.live{margin-left:auto;font:700 10px/1 monospace;letter-spacing:.12em}.live span,.green-dot{display:inline-block;width:7px;height:7px;background:var(--green);border-radius:50%;margin-right:8px;box-shadow:0 0 0 4px #d8f3e8}
-.hero{padding:76px 4.5vw 54px;display:flex;justify-content:space-between;align-items:flex-end;background:linear-gradient(125deg,#fbfbfa 60%,#f0f1f1);position:relative;overflow:hidden}.hero:after{content:"A";position:absolute;right:2vw;top:-90px;font-size:330px;font-weight:950;font-style:italic;color:#e9eaeb;z-index:0}.hero>div{position:relative;z-index:1}.eyebrow{font:700 11px/1 monospace;letter-spacing:.19em;color:var(--red);margin:0 0 22px}.hero h1{font-size:clamp(44px,5vw,74px);line-height:1.02;letter-spacing:-.055em;margin:0;font-weight:850}.hero h1 em{font-style:normal;color:var(--red)}.hero-copy{font-size:15px;line-height:1.8;color:var(--muted);margin:26px 0 0}.hero-stats{display:flex!important;gap:48px;margin-right:5vw}.hero-stats div{display:flex;flex-direction:column}.hero-stats strong{font:800 28px/1 monospace;letter-spacing:-.06em}.hero-stats span{font-size:10px;color:var(--muted);margin-top:10px;letter-spacing:.08em}
-.finder{padding:26px 4.5vw 30px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff}.searchbox{height:58px;border:1px solid #cfd2d5;background:#fafafa;display:flex;align-items:center;padding:0 18px;max-width:780px}.searchbox>span{font-size:29px;transform:rotate(-20deg);margin-right:12px}.searchbox input{border:0;outline:0;background:transparent;flex:1;font-size:14px}.select-row{display:flex;align-items:end;gap:10px;margin-top:18px;flex-wrap:wrap}.select-row label{display:flex;flex-direction:column;gap:7px;font-size:9px;font-weight:800;color:#777;letter-spacing:.08em}.select-row select{min-width:130px;height:38px;border:1px solid #d8dade;background:#fff;padding:0 11px;font-size:11px;font-weight:700}.select-row button{height:38px;border:1px solid #222;background:#222;color:#fff;padding:0 16px;font-size:10px;font-weight:700}
-.results-head{padding:42px 4.5vw 20px;display:flex;align-items:center;justify-content:space-between}.results-head>div,.pipeline>div:first-child{display:flex;align-items:center;gap:12px}.results-head h2,.pipeline h2{font-size:20px;margin:0;letter-spacing:-.03em}.section-index{font:700 10px/1 monospace;color:var(--red);border-right:1px solid #bbb;padding-right:10px}.count{background:#e9eaeb;border-radius:20px;font:700 10px/1 monospace;padding:6px 8px}.results-head p{font:600 10px/1 monospace;color:#676b70;letter-spacing:.05em}
-.player-grid{padding:0 4.5vw 30px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.player-card{background:#fff;border:1px solid #dcdee1;transition:.2s ease;min-width:0}.player-card:hover{transform:translateY(-4px);box-shadow:0 16px 36px rgba(20,25,30,.1);border-color:#b8bbc0}.photo-wrap{height:205px;position:relative;display:grid;place-items:center;overflow:hidden;background:linear-gradient(145deg,#f1f2f2,#dedfe1)}.photo-wrap:before{content:"";position:absolute;width:150px;height:150px;border:1px solid rgba(0,0,0,.08);border-radius:50%}.photo-wrap img{width:165px;height:165px;object-fit:contain;z-index:1;filter:drop-shadow(0 16px 15px rgba(0,0,0,.2))}.series-pill{position:absolute;top:11px;left:11px;background:var(--ink);color:#fff;font:700 8px/1 monospace;padding:6px 8px;letter-spacing:.08em;z-index:2}.verified-badge{position:absolute;right:9px;bottom:9px;background:#fff;padding:6px 7px;font-size:8px;font-weight:800;z-index:2}.verified-badge.changed{color:#a65b00}.card-body{padding:15px}.reading{font:700 7px/1 monospace;letter-spacing:.1em;color:#999;margin:0 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.card-body h2{font-size:16px;margin:0;letter-spacing:-.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.quick-stats,.detail-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:13px}.stat{min-width:0;background:#f3f4f4;padding:7px;display:grid;grid-template-columns:1fr auto;align-items:end}.stat span{grid-column:1/-1;font-size:7px;color:#888}.stat strong{font:800 14px/1 monospace;margin-top:5px}.stat b{font:800 9px/1 monospace;color:var(--red)}.source-row{border-top:1px solid #eceef0;margin-top:12px;padding-top:11px;display:flex;align-items:center;gap:7px}.source-dot{width:6px;height:6px;border:2px solid var(--red);border-radius:50%}.source-row div{display:flex;flex-direction:column;min-width:0}.source-row small{font:700 6px/1 monospace;color:#a0a3a7}.source-row strong{font:700 8px/1.6 monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.source-row button{margin-left:auto;border:0;background:#f0f1f2;min-width:27px;height:27px;font-size:14px}.pagination{display:flex;justify-content:center;align-items:center;gap:20px;padding:0 4.5vw 70px}.pagination button{height:40px;border:1px solid #d4d6d8;background:#fff;padding:0 18px;font-size:10px;font-weight:800}.pagination button:disabled{opacity:.35;cursor:not-allowed}.pagination span{font:700 11px/1 monospace}.pagination b{color:var(--red)}
-.pipeline{background:#17191c;color:#fff;padding:58px 4.5vw}.pipeline .section-index{color:#ff4853;border-color:#555}.pipeline-grid{display:grid!important;grid-template-columns:repeat(4,1fr);gap:1px!important;background:#393b3e;margin-top:30px}.pipeline-grid>div{background:#17191c;padding:28px;min-height:160px}.pipeline-grid b{font:700 11px/1 monospace;color:#ff4853}.pipeline-grid span{display:block;font-size:15px;font-weight:800;margin:22px 0 9px}.pipeline-grid p{font-size:11px;color:#9da0a5;line-height:1.7;margin:0}footer{min-height:90px;padding:0 4.5vw;display:flex;align-items:center;border-top:1px solid #303236;background:#17191c;color:#74777c;font:600 9px/1 monospace;letter-spacing:.06em}footer p{margin-left:40px}footer>span{margin-left:auto}.mini{color:#fff}.mini .brand-glyph{width:28px;height:28px;font-size:16px}
-@media(max-width:1000px){.player-grid{grid-template-columns:repeat(2,1fr)}.hero{align-items:flex-start;flex-direction:column;gap:48px}.hero-stats{margin:0}.pipeline-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:640px){.topbar{height:64px;padding:0 20px}nav{display:none}.live{font-size:8px}.hero{padding:54px 20px 40px}.hero:after{font-size:230px;right:-30px}.hero h1{font-size:44px}.hero-copy br{display:none}.hero-stats{gap:22px}.hero-stats strong{font-size:21px}.finder,.results-head,.player-grid,.pipeline{padding-left:20px;padding-right:20px}.results-head{align-items:flex-start}.results-head p{display:none}.player-grid{grid-template-columns:1fr}.photo-wrap{height:280px}.filter-row{align-items:flex-end}.view-toggle{display:none}.list-view .player-card{display:block}.pipeline-grid{grid-template-columns:1fr}.pipeline-grid>div{min-height:125px}footer{padding:28px 20px;flex-wrap:wrap;gap:16px}footer p{margin:0;width:100%;order:3}footer>span{margin-left:auto}}
-.player-card{cursor:pointer}.modal-backdrop{position:fixed;inset:0;background:rgba(11,13,16,.76);z-index:50;display:grid;place-items:center;padding:24px;backdrop-filter:blur(8px)}.detail-modal{width:min(980px,100%);max-height:92vh;background:#fff;display:grid;grid-template-columns:minmax(340px,44%) 1fr;position:relative;overflow:auto;box-shadow:0 34px 100px rgba(0,0,0,.4)}.modal-close{position:absolute;right:16px;top:16px;width:38px;height:38px;border:1px solid #dfe1e4;background:#fff;font-size:25px;z-index:4}.detail-art{min-height:650px;background:linear-gradient(145deg,#eceeef,#d8dade);position:relative;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}.detail-art:before{content:"";position:absolute;width:440px;height:440px;border-radius:50%;border:1px solid rgba(0,0,0,.09);top:80px}.detail-art:after{content:"";position:absolute;inset:auto 0 0;height:9px;background:var(--accent)}.detail-art img{height:610px;width:auto;max-width:100%;object-fit:contain;position:relative;z-index:1;filter:drop-shadow(0 25px 24px rgba(0,0,0,.22))}.detail-series,.image-size{position:absolute;z-index:2;font:700 9px/1 monospace;letter-spacing:.12em}.detail-series{left:20px;top:20px;background:#17191c;color:#fff;padding:9px 11px}.image-size{right:18px;bottom:18px;background:#fff;padding:8px 10px}.detail-info{padding:64px 48px 42px}.detail-info .eyebrow{margin-bottom:26px}.detail-info .reading{font-size:10px}.detail-info h2{font-size:42px;letter-spacing:-.05em;margin:8px 0 18px}.detail-tags{display:flex;gap:7px}.detail-tags span{border:1px solid #dfe1e4;padding:7px 10px;font-size:10px;font-weight:700}.match-score{margin-top:34px;background:#17191c;color:#fff;padding:20px;display:flex;align-items:center;justify-content:space-between}.match-score div{display:flex;flex-direction:column;gap:5px}.match-score span{font-size:9px;color:#999}.match-score strong{font-size:13px}.match-score b{font:800 26px/1 monospace;color:#38d99b}.detail-info dl{margin:28px 0 0}.detail-info dl>div{display:grid;grid-template-columns:120px 1fr;padding:12px 0;border-bottom:1px solid #eceef0}.detail-info dt{font:700 9px/1.5 monospace;color:#91959a}.detail-info dd{font:700 10px/1.5 monospace;margin:0;overflow-wrap:anywhere}.proof{display:flex;gap:13px;margin-top:25px;padding:16px;background:#ecf8f3}.proof>span{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;font-weight:900}.proof p{font-size:10px;line-height:1.6;margin:0;color:#5e6763}.proof strong{color:#17211d}
-@media(max-width:700px){.modal-backdrop{padding:0;align-items:end}.detail-modal{grid-template-columns:1fr;max-height:96vh}.detail-art{min-height:390px}.detail-art img{height:370px}.detail-info{padding:34px 24px}.detail-info h2{font-size:32px}.detail-info dl>div{grid-template-columns:100px 1fr}}
-.detail-modal{width:min(1080px,100%)}.detail-info{padding:52px 42px 38px}.detail-info h3{font-size:11px;margin:26px 0 9px;color:#72767b;letter-spacing:.06em}.detail-info .detail-stats{grid-template-columns:repeat(4,1fr);margin-top:0}.detail-info .detail-stats .stat{padding:10px}
-@media(max-width:1000px) and (min-width:641px){.player-grid{grid-template-columns:repeat(3,1fr)}}
+:root{--ink:#15171a;--muted:#70747b;--line:#e1e3e6;--red:#e62935;--green:#00a66a}
+*{box-sizing:border-box}
+button,input,select{font:inherit}
+button,a{color:inherit}
+button{cursor:pointer}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:11px;line-height:1.05;letter-spacing:.12em}
+.brand b{font-size:13px}
+nav{display:flex;gap:34px;margin-left:8vw;height:100%;align-items:center}
+.live span,.green-dot{display:inline-block;width:7px;height:7px;background:var(--green);border-radius:50%;margin-right:8px;box-shadow:0 0 0 4px #d8f3e8}
+.eyebrow{font:700 11px/1 monospace;letter-spacing:.19em;color:var(--red);margin:0 0 22px}
+.hero-stats div{display:flex;flex-direction:column}
+.finder{padding:26px 4.5vw 30px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#fff}
+.searchbox>span{font-size:29px;transform:rotate(-20deg);margin-right:12px}
+.select-row{display:flex;align-items:end;gap:10px;margin-top:18px;flex-wrap:wrap}
+.results-head{padding:42px 4.5vw 20px;display:flex;align-items:center;justify-content:space-between}
+.results-head>div,.pipeline>div:first-child{display:flex;align-items:center;gap:12px}
+.results-head h2,.pipeline h2{font-size:20px;margin:0;letter-spacing:-.03em}
+.reading{font:700 7px/1 monospace;letter-spacing:.1em;color:#999;margin:0 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quick-stats,.detail-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:13px}
+.stat{min-width:0;background:#f3f4f4;padding:7px;display:grid;grid-template-columns:1fr auto;align-items:end}
+.stat span{grid-column:1/-1;font-size:7px;color:#888}
+.stat strong{font:800 14px/1 monospace;margin-top:5px}
+.stat b{font:800 9px/1 monospace;color:var(--red)}
+.source-dot{width:6px;height:6px;border:2px solid var(--red);border-radius:50%}
+.pagination{display:flex;justify-content:center;align-items:center;gap:20px;padding:0 4.5vw 70px}
+.pagination button:disabled{opacity:.35;cursor:not-allowed}
+.pipeline{background:#17191c;color:#fff;padding:58px 4.5vw}
+.pipeline .section-index{color:#ff4853;border-color:#555}
+.pipeline-grid span{display:block;font-size:15px;font-weight:800;margin:22px 0 9px}
+footer p{margin-left:40px}
+footer>span{margin-left:auto}
+.mini{color:#fff}
+.mini .brand-glyph{width:28px;height:28px;font-size:16px}
+@media(max-width:1000px){.hero{align-items:flex-start;flex-direction:column;gap:48px}.hero-stats{margin:0}.pipeline-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){.topbar{height:64px;padding:0 20px}nav{display:none}.live{font-size:8px}.hero{padding:54px 20px 40px}.hero:after{font-size:230px;right:-30px}.hero h1{font-size:44px}.hero-copy br{display:none}.hero-stats{gap:22px}.hero-stats strong{font-size:21px}.finder,.results-head,.pipeline{padding-left:20px;padding-right:20px}.results-head{align-items:flex-start}.results-head p{display:none}.pipeline-grid{grid-template-columns:1fr}.pipeline-grid>div{min-height:125px}footer{padding:28px 20px;flex-wrap:wrap;gap:16px}footer p{margin:0;width:100%;order:3}footer>span{margin-left:auto}}
+.detail-series,.image-size{position:absolute;z-index:2;font:700 9px/1 monospace;letter-spacing:.12em}
+.image-size{right:18px;bottom:18px;background:#fff;padding:8px 10px}
+.detail-info h2{font-size:42px;letter-spacing:-.05em;margin:8px 0 18px}
+@media(max-width:700px){.detail-info{padding:34px 24px}.detail-info h2{font-size:32px}.detail-info dl>div{grid-template-columns:100px 1fr}}
+.detail-info{padding:52px 42px 38px}
+.detail-info .detail-stats{grid-template-columns:repeat(4,1fr);margin-top:0}
+.detail-info .detail-stats .stat{padding:10px}
 @media(max-width:640px){.select-row{align-items:flex-end}.select-row label,.select-row select{width:100%}.detail-info{padding:34px 24px}.detail-info .detail-stats{grid-template-columns:repeat(2,1fr)}}
-
 /* Compact player database list */
 .type-tabs{display:flex;margin-bottom:18px;border-bottom:1px solid var(--line)}
-.type-tabs button{min-width:110px;height:45px;border:0;border-bottom:3px solid transparent;background:transparent;color:#777;font-size:13px;font-weight:800}
-.type-tabs button.active{border-bottom-color:var(--red);color:var(--ink)}
-.player-table{margin:0 4.5vw 30px;border:1px solid #d9dcdf;background:#fff;overflow-x:auto}
 .table-head,.player-row{display:grid;align-items:center;min-width:1000px}
 .player-table.batter .table-head,.player-table.batter .player-row{grid-template-columns:minmax(245px,2.5fr) 90px repeat(6,minmax(68px,.72fr)) 34px}
 .player-table.pitcher .table-head,.player-table.pitcher .player-row{grid-template-columns:minmax(245px,2.5fr) 90px 115px 90px 110px 90px 75px 34px}
-.table-head{height:42px;background:#202226;color:#fff;padding:0 13px;font-size:9px;font-weight:800;letter-spacing:.04em;text-align:center}
 .table-head span:first-child{text-align:left;padding-left:4px}
-.player-row{width:100%;min-height:70px;padding:5px 13px;border:0;border-top:1px solid #e6e8ea;background:#fff;text-align:center;transition:background .12s ease}
-.player-row{text-decoration:none;position:relative}
-.player-row:hover{background:#f6f7f7}
 .player-identity{display:flex;align-items:center;gap:12px;text-align:left;min-width:0}
-.row-photo{display:grid;place-items:center;flex:0 0 58px;width:58px;height:58px;overflow:hidden;background:linear-gradient(145deg,#f0f1f2,#e2e4e5)}
 .row-photo img{width:55px;height:55px;object-fit:contain;filter:drop-shadow(0 5px 4px rgba(0,0,0,.18))}
 .player-identity>span:last-child{display:flex;flex-direction:column;min-width:0}
-.player-identity strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.player-identity small{margin-top:6px;color:#91959a;font:700 8px/1 monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .series-cell{display:flex;flex-direction:column;gap:5px}
-.series-cell b{font:800 12px/1 monospace}.series-cell small{color:#85898e;font:700 8px/1 monospace}
+.series-cell b{font:800 12px/1 monospace}
 .score{display:flex;align-items:center;justify-content:center;gap:5px;font-style:normal}
-.score b{font:800 13px/1 monospace}.score em{display:grid;place-items:center;width:19px;height:19px;border-radius:3px;background:#eef0f1;color:var(--red);font:900 10px/1 monospace}
-.level-cell{color:#448ccf;font-size:10px;letter-spacing:1px}.pitch-count{font-size:10px;font-weight:800}.row-arrow{font-size:22px;color:#b2b5b9}
+.score b{font:800 13px/1 monospace}
+.score em.grade{width:20px;height:20px}
+.level-cell{color:#448ccf;font-size:10px;letter-spacing:1px}
+.pitch-count{font-size:10px;font-weight:800}
 .pitch-table{border:1px solid #dfe1e4;background:#fff}
 .pitch-head,.pitch-row{display:grid;grid-template-columns:minmax(170px,1fr) 48px 90px 72px;align-items:center}
 .pitch-head{height:34px;background:#24262a;color:#fff;padding:0 12px;font-size:8px;font-weight:800;text-align:center}
 .pitch-head span:first-child{text-align:left}
 .pitch-row{min-height:43px;padding:5px 12px;border-top:1px solid #e9ebed;font-size:10px;text-align:center}
-.pitch-row>span:first-child{display:flex;align-items:center;gap:10px;text-align:left}.pitch-row i{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#edf1f4;color:#186faa;font-style:normal;font-size:16px}.pitch-row strong{font-size:11px}
-.pitch-row>b{font:800 10px/1 monospace}.pitch-level{color:#3388c8;letter-spacing:1px}.rank{display:grid;place-items:center;margin:auto;width:22px;height:22px;border-radius:3px;color:#fff;font-weight:900}.rank-a{background:#e54343}.rank-b{background:#ee8c27}.rank-c{background:#b7a120}.rank-d{background:#4c9a5c}.rank-e{background:#4681b3}.rank-f{background:#777}
+.pitch-row>span:first-child{display:flex;align-items:center;gap:10px;text-align:left}
+.pitch-row i{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#edf1f4;color:#186faa;font-style:normal;font-size:16px}
+.pitch-row strong{font-size:11px}
+.pitch-row>b{font:800 10px/1 monospace}
+.pitch-level{color:#3388c8;letter-spacing:1px}
+.rank{display:grid;place-items:center;margin:auto;width:22px;height:22px;border-radius:3px;color:#fff;font-weight:900}
+.rank-a{background:#e54343}
+.rank-b{background:#ee8c27}
+.rank-c{background:#b7a120}
+.rank-d{background:#4c9a5c}
+.rank-e{background:#4681b3}
+.rank-f{background:#777}
 @media(max-width:640px){.player-table{margin-left:20px;margin-right:20px}.row-photo{flex-basis:52px;width:52px;height:52px}.row-photo img{width:49px;height:49px}}
-
 /* Dedicated player route */
-.player-detail-page{background:#f4f5f4}.back-link{margin-left:auto;text-decoration:none;font-size:11px;font-weight:800}.detail-page{width:min(1160px,calc(100% - 64px));margin:42px auto 70px;display:grid;grid-template-columns:minmax(390px,43%) 1fr;background:#fff;box-shadow:0 22px 70px rgba(20,25,30,.09)}
-.detail-page .detail-info h1{font-size:42px;letter-spacing:-.05em;margin:8px 0 18px}.detail-page .detail-art{min-height:720px}.detail-page .detail-art img{height:680px}.detail-state{min-height:70vh;display:grid;place-content:center;gap:20px;text-align:center;color:#777}.detail-state a{color:var(--red);font-weight:800;text-decoration:none}
-
-/* Original extracted AnimSS card effects */
-.original-effect{position:absolute;inset:0;overflow:hidden;background:radial-gradient(circle at 50% 52%,#69280b 0,#20120d 35%,#08090b 76%);isolation:isolate}
-.original-effect:before,.original-effect:after{content:"";position:absolute;inset:-22%;border-radius:50%;mix-blend-mode:screen;opacity:.72}.original-effect:before{background:conic-gradient(from 0deg,transparent,#ff7a20 9%,transparent 21%,#ffe1a0 31%,transparent 43%,#ff3e18 61%,transparent 78%);filter:blur(38px);animation:effect-spin 9s linear infinite}.original-effect:after{inset:12%;background:radial-gradient(circle,#fff5c8 0,#ff8a24 7%,rgba(255,65,11,.34) 25%,transparent 64%);filter:blur(18px);animation:effect-breathe 2.2s ease-in-out infinite}
-.effect-aurora{position:absolute;inset:-25%;background:repeating-conic-gradient(from 20deg,transparent 0 10deg,rgba(255,109,22,.26) 13deg,transparent 18deg);filter:blur(11px);animation:effect-spin 17s linear infinite reverse}
-.effect-layer{position:absolute;left:50%;top:50%;width:116%;height:116%;object-fit:contain;transform-origin:center;mix-blend-mode:screen;pointer-events:none}.effect-layer-one{opacity:.72;animation:effect-layer-one 5.5s steps(10,end) infinite}.effect-layer-two{opacity:.58;animation:effect-layer-two 3.4s ease-in-out infinite}.effect-layer-three{opacity:.82;animation:effect-layer-three 7s linear infinite}.effect-flash{position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.7) 48%,transparent 60%);transform:translateX(-130%);mix-blend-mode:screen;animation:effect-flash 4.8s ease-in-out infinite}
-@keyframes effect-spin{to{transform:rotate(360deg)}}@keyframes effect-breathe{0%,100%{transform:scale(.72);opacity:.35}50%{transform:scale(1.14);opacity:.9}}@keyframes effect-layer-one{0%,100%{transform:translate(-50%,-50%) scale(.95) rotate(-4deg);filter:brightness(.85)}45%{transform:translate(-50%,-53%) scale(1.13) rotate(5deg);filter:brightness(1.45)}}@keyframes effect-layer-two{0%,100%{transform:translate(-50%,-48%) scale(.88);filter:brightness(.8) blur(1px)}50%{transform:translate(-50%,-52%) scale(1.16);filter:brightness(1.55) blur(0)}}@keyframes effect-layer-three{0%{transform:translate(-50%,-50%) rotate(0) scale(.96)}50%{transform:translate(-50%,-50%) rotate(180deg) scale(1.08)}100%{transform:translate(-50%,-50%) rotate(360deg) scale(.96)}}@keyframes effect-flash{0%,68%{transform:translateX(-130%);opacity:0}73%{opacity:1}88%,100%{transform:translateX(130%);opacity:0}}
-.effect-showcase{display:grid;grid-template-columns:minmax(460px,1.05fr) 1fr;min-height:570px;background:#111317;color:#fff;border-top:1px solid #25282d;border-bottom:1px solid #25282d}.effect-demo{position:relative;min-height:570px;overflow:hidden}.effect-player{position:absolute;z-index:3;left:50%;bottom:-2%;height:94%;width:94%;transform:translateX(-50%);object-fit:contain;filter:drop-shadow(0 28px 24px rgba(0,0,0,.5))}.effect-live,.effect-id-label{position:absolute;z-index:5;background:rgba(12,14,17,.84);border:1px solid rgba(255,255,255,.2);color:#fff;padding:9px 11px;font:800 9px/1 monospace;letter-spacing:.1em;backdrop-filter:blur(8px)}.effect-live{left:22px;top:22px}.effect-live i,.effect-id-label i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff563f;margin-right:7px;box-shadow:0 0 12px #ff563f;animation:effect-live 1s ease-in-out infinite}@keyframes effect-live{50%{opacity:.35;transform:scale(.72)}}.effect-copy{padding:84px 7vw 60px;display:flex;flex-direction:column;justify-content:center}.effect-copy h2{font-size:clamp(36px,4vw,58px);line-height:1.04;letter-spacing:-.055em;margin:0}.effect-copy h2 em{font-style:normal;color:#ff603f}.effect-copy>p:not(.eyebrow){max-width:480px;color:#aeb1b6;font-size:13px;line-height:1.8;margin:24px 0 30px}.effect-copy dl{margin:0;border-top:1px solid #34373c}.effect-copy dl div{display:grid;grid-template-columns:100px 1fr;padding:14px 0;border-bottom:1px solid #34373c}.effect-copy dt{font-size:9px;color:#73777e}.effect-copy dd{margin:0;font:700 10px/1.4 monospace;color:#e9eaec}.effect-id-label{left:18px;bottom:18px}.detail-art>.original-effect{z-index:0}.detail-art .effect-layer{width:116%;height:116%;max-width:none}.detail-art .detail-player-image{z-index:2}.detail-art .detail-series,.detail-art .image-size{z-index:5}
-@media(prefers-reduced-motion:reduce){.original-effect *,.original-effect:before,.original-effect:after,.effect-live i,.effect-id-label i{animation:none!important}}
-
+.player-detail-page{background:#f4f5f4}
+.detail-page .detail-info h1{font-size:42px;letter-spacing:-.05em;margin:8px 0 18px}
+.detail-page .detail-state{min-height:70vh;display:grid;place-content:center;gap:20px;text-align:center;color:#777}
+.detail-state a{color:var(--red);font-weight:800;text-decoration:none}
+/* Original AnimSS05 card effects, composited from the app's own sprite cells. */
+/* Two stacks: *_b* parts draw behind the player image, *_f* parts in front. */
+.fx{position:absolute;inset:0;overflow:hidden;pointer-events:none;isolation:isolate}
+.fx-back{z-index:0;background:radial-gradient(circle at 50% 56%,#191a20 0,#0d0e12 52%,#07080a 100%)}
+.fx-front{z-index:4;background:none}
+.fx-sprite{position:absolute;left:50%;top:50%;height:auto;max-width:none;mix-blend-mode:screen}
+@supports (mix-blend-mode:plus-lighter){.fx-sprite{mix-blend-mode:plus-lighter}}
+.effect-showcase{display:grid;grid-template-columns:minmax(460px,1.05fr) 1fr;min-height:570px;background:#111317;color:#fff;border-top:1px solid #25282d;border-bottom:1px solid #25282d}
+.effect-player{position:absolute;z-index:3;left:50%;bottom:-2%;height:94%;width:94%;transform:translateX(-50%);object-fit:contain;filter:drop-shadow(0 28px 24px rgba(0,0,0,.5))}
+.effect-live,.effect-id-label{position:absolute;z-index:5;background:rgba(12,14,17,.84);border:1px solid rgba(255,255,255,.2);color:#fff;padding:9px 11px;font:800 9px/1 monospace;letter-spacing:.1em;backdrop-filter:blur(8px)}
+.effect-live{left:22px;top:22px}
+@keyframes effect-live{50%{opacity:.35;transform:scale(.72)}}
+.effect-copy{padding:84px 7vw 60px;display:flex;flex-direction:column;justify-content:center}
+.effect-copy h2{font-size:clamp(36px,4vw,58px);line-height:1.04;letter-spacing:-.055em;margin:0}
+.effect-copy>p:not(.eyebrow){max-width:480px;color:#aeb1b6;font-size:13px;line-height:1.8;margin:24px 0 30px}
+.effect-copy dl{margin:0;border-top:1px solid #34373c}
+.effect-copy dl div{display:grid;grid-template-columns:100px 1fr;padding:14px 0;border-bottom:1px solid #34373c}
+.effect-copy dt{font-size:9px;color:#73777e}
+.effect-copy dd{margin:0;font:700 10px/1.4 monospace;color:#e9eaec}
+.detail-art>.fx-back{z-index:0}
+.detail-art .detail-player-image{z-index:2}
+.detail-art .detail-series,.detail-art .image-size{z-index:5}
+@media(prefers-reduced-motion:reduce){.effect-live i,.effect-id-label i{animation:none!important}}
 @media(max-width:700px){
   main{box-shadow:none}.topbar{padding:0 18px}.back-link{font-size:10px}
   .hero{gap:34px}.hero-stats{width:100%;display:grid!important;grid-template-columns:repeat(3,1fr);gap:10px}.hero-stats strong{font-size:19px}.hero-stats span{font-size:8px}
@@ -70,7 +115,1290 @@
   .score:before,.level-cell:before,.pitch-count:before{content:attr(data-label);color:#8a8e93;font-size:7px;font-weight:800;letter-spacing:.04em}
   .score b{font-size:12px}.score em{position:absolute;margin-left:35px;width:17px;height:17px;font-size:9px}.level-cell{font-size:9px}.pitch-count{font-size:10px}.row-arrow{position:absolute;right:14px;top:27px}
   .pagination{padding-bottom:48px;gap:10px}.pagination button{padding:0 13px}
-  .detail-page{width:100%;margin:0;grid-template-columns:1fr;box-shadow:none}.detail-page .detail-art{min-height:470px}.detail-page .detail-art img{height:450px}.detail-page .detail-info{padding:34px 20px 45px}.detail-page .detail-info h1{font-size:34px}.detail-page .detail-info .detail-stats{grid-template-columns:repeat(2,1fr)}
+  .detail-page{width:100%;margin:0;grid-template-columns:1fr;box-shadow:none}.detail-page .detail-page .detail-info{padding:34px 20px 45px}.detail-page .detail-info h1{font-size:34px}.detail-page .detail-info .detail-stats{grid-template-columns:repeat(2,1fr)}
   .detail-tags{flex-wrap:wrap}.pitch-table{overflow-x:auto}.pitch-head,.pitch-row{min-width:340px;grid-template-columns:minmax(135px,1fr) 42px 76px 65px}.pitch-row{padding-left:8px;padding-right:8px}.detail-info dl>div{grid-template-columns:90px minmax(0,1fr)}
   .effect-showcase{grid-template-columns:1fr;min-height:0}.effect-demo{min-height:470px}.effect-copy{padding:48px 20px}.effect-copy h2{font-size:38px}.effect-copy dl div{grid-template-columns:90px 1fr}
 }
+/* CL card-layout atlas is 512x1024: the player art sits in the top slot
+   (content measured at y12..y623 across all 12 groups) and the series and name
+   strips are baked in lower down at y777..y831 and y904..y981. Clip to the art
+   slot and render the series / name from the card data instead. */
+.detail-art{flex-direction:column;align-items:center;justify-content:center}
+.detail-page .detail-art .card-frame img.card-art,.effect-demo .card-frame img.card-art{position:absolute;left:0;top:0;width:100%;height:auto;max-width:none;z-index:2;filter:drop-shadow(0 16px 18px rgba(0,0,0,.38))}
+.card-caption{width:min(100%,420px);padding:16px 4px 0;text-align:center}
+.effect-demo .card-caption,.detail-art .card-caption{margin-top:0}
+.card-caption .cap-series{display:block;font:700 10px/1 monospace;letter-spacing:.14em;color:#7d8288;margin-bottom:9px}
+.card-caption .cap-name{display:block;font-size:24px;line-height:1.15;letter-spacing:-.03em;color:#14171a}
+.effect-demo{position:relative;min-height:570px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 20px}
+.effect-demo .card-frame,.effect-demo .card-caption{width:min(100%,360px)}
+.effect-demo .card-caption .cap-series{color:#9aa0a6}
+.effect-demo .card-caption .cap-name{color:#fff}
+@media(max-width:700px){.card-frame,.card-caption{width:min(100%,320px)}.card-caption .cap-name{font-size:21px}}
+/* The atlas keeps the game's own series and name typography in two strips.
+   Percentage vertical margins resolve against the container width, so a
+   -y/512*100% margin scrolls the 512-wide sheet to the wanted band. */
+.cap-strip{position:relative;display:block;width:100%;overflow:hidden}
+.cap-strip img{display:block;width:100%;height:auto;max-width:none}
+.detail-page .detail-art .cap-strip img,.detail-art .cap-strip img,.effect-demo .cap-strip img{width:100%;height:auto;max-width:none;object-fit:fill;filter:none;position:static}
+.cap-strip-series{aspect-ratio:512/68}
+.cap-strip-series img{margin-top:-150.390625%}
+.cap-strip-name{aspect-ratio:512/92;margin-top:6px}
+.cap-strip-name img{margin-top:-175%}
+.effect-demo .card-caption .cap-meta{color:#9aa0a6}
+.card-caption.original .cap-series,.card-caption.original .cap-name{display:none}
+/* The strips are white type cut for a dark card, so keep them on one. */
+.card-caption.original{background:#0b0c0f;padding:14px 20px 18px;text-align:center}
+.card-caption.original .cap-meta{color:#8e949b}
+/* In-game style status panel: label, meter, value, eight-tier grade chip. */
+.detail-info h3 small{margin-left:9px;font:700 9px/1 monospace;color:#9aa0a6;letter-spacing:.06em}
+.stat-list{border:1px solid #e3e5e8;background:#fff}
+.stat-row:first-child{border-top:0}
+/* 등급 = 게임 원본 80x80 아이콘(public/grade/*.png). 색은 아이콘이 갖고 있어
+   배경 뱃지를 씌우지 않는다. */
+.grade{display:grid;place-items:center;width:24px;height:24px;font-style:normal;line-height:0}
+.grade img{display:block;width:100%;height:100%;object-fit:contain;
+  image-rendering:auto;filter:drop-shadow(0 1px 1px rgba(0,0,0,.28))}
+.grade-none{width:24px;height:24px}
+/* Break chart: rays fan down from the release point, length = break level. */
+.break-chart{border:1px solid #e3e5e8;background:#fff}
+.break-chart svg{display:block;width:100%;max-width:300px;margin:14px auto 8px}
+.break-chart .guide{stroke:#e6e9ec;stroke-width:1}
+.break-chart .ray{stroke:#e0483f;stroke-linecap:round}
+.break-chart .ray.group-1{stroke:#2f7fbf}
+.break-chart .hub{fill:#1d2024}
+.break-legend{list-style:none;margin:0;padding:0;border-top:1px solid #eef0f2}
+.break-legend li{display:grid;grid-template-columns:30px 1fr 26px 68px 68px;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid #f1f3f4;font-size:11px}
+.break-legend li:first-child{border-top:0}
+.break-legend i{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#eef1f4;color:#3a4148;font-style:normal;font-size:12px}
+.break-legend span{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.break-legend b{color:#3388c8;font:800 10px/1 monospace;letter-spacing:1px;text-align:center}
+.break-legend small{font:800 10px/1 monospace;text-align:right;color:#4c5157}
+.detail-tags span.ok{border-color:#bfe4d2;background:#f0faf5;color:#0d7a4f}
+@media(max-width:640px){
+  .stat-row{grid-template-columns:56px 1fr 54px 24px;gap:8px}
+  .break-legend li{grid-template-columns:26px 1fr 24px 56px 56px;gap:6px;font-size:10px}
+}
+.proof.warn p{color:#6b5a3c}
+.proof.warn strong{color:#4a3c22}
+.proof code{font:700 9px/1 monospace;background:#f0e7d6;padding:2px 4px}
+/* Effect browser: play any of the extracted ANSS_EF effects. */
+.fx-page{width:min(1280px,calc(100% - 64px));margin:36px auto 70px;display:grid;grid-template-columns:minmax(320px,36%) 1fr;gap:0;background:#fff;box-shadow:0 22px 70px rgba(20,25,30,.09)}
+/* 원본효과 페이지 무대.
+   [문제] 캔버스는 자연 크기(스테이지x1.5, 폭 ~885px+)로 그려지는데 card-frame 이
+   overflow:hidden 이라 중앙 크롭만 보여 "배율이 안 맞아 안 보이는" 증상이 났다.
+   [처리] 선수 상세와 같은 방식: 틀은 클리핑을 풀고 무대 컬럼에서 자른다. */
+.fx-stage-col{padding:32px 26px;background:radial-gradient(circle at 50% 26%,#1b1d22,#0a0b0e 70%);overflow:hidden;position:relative}
+.fx-stage-col .card-frame{width:min(100%,420px);margin:0 auto;overflow:visible;background:transparent;box-shadow:none}
+.fx-stage-col .card-frame:before{content:"";position:absolute;inset:0;background:#0b0c0f;box-shadow:0 22px 44px rgba(0,0,0,.35);z-index:0}
+.fx-meta{margin-top:20px}
+.fx-meta dl{margin:0;border-top:1px solid #2b2e33}
+.fx-meta dl div{display:grid;grid-template-columns:96px 1fr;padding:9px 0;border-bottom:1px solid #2b2e33}
+.fx-meta dt{font:700 8px/1.6 monospace;color:#7e848b;letter-spacing:.08em}
+.fx-meta dd{margin:0;font:700 10px/1.6 monospace;color:#e7e9ea;overflow-wrap:anywhere}
+.fx-list-col{padding:38px 34px 34px;min-width:0}
+.fx-list-col h1{font-size:30px;letter-spacing:-.04em;margin:8px 0 14px}
+.fx-note{font-size:11px;line-height:1.85;color:#6c7176;margin:0 0 22px;max-width:640px}
+.fx-note code{font:700 10px/1 monospace;background:#f0f1f2;padding:2px 5px}
+.fx-count{font:800 9px/1 monospace;color:#8d9298;letter-spacing:.1em;margin:14px 0 10px}
+.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:7px;max-height:56vh;overflow-y:auto;padding-right:4px}
+.fx-grid button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;border:1px solid #e0e2e5;background:#fff;padding:9px 10px;text-align:left;cursor:pointer}
+.fx-grid button:hover{border-color:#b6babf;background:#fafbfb}
+.fx-grid button.active{border-color:var(--red);background:#fff6f6}
+.fx-grid b{font:800 11px/1 monospace}
+.fx-grid small{font:700 8px/1 monospace;color:#8d9298}
+.fx-grid em{font:700 8px/1 monospace;color:#aeb2b7;font-style:normal}
+@media(max-width:900px){
+  .fx-page{width:100%;margin:0;grid-template-columns:1fr;box-shadow:none}
+  .fx-list-col{padding:28px 20px}
+  .fx-grid{max-height:none}
+}
+.fx-empty{position:absolute;z-index:6;left:50%;top:50%;transform:translate(-50%,-50%);font:700 10px/1 monospace;color:#8a9096;letter-spacing:.1em}
+.fx-part{position:absolute;height:auto;max-width:none;transform-origin:center;mix-blend-mode:screen;will-change:transform,opacity}
+.fx-tint{display:block;height:auto}
+@supports (mix-blend-mode:plus-lighter){.fx-part{mix-blend-mode:plus-lighter}}
+/* 카드 앞/뒤 이펙트 레이어와 매칭 근거 표시 */
+.card-frame .fx-layer{position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none}
+.card-frame .fx-layer.back{z-index:1}
+.card-frame .fx-layer.front{z-index:3}
+.fx-match-head{margin:0 0 7px;font:700 10px/1.5 monospace;letter-spacing:.06em;color:#e7e9ea;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fx-match-head b{color:#fff}
+.fx-match-level{font:700 8px/1 monospace;letter-spacing:.06em;padding:4px 6px;border-radius:2px;background:#2b2e33;color:#aeb3b8}
+.fx-match-level.lv-known{background:#1d3a22;color:#77d68c}
+.fx-match-level.lv-none{background:#2b2e33;color:#aeb3b8}
+.fx-match-level.lv-rule{background:#1f3340;color:#7fc4dd}
+.fx-match-level.lv-guess{background:#3a3520;color:#d6c277}
+.fx-match-level.lv-manual{background:#20304a;color:#8fb6e8}
+.fx-match-why{margin:0;font-size:10px;line-height:1.8;color:#7e848b}
+.fx-match-why code{font:700 9px/1 monospace;color:#c9ced3;background:#20242a;padding:2px 4px}
+.fx-match-pick{margin-top:9px;width:100%;padding:7px 8px;font:700 10px/1 monospace;color:#e7e9ea;background:#20242a;border:1px solid #34383e}
+/* 이펙트 크기·위치 조절 */
+.fx-adjust{margin-top:11px;padding-top:10px;border-top:1px solid #2b2e33}
+.fx-adjust label{display:grid;grid-template-columns:26px 1fr 58px;align-items:center;gap:8px;margin-bottom:6px}
+.fx-adjust label span{font:700 9px/1 monospace;color:#7e848b;letter-spacing:.06em}
+.fx-adjust label b{font:700 10px/1 monospace;color:#e7e9ea;text-align:right}
+.fx-adjust input[type=range]{width:100%;accent-color:#d84a4a;background:transparent}
+.fx-adjust-read{margin:8px 0 0;font:700 9px/1.7 monospace;color:#6c7176;letter-spacing:.02em}
+.fx-adjust-read button{margin-left:8px;padding:3px 7px;font:700 8px/1 monospace;color:#e7e9ea;background:#2b2e33;border:1px solid #3a3e44;cursor:pointer}
+.fx-source-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;margin:12px 0;background:#343941;border:1px solid #343941}
+.fx-source-stats span{display:flex;flex-direction:column;gap:5px;min-width:0;padding:9px 7px;background:#181b20;color:#8e959e;font:700 8px/1.3 monospace;text-align:center}
+.fx-source-stats b{color:#f1f3f5;font-size:11px}
+@media(max-width:640px){.fx-source-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.fx-source-stats span:last-child{grid-column:1/-1}}
+/* 이펙트가 카드 틀 밖으로 나가도 잘리지 않게: 틀은 클리핑을 풀고 카드 이미지만 자른다 */
+.detail-page .detail-art{overflow:hidden;padding:30px 8px 34px}
+.detail-page .detail-art .card-frame{overflow:visible;background:transparent;box-shadow:none}
+.detail-page .detail-art .card-frame:before{content:"";position:absolute;inset:0;background:#0b0c0f;box-shadow:0 22px 44px rgba(0,0,0,.3);z-index:0}
+.card-art-clip{position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden;z-index:2;display:block}
+/* 캔버스 표시 크기는 인라인 style(논리 크기)이 정한다.
+   [문제] width:auto 로 두면 백킹 크기가 표시 크기가 된다. 내부 해상을 340px 로
+   낮춘 뒤 사진이 884 -> 382px 로 쪼그라든 원인이 이것이었다.
+   [처리] auto 강제를 걷어내고 인라인 px 를 살린다. */
+.card-frame .fx-layer{left:50%;top:50%;transform:translate(-50%,-50%);width:auto;height:auto}
+.card-frame .fx-layer .anss-stage{width:auto!important;height:auto!important}
+.card-frame .fx-layer canvas{display:block}
+/* 이펙트 id 직접 입력 */
+.fx-pick-id{margin-top:10px}
+.fx-pick-id input{width:100%;padding:7px 8px;font:700 10px/1 monospace;color:#e7e9ea;background:#20242a;border:1px solid #34383e}
+.fx-pick-id input[data-bad]{border-color:#d84a4a}
+.fx-pick-id span{display:block;margin-top:5px;font:700 8px/1.6 monospace;color:#6c7176}
+/* 메인 쇼케이스도 상세와 같은 규칙: 카드 틀은 클리핑을 풀고 이미지만 자른다 */
+.effect-demo .card-frame{overflow:visible;background:transparent;box-shadow:none}
+.effect-demo .card-frame:before{content:"";position:absolute;inset:0;background:#0b0c0f;box-shadow:0 22px 44px rgba(0,0,0,.35);z-index:0}
+.effect-demo .card-art-clip{position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden;z-index:2;display:block}
+.effect-demo .card-art-clip img.card-art{position:absolute;left:0;top:0;width:100%;height:auto;max-width:none;z-index:2;filter:drop-shadow(0 16px 18px rgba(0,0,0,.38))}
+.effect-copy dd a{color:#ff8a6f;text-decoration:none;font-weight:800}
+/* 이펙트 목록 속도 컨트롤 */
+.fx-speed{display:inline-grid;grid-template-columns:30px 120px auto;align-items:center;gap:8px;margin-left:10px;vertical-align:middle}
+.fx-speed span{font:700 9px/1 monospace;color:#7e848b;letter-spacing:.06em}
+.fx-speed b{font:700 10px/1 monospace;color:#e7e9ea;white-space:nowrap}
+.fx-speed input[type=range]{width:120px;accent-color:#d84a4a;background:transparent}
+/* 레이어 인스펙터 */
+.fx-layers{margin-top:16px;padding:12px;border:1px solid #2b2e33;background:#14161a}
+.fx-layers>p{margin:0 0 9px;font:700 9px/1.5 monospace;color:#8d9298;letter-spacing:.05em}
+.fx-layer-list{display:grid;grid-template-columns:1fr;gap:2px;max-height:260px;overflow-y:auto}
+.fx-layer-list label{display:grid;grid-template-columns:16px 1fr auto;align-items:center;gap:7px;padding:3px 4px;cursor:pointer}
+.fx-layer-list label:hover{background:#1c1f24}
+.fx-layer-list label.off b,.fx-layer-list label.off span{color:#5a5f65;text-decoration:line-through}
+.fx-layer-list b{font:700 10px/1 monospace;color:#e7e9ea;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx-layer-list span{font:700 8px/1 monospace;color:#7e848b}
+.fx-layers>button{margin-top:9px;padding:5px 9px;font:700 9px/1 monospace;color:#e7e9ea;background:#2b2e33;border:1px solid #3a3e44;cursor:pointer}
+/* ── 검색 개선 (선수 묶기 · 유형 구분 · 주소창 상태) ───────────────── */
+.type-tabs button{display:inline-flex;align-items:center;gap:7px}
+/* 선수 행 = 접히는 폴더 */
+.player-row.group-row{cursor:pointer;background:#fff}
+.player-row.group-row .row-arrow{font-size:11px;color:#9aa0a6;transition:transform .16s ease,color .16s ease}
+.player-row.group-row .series-cell small{color:#8b9096;font-weight:700}
+/*
+ * 펼친 카드 목록.
+ * [문제] 처음엔 `.group-row + .player-row` 로 칠했는데 인접 형제라 **첫 줄만**
+ *   걸렸다. 두 번째 카드부터는 부모 행과 구분이 안 갔다.
+ * [처리] 카드들을 .group-cards 로 감싸고 자식에 .card-row 클래스를 준다.
+ */
+.group-cards{background:#f1f3f5;border-left:4px solid var(--red);box-shadow:inset 0 8px 12px -10px rgba(20,25,30,.28),inset 0 -8px 12px -10px rgba(20,25,30,.18);animation:group-open .18s ease}
+@keyframes group-open{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.group-cards-head .gch-span{color:#8b9096;font-weight:700}
+.player-row.card-row:first-of-type{border-top:0}
+.player-row.card-row .player-identity{padding-left:16px}
+@media(max-width:700px){
+  .group-cards{border-left-width:3px}
+  .group-cards-head{padding-left:16px}
+  .player-row.card-row .player-identity{padding-left:6px}
+}
+/* 하단 = 이름 영역. 크롭 상자는 카드마다 측정해 인라인 style 로 들어온다
+   (고정 상자는 이름 길이에 따라 중심이 135~174 로 흩어져 정렬이 깨졌다). */
+.row-photo .rp-name{position:absolute;left:11%;right:11%;bottom:5%;overflow:hidden;display:block}
+@media(max-width:700px){
+  .group-cards{border-left-width:3px}
+  .group-cards-head{padding-left:16px}
+  .player-row.card-row .player-identity{padding-left:6px}
+}
+/* 하단 = 이름 영역.
+   [측정] CL 아틀라스(512x1024)에서 이름 잉크는 카드마다 x 4~276 · y 904~968 에
+     들어온다(菊池/坂本/山川/ウィットリー 표본 일치, 중심 x=141).
+   [처리] 512 전체가 아니라 **x 0~282 구간만** 잘라 쓴다. 잉크 중심 141 이
+     282/2 와 같으므로 그것만으로 가운데 정렬이 된다.
+     배율 = W/282 → img 폭 512*(W/282)=181.56%, 위로 900*(W/282)=319.15% 이동.
+     (margin 의 % 는 컨테이너 **폭** 기준이라 계산이 그대로 맞는다.) */
+.row-photo .rp-name{position:absolute;left:0;right:0;bottom:0;aspect-ratio:282/72;
+  overflow:hidden;display:block;background:none}
+.row-photo .rp-name img{position:absolute;left:0;top:0;height:auto;max-width:none;aspect-ratio:512/1024;filter:none;width:181.56%;margin-top:-319.15%;image-rendering:auto}
+.player-row.card-row .player-identity small{font-size:9px}
+.player-row.card-row .series-cell b{font-size:12px}
+.player-row.card-row .row-arrow{color:#a7acb1}
+/* 타자/투수 표식 */
+.type-chip{display:inline-block;margin-right:6px;padding:1px 6px;border-radius:3px;font:800 9px/1.6 monospace;font-style:normal;letter-spacing:.06em}
+@media(max-width:700px){
+  .group-cards{border-left-width:3px}
+  .group-cards-head{padding-left:16px}
+  .player-row.card-row .player-identity{padding-left:6px}
+}
+/* 선수 상수 vs 카드값 구분 — docs/DATA-VERIFY.md */
+.detail-info h3 small{margin-left:8px;font:700 9px/1 monospace;color:#9aa0a6;letter-spacing:.05em}
+.stat-list.scope-player .grade{opacity:.55}
+/* 守備適性 — PlayerAbility::GetDefense 의 포지션별 7비트 필드 */
+.apt-grid{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 2px}
+/* ── 스프라이트 도감 ─────────────────────────────────────────────── */
+.sprite-head{padding:44px 4.5vw 26px}
+.sprite-head h2{font-size:clamp(28px,3.4vw,44px);letter-spacing:-.05em;margin:8px 0 14px}
+.sprite-filter{display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+.sprite-filter label{display:flex;align-items:center;gap:7px;font:700 9px/1 monospace;color:#8b9096;letter-spacing:.08em}
+.sprite-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px;padding:0 4.5vw 46px}
+/* 투명 영역이 보이도록 체커보드 */
+.sprite-box{display:grid;place-items:center;height:130px;overflow:hidden;background-color:#f4f5f6;background-image:linear-gradient(45deg,#e3e6e9 25%,transparent 25%,transparent 75%,#e3e6e9 75%),
+                   linear-gradient(45deg,#e3e6e9 25%,transparent 25%,transparent 75%,#e3e6e9 75%);background-size:14px 14px;background-position:0 0,7px 7px}
+/* 로드 전 고유 크기가 0 이면 박스도 0x0 이 되어 lazy 로딩이 영영 안 걸린다.
+   폭·높이를 명시해 레이아웃 박스를 먼저 잡아 준다. */
+.sprite-box img{width:100%;height:100%;object-fit:contain;transform:scale(var(--zoom,1));image-rendering:pixelated}
+.sprite-modal{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:24px;background:rgba(12,14,17,.78);backdrop-filter:blur(4px)}
+.sprite-box.big{height:min(58vh,560px)}
+.sprite-box.big img{transform:none;width:100%;height:100%}
+.sprite-modal dl{margin:14px 0 0}
+/* ════════════════════════════════════════════════════════════════════
+   2026-08 디자인 개편 — "스타디움 나이트"
+   기존 셀렉터를 그대로 두고 뒤에서 재정의한다(같은 특이성 = 나중 규칙 승리).
+   팔레트: 밤하늘 남색 배경 + S랭크 골드 + 이펙트 레드오렌지.
+   ════════════════════════════════════════════════════════════════════ */
+:root{--ink:#eef1f7;--muted:#8b93a3;--line:rgba(255,255,255,.09);--red:#f5b52e;/* 주 강조 = S랭크 골드 (기존 --red 참조를 재활용) */
+  --fire:#ff5a3c;/* 이펙트/라이브 포인트 */
+  --green:#3ecf8e;--bg:#0b0d12;--surface:#11141b;--raised:#171b25;--raised2:#1e2330;--gold-grad:linear-gradient(135deg,#ffd977,#f5a623 55%,#c97f16)}
+html{scroll-behavior:smooth;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,"Noto Sans KR","Noto Sans JP",sans-serif}
+main{max-width:1320px;margin:auto;min-height:100vh;background:var(--surface);box-shadow:0 0 90px rgba(0,0,0,.55)}
+/* ── 상단바 ── */
+.topbar{background:rgba(13,15,21,.82);border-bottom:1px solid var(--line);backdrop-filter:blur(16px)}
+.brand-glyph{display:grid;place-items:center;width:36px;height:36px;color:#151006;background:var(--gold-grad);font-weight:900;font-size:21px;font-style:italic;clip-path:polygon(0 0,100% 0,82% 100%,0 100%);box-shadow:0 4px 14px rgba(245,181,46,.35)}
+nav a{text-decoration:none;font-size:13px;font-weight:700;color:var(--muted);position:relative;height:100%;display:flex;align-items:center}
+nav a.active{color:var(--ink)}
+nav a.active:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--red)}
+nav a:hover{color:#d8dce4}
+.live{margin-left:auto;font:700 10px/1 monospace;letter-spacing:.12em;color:var(--muted)}
+.live span{box-shadow:0 0 0 4px rgba(62,207,142,.15)}
+.back-link{margin-left:auto;text-decoration:none;font-size:11px;font-weight:800;color:var(--muted)}
+/* ── 히어로 ── */
+.hero{background:
+  radial-gradient(1000px 420px at 85% -10%,rgba(245,181,46,.13),transparent 60%),
+  radial-gradient(700px 300px at 10% 110%,rgba(255,90,60,.08),transparent 60%),
+  linear-gradient(180deg,#10131b,#0d1017)}
+.hero:after{content:"A";position:absolute;right:2vw;top:-90px;font-size:330px;font-weight:950;font-style:italic;color:rgba(245,181,46,.06);z-index:0}
+/* ── 검색부 ── */
+.finder{background:var(--surface);border-color:var(--line)}
+.searchbox .clear-q{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:24px;height:24px;border:0;border-radius:50%;background:#2a3040;color:#aab1bf;font:700 14px/1 system-ui;cursor:pointer}
+.searchbox .clear-q:hover{background:#39415a;color:#fff}
+.select-row label{display:flex;flex-direction:column;gap:7px;font-size:9px;font-weight:800;color:var(--muted);letter-spacing:.08em}
+.select-row select{min-width:130px;height:38px;border:1px solid #2a3040;background:var(--raised);padding:0 11px;font-size:11px;font-weight:700;color:var(--ink);border-radius:8px}
+.select-row button{height:38px;border:0;background:var(--gold-grad);color:#1a1204;padding:0 16px;font-size:10px;font-weight:900;border-radius:8px}
+.type-tabs{border-bottom-color:var(--line)}
+/* ── 결과·표 ── */
+.results-head h2{color:var(--ink)}
+.results-head p{font:600 10px/1 monospace;color:var(--muted);letter-spacing:.05em}
+.section-index{font:700 10px/1 monospace;color:var(--red);border-right:1px solid #bbb;padding-right:10px;border-color:#333a4c}
+.player-row.group-row{background:var(--raised)}
+.player-row.group-row:hover{background:#1d2331}
+.player-row.group-row.open{background:#1e2434;box-shadow:inset 4px 0 0 var(--red);border-top-color:#2a3145}
+.player-row.group-row.open .row-arrow{color:var(--red);transform:rotate(90deg)}
+.group-cards-head b{color:#e6eaf2}
+.player-row.card-row:hover{background:#181d29}
+.player-row.card-row .player-identity strong{font-size:12px;font-weight:700;color:#c4cad6}
+.player-row.card-row .series-cell small{color:var(--red);font-weight:800;letter-spacing:.04em}
+.player-identity small{margin-top:6px;color:#78808f;font:700 8px/1 monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.series-cell small{color:#78808f;font:700 8px/1 monospace}
+.type-chip.batter{background:rgba(88,150,255,.14);color:#7fb0ff}
+.type-chip.pitcher{background:rgba(255,122,80,.14);color:#ff9a7d}
+.player-table .empty b{color:#ffd977}
+.pagination button:not(:disabled):hover{border-color:var(--red);color:#ffd977}
+/* 등급 배지 — 인게임 등급색 계열 */
+.level-cell{color:#7fb0ff}
+/* ── 파이프라인/푸터 ── */
+.pipeline{background:#0d1017}
+.pipeline-grid{display:grid!important;grid-template-columns:repeat(4,1fr);gap:1px!important;background:#202634;margin-top:30px}
+.pipeline-grid>div{background:#12151e;padding:28px;min-height:160px}
+.pipeline-grid b{font:700 11px/1 monospace;color:#ffd977}
+.pipeline-grid p{font-size:11px;color:var(--muted);line-height:1.7;margin:0}
+/* ── 쇼케이스(메인 이펙트) ── */
+.effect-showcase{background:#0d1017;border-color:#202634}
+.effect-copy h2 em{font-style:normal;color:transparent;background:linear-gradient(135deg,#ff9d66,#ff5a3c);-webkit-background-clip:text;background-clip:text}
+.effect-copy dl,.effect-copy dl div{border-color:#252b3a}
+/* ── 선수 상세 ── */
+.player-detail-page{background:var(--bg)}
+.detail-info h2,.detail-page .detail-info h1{color:#fff}
+.detail-info h3{font-size:11px;margin:26px 0 9px;color:#98a0b0;letter-spacing:.06em}
+.detail-tags .traj{border-color:rgba(245,181,46,.4);color:#ffd977}
+.detail-info dl>div{display:grid;grid-template-columns:120px 1fr;padding:12px 0;border-bottom:1px solid #202634}
+.detail-info dt{font:700 9px/1.5 monospace;color:#78808f}
+.detail-info dd{font:700 10px/1.5 monospace;margin:0;overflow-wrap:anywhere;color:#d6dbe5}
+.proof{display:flex;gap:13px;margin-top:25px;padding:16px;background:rgba(62,207,142,.08);border-radius:10px}
+.stat-list.scope-player{position:relative;padding-left:11px;border-left:3px solid #2a3040}
+.stat-list.scope-player .stat-bar i{background:#525a6b}
+.stat-list.scope-player .stat-value{color:#8b93a3}
+.stat-row .stat-label{color:#98a0b0}
+.apt-grid span{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid #2a3040;background:var(--raised);border-radius:8px}
+.apt-grid b{font:800 10px/1 monospace;color:#98a0b0}
+.apt-grid i{font:700 11px/1 monospace;font-style:normal;color:#fff}
+.fx-match{width:min(100%,420px);margin-top:14px;padding:12px 13px;border:1px solid #2b2e33;background:#14161a;border-radius:12px}
+.fx-layers{border-radius:12px}
+.detail-caption,.card-caption .cap-meta{color:#78808f}
+/* ── 스프라이트 도감 ── */
+.sprite-head h2{color:#fff}
+.sprite-head>p:not(.eyebrow){max-width:720px;color:var(--muted);font-size:12px;line-height:1.85;margin:0 0 22px}
+.sprite-head code{font:700 11px/1 monospace;background:#232a3a;padding:2px 5px;color:#ffd977}
+.sprite-filter select{height:34px;padding:0 8px;border:1px solid #2a3040;background:var(--raised);font:700 11px/1 monospace;color:var(--ink);border-radius:8px}
+.sprite-count{margin-left:auto;font:800 10px/1 monospace;color:#ffd977}
+.sprite-cell{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid #232837;background:var(--raised);cursor:pointer;text-align:left;font:inherit;border-radius:12px}
+.sprite-cell:hover{border-color:var(--red);box-shadow:0 8px 26px rgba(245,181,46,.12)}
+.sprite-cell b{font:800 10px/1 monospace;color:#e6eaf2}
+.sprite-cell small{font:700 9px/1.4 monospace;color:#78808f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sprite-box{background-color:#10131b;background-image:linear-gradient(45deg,#1a1f2b 25%,transparent 25%,transparent 75%,#1a1f2b 75%),linear-gradient(45deg,#1a1f2b 25%,transparent 25%,transparent 75%,#1a1f2b 75%)}
+.sprite-modal>div{max-width:min(92vw,900px);max-height:90vh;overflow:auto;background:var(--surface);padding:18px;border:1px solid #2a3040;border-radius:14px}
+.sprite-modal dl>div{display:grid;grid-template-columns:110px 1fr;padding:9px 0;border-bottom:1px solid #202634}
+.sprite-modal dt{font:700 9px/1.5 monospace;color:#78808f}
+.sprite-modal dd{font:700 10px/1.5 monospace;margin:0;overflow-wrap:anywhere;color:#d6dbe5}
+.sprite-modal>div>button{margin-top:14px;padding:9px 16px;border:0;background:var(--gold-grad);color:#1a1204;font:700 10px/1 monospace;cursor:pointer;border-radius:8px}
+/* 스크롤바 */
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:#0d1017}
+::-webkit-scrollbar-thumb{background:#2a3040;border-radius:6px;border:2px solid #0d1017}
+::-webkit-scrollbar-thumb:hover{background:#3a4257}
+/* 레퍼런스 표기값 */
+.ref-chips{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 2px}
+.ref-chips span{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid #2a3040;background:var(--raised);border-radius:8px}
+.ref-chips b{font:700 9px/1 monospace;color:#98a0b0;letter-spacing:.05em}
+.ref-chips i{font:800 11px/1 monospace;font-style:normal;color:#ffd977}
+.ref-apt{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.ref-apt span{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid #2a3040;background:#131722;border-radius:7px}
+.ref-apt b{font:700 9px/1 monospace;color:#8b93a3}
+.ref-apt i{font:800 10px/1 monospace;font-style:normal;color:#e6eaf2}
+/* 인게임식 구종 팬 차트 */
+.pitch-fan{margin:6px 0 14px;padding:14px 10px 8px;background:radial-gradient(560px 240px at 50% 24%,#1a1f2b,#10131b 75%);border:1px solid #232837;border-radius:14px}
+.pitch-fan .pf-title{margin:0 0 4px;font:800 10px/1 monospace;letter-spacing:.14em;color:#8b93a3;text-align:center}
+.pitch-fan svg{display:block;width:100%;height:auto}
+/* ── 목록 아이콘 ─────────────────────────────────────────────────────
+   소스 CS 카드가 128x128 이므로 **그 이상으로 키우지 않는다**(확대하면 흐려짐).
+   아틀라스(512x1024)의 인게임 이름 타이포 띠는 y 896~988 → -175% 로 노출. */
+.row-photo{position:relative;flex:0 0 76px;width:76px;height:76px;max-width:128px;max-height:128px;overflow:hidden;border-radius:9px;background:linear-gradient(150deg,#1b2130,#11141b);display:block}
+.row-photo .rp-fx{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* 선수 이미지는 자르지도, 이름 띠에 눌리지도 않는다 — 아이콘을 꽉 채운다.
+   이름 띠는 아래에 겹쳐 얹으므로 사진 크기를 깎지 않는다. */
+.row-photo .rp-art{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:50% 50%;filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))}
+/* 하단 = 이름 영역 */
+/* 가운데 정렬: left/right 를 둘 다 0 으로 두면 상자가 과제약이라 브라우저가
+   right 를 버리고 왼쪽에 붙인다(실측 좌여백 0 / 우여백 20). 폭은 카드마다
+   측정한 인라인 aspect-ratio 로 정해지므로, 왼쪽 기준점을 중앙으로 옮긴다. */
+/* [확인된 사실] CS 카드(128x128) 원본에 **빈 이름판이 이미 들어 있다**.
+     카드 24장 표본에서 판 아래 끝이 y123~124 로 고정(폭 118px 이상 불투명),
+     위 끝은 선수 몸통과 붙어 71~102 로 흩어진다. 2015~2026 전 연도 공통.
+   [처리] 우리가 깔던 어두운 그라디언트를 뺀다 — 원본에 없는 배경이었다.
+     글자는 그 판 안에 놓는다: 아래 여백 4/128=3%, 높이 27/128≈21%. */
+.row-photo .rp-name{position:absolute;left:50%;right:auto;transform:translateX(-50%);
+  bottom:3%;height:21%;overflow:hidden;display:block}
+/* CL 아틀라스는 512x1024. 로드 전에도 박스가 잡히도록 종횡비를 명시한다
+   (height:auto 로 두면 로드 전 높이 0 → lazy 가 영영 트리거되지 않는다). */
+.row-photo .rp-name img{position:absolute;left:0;top:0;width:100%;height:auto;max-width:none;
+  aspect-ratio:512/1024;margin-top:-175%;filter:none;image-rendering:auto}
+.player-row.card-row .row-photo{width:62px;height:62px;flex-basis:62px}
+@media(max-width:640px){.row-photo{flex-basis:65px;width:65px;height:65px}}
+/* ============================================================
+   선수 상세 — 정리본 (2026-08-25)
+   중복 블록 위에 마지막으로 얹혀 실제로 적용되는 정의다.
+   목표: 개발 도구를 접고, 데이터에 시선이 가도록 위계를 세운다.
+   ============================================================ */
+
+.player-detail-page{background:var(--bg)}
+/* --- 왼쪽: 카드 --- */
+.detail-art{padding:34px 26px 26px;gap:16px;
+  background:radial-gradient(120% 90% at 50% 12%,#1a1f2b,#080a0e 72%)}
+.detail-art .card-frame{position:relative;display:grid;place-items:center}
+.detail-series{left:16px;top:16px;background:rgba(12,14,18,.82);color:#fff;padding:9px 11px;border-radius:6px;border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(6px)}
+.effect-id-label{left:18px;bottom:18px;border-radius:6px;font-size:8px}
+/* 원본 표기 스트립 */
+.card-caption{display:flex;flex-direction:column;gap:8px;width:min(420px,100%)}
+.card-caption .cap-meta{display:block;margin-top:12px;font:700 8px/1.5 monospace;letter-spacing:.1em;color:#5d6577;text-align:center}
+/* --- 개발 도구: 접어 둔다 --- */
+.fx-dev{width:min(460px,100%);border:1px solid var(--line);border-radius:10px;
+  background:rgba(255,255,255,.02);overflow:hidden}
+.fx-dev>summary{display:flex;align-items:center;gap:10px;padding:10px 13px;cursor:pointer;
+  font:700 10px/1 monospace;letter-spacing:.08em;color:#9aa3b4;list-style:none}
+.fx-dev>summary::-webkit-details-marker{display:none}
+.fx-dev>summary::before{content:"▸";font-size:11px;color:#5d6577;transition:transform .15s}
+.fx-dev[open]>summary::before{transform:rotate(90deg)}
+.fx-dev[open]>summary{border-bottom:1px solid var(--line)}
+.fx-dev-title b{color:var(--ink)}
+.fx-dev-hint{margin-left:auto;font-size:8px;letter-spacing:.14em;color:#4d5566}
+.fx-dev>*:not(summary){padding-left:13px;padding-right:13px}
+.fx-dev .fx-match-why{font-size:10px;line-height:1.75;color:#7d8698;margin:12px 0}
+.fx-dev .fx-match-why code{background:rgba(255,255,255,.06);border-radius:3px;padding:1px 4px}
+/* --- 오른쪽: 데이터 --- */
+.detail-info{padding:40px 42px 46px}
+.detail-info .eyebrow{margin-bottom:14px;font-size:9px;letter-spacing:.22em}
+.detail-info .reading{font-size:9px;color:#5d6577;margin-bottom:4px}
+.detail-info h1{font-size:clamp(28px,3.4vw,42px);line-height:1.06;letter-spacing:-.045em;margin:0 0 16px}
+.detail-tags{display:flex;gap:6px;flex-wrap:wrap}
+.detail-tags span{border:1px solid #2a3040;padding:5px 9px;font-size:10px;font-weight:700;background:var(--raised);border-radius:6px;color:#cfd5e0;font:700 9px/1 monospace;letter-spacing:.06em}
+/* 섹션 제목: 얇은 규칙선으로 구획 */
+.detail-info h3{display:flex;align-items:center;gap:9px;margin:30px 0 12px;
+  font:800 10px/1 monospace;letter-spacing:.14em;text-transform:uppercase}
+.detail-info h3::after{content:"";flex:1;height:1px;background:var(--line)}
+/* 능력 막대 */
+.stat-list{display:flex;flex-direction:column;gap:7px}
+.stat-row{display:grid;grid-template-columns:62px 1fr 46px 24px;align-items:center;gap:10px;padding:0;border-top:1px solid #eef0f2}
+.stat-label{font-size:11px;font-weight:800;color:#8b93a3;font:700 10px/1 monospace}
+.stat-bar{position:relative;height:6px;background:rgba(255,255,255,.07);overflow:hidden;border-radius:3px}
+.stat-bar i{position:absolute;left:0;top:0;bottom:0;background:var(--gold-grad);transition:width .3s ease;display:block;height:100%;border-radius:3px}
+.stat-value{font:800 12px/1 monospace;text-align:right;color:var(--ink)}
+/* 칩 묶음 */
+.ref-chips,.ref-apt,.apt-grid{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 0}
+.ref-chips span,.ref-apt span,.apt-grid span{display:inline-flex;align-items:center;gap:7px;
+  padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--raised)}
+.ref-chips b,.ref-apt b,.apt-grid b{font:700 9px/1 monospace;letter-spacing:.08em;color:#7d8698}
+.ref-chips i,.ref-apt i,.apt-grid i{font:800 11px/1 monospace;font-style:normal;color:var(--ink)}
+.apt-grid .grade{width:20px;height:20px}
+.ref-abilities{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+/* 리소스: 접어 둔다 */
+.res-fold{margin-top:30px;border-top:1px solid var(--line)}
+.res-fold>summary{padding:14px 0;cursor:pointer;font:800 10px/1 monospace;
+  letter-spacing:.14em;color:#8b93a3;list-style:none}
+.res-fold>summary::-webkit-details-marker{display:none}
+.res-fold>summary::before{content:"▸ ";color:#5d6577}
+.res-fold[open]>summary::before{content:"▾ "}
+.detail-info dl{margin:0 0 6px}
+/* 안내 박스: 납작하게 */
+.proof{margin-top:18px;padding:12px 14px;border-radius:9px;gap:11px;
+  background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.22)}
+.proof p{font-size:10px;line-height:1.6;margin:0;color:#8b93a3}
+.proof strong{color:var(--ink)}
+.proof.warn>span{background:var(--red)}
+@media(max-width:980px){
+  .detail-page{grid-template-columns:1fr}
+  .detail-info{padding:30px 22px 38px}
+  .detail-info h1{font-size:28px}
+  .stat-row{grid-template-columns:54px 1fr 40px 22px;gap:8px}
+}
+/* ============================================================
+   검색·필터 (2026-08-25) — 팀 / 시리즈 / 스피리츠 / 능력치 등급
+   ============================================================ */
+
+.finder{padding:22px 4.5vw 26px;display:flex;flex-direction:column;gap:14px}
+.finder .searchbox{max-width:none;height:52px;border-radius:10px}
+/* 유형 탭 */
+.type-tabs{margin:0;gap:2px}
+/* 셀렉트 줄 */
+.filter-bar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:9px}
+.fb-field{display:flex;flex-direction:column;gap:5px;
+  font:800 9px/1 monospace;letter-spacing:.1em;color:#8b93a3}
+.fb-field select{height:36px;min-width:104px;padding:0 10px;border-radius:8px;
+  border:1px solid var(--line);background:var(--raised);color:var(--ink);
+  font:700 11px/1 system-ui,sans-serif}
+/* 팀 칩 */
+.team-row{display:flex;flex-wrap:wrap;gap:5px}
+.team-row button{min-width:38px;height:32px;padding:0 11px;border-radius:16px;
+  border:1px solid var(--line);background:var(--raised);color:#9aa3b4;
+  font:800 12px/1 system-ui,sans-serif;transition:background .12s,color .12s}
+.team-row button:hover{color:var(--ink);border-color:#39415a}
+.team-row button.on{background:var(--ink);color:#0b0d12;border-color:var(--ink)}
+/* 능력치 등급 필터 */
+.stat-filter{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:7px}
+.stat-filter label>span{font:800 9px/1 monospace;letter-spacing:.1em;color:#8b93a3}
+.stat-filter label.on>span{color:#ffd977}
+.stat-filter select{height:30px;border:0;background:transparent;color:var(--ink);
+  font:700 11px/1 system-ui,sans-serif;padding:0}
+.filter-note{margin:0;font:600 10px/1.7 system-ui,sans-serif;color:#6f7788}
+.filter-note b{color:#9aa3b4}
+@media(max-width:700px){
+  .finder{padding:18px 20px 22px}
+  .filter-bar{gap:7px}
+  .fb-field select{min-width:88px}
+  .fb-reset{margin-left:0;width:100%}
+  .stat-filter{grid-template-columns:repeat(2,1fr)}
+}
+/* 탄도 칸 — 화살표 위, 이름 아래 */
+.player-table.batter .table-head,
+.player-table.batter .player-row{grid-template-columns:minmax(245px,2.5fr) 90px 78px repeat(6,minmax(68px,.72fr)) 34px}
+.traj-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0}
+.traj-cell svg{width:22px;height:22px;flex:0 0 22px;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))}
+.traj-cell b{font:800 8px/1.15 system-ui,sans-serif;letter-spacing:-.02em;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:74px}
+.traj-none{font:700 11px/1 monospace;color:#4d5566;font-style:normal}
+@media(max-width:700px){
+  .player-table.batter .table-head,
+  .player-table.batter .player-row{grid-template-columns:minmax(200px,2.2fr) 76px 68px repeat(6,minmax(58px,.7fr)) 30px}
+  .traj-cell b{font-size:7px;max-width:64px}
+}
+/* ============================================================
+   필터 패널 — 칩 기반 (2026-08-25)
+   ============================================================ */
+
+.filters{border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02);
+  padding:0 0 4px}
+.filters>summary{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;
+  font:800 10px/1 monospace;letter-spacing:.16em;color:#9aa3b4;list-style:none;
+  border-bottom:1px solid var(--line)}
+.filters>summary::-webkit-details-marker{display:none}
+.filters>summary::before{content:"▾";color:#5d6577;font-size:11px;transition:transform .15s}
+.filters:not([open])>summary{border-bottom:0}
+.filters:not([open])>summary::before{transform:rotate(-90deg)}
+.filters>summary .fb-reset{margin-left:auto;height:26px;padding:0 10px;font-size:9px}
+/* 한 줄: 라벨 + 칩 */
+.frow{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;
+  border-bottom:1px solid rgba(255,255,255,.045);flex-wrap:wrap}
+.frow:last-of-type{border-bottom:0}
+.chips{display:flex;flex-wrap:wrap;gap:5px;flex:1;min-width:0}
+.chips button:hover{color:var(--ink);border-color:#39415a}
+.traj-chips button{padding-left:8px}
+.traj-chips button span{font-size:10px}
+/* 세그먼트 (단일 선택) */
+.segs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.segs button{height:30px;padding:0 12px;border:0;border-right:1px solid var(--line);
+  background:transparent;color:#8b93a3;font:700 10px/1 system-ui,sans-serif}
+.segs button:last-child{border-right:0}
+.segs button:hover{color:var(--ink)}
+.filters .stat-filter{flex:1;min-width:0;
+  grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}
+.filters .filter-note{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px 4px}
+.pagesize{margin-left:auto;display:inline-flex;align-items:center;gap:6px;
+  font:800 9px/1 monospace;letter-spacing:.1em;color:#8b93a3}
+.pagesize select{height:28px;border:1px solid var(--line);border-radius:7px;background:var(--raised);
+  color:var(--ink);font:700 11px/1 system-ui,sans-serif;padding:0 8px}
+@media(max-width:700px){
+  .frow{gap:8px;padding:9px 11px}
+  .frow>b{flex-basis:100%;padding-top:0}
+  .filters .stat-filter{grid-template-columns:repeat(2,1fr)}
+  .pagesize{margin-left:0}
+}
+/* ============================================================
+   능력치 패널 — 가독성 개선 (2026-08-25)
+   [문제] .stat-list 에 옛 세대의 background:#fff 가 남아 어두운 상세 화면에
+     흰 판이 그대로 떴다. 뒤에 온 블록이 배경을 다시 선언하지 않아 살아 있었다.
+   ============================================================ */
+
+.detail-info .stat-list{background:transparent;border:0;padding:0;margin:0 0 4px;
+  display:flex;flex-direction:column;gap:0}
+.detail-info .stat-row:last-child{border-bottom:0}
+/* 50 · 70 · 90 눈금 — 등급 경계라 값을 눈으로 가늠할 수 있다 */
+.detail-info .stat-bar::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,transparent 0 calc(50% - 1px),rgba(255,255,255,.16) calc(50% - 1px) 50%,
+    transparent 50% calc(70% - 1px),rgba(255,255,255,.16) calc(70% - 1px) 70%,
+    transparent 70% calc(90% - 1px),rgba(255,255,255,.16) calc(90% - 1px) 90%,transparent 90%)}
+.detail-info .stat-bar i{display:block;height:100%;border-radius:4px;background:#5b6270;
+  transition:width .18s ease}
+/* 등급별 막대 색 — 아이콘 색과 같은 계열로 맞춘다 */
+.stat-row[data-grade="S"] .stat-bar i{background:linear-gradient(90deg,#cfd6e4,#fff)}
+.stat-row[data-grade="A"] .stat-bar i{background:linear-gradient(90deg,#b8437f,#e33bb0)}
+.stat-row[data-grade="B"] .stat-bar i{background:linear-gradient(90deg,#a83228,#e0402f)}
+.stat-row[data-grade="C"] .stat-bar i{background:linear-gradient(90deg,#a97a1a,#d8a521)}
+.stat-row[data-grade="D"] .stat-bar i{background:linear-gradient(90deg,#b39a20,#f0d02a)}
+.stat-row[data-grade="E"] .stat-bar i{background:linear-gradient(90deg,#5aa02c,#7fd23a)}
+.stat-row[data-grade="F"] .stat-bar i{background:linear-gradient(90deg,#2a7ba8,#36a8e0)}
+.stat-row[data-grade="G"] .stat-bar i{background:linear-gradient(90deg,#4c5566,#79839a)}
+/* 선수 기준값(카드값 아님)은 한 톤 죽인다 */
+.detail-info .stat-list.scope-player{opacity:.62;padding-left:11px;
+  border-left:2px solid rgba(255,255,255,.09)}
+/* 검증 배지 */
+.detail-tags span.ok{background:rgba(62,207,142,.14);border-color:rgba(62,207,142,.3);color:#7fe3b6}
+.detail-tags span.warn{border-color:rgba(245,181,46,.32);background:rgba(245,181,46,.14);color:#ffd977}
+/* ── 능력치 가독성 강화 ────────────────────────────────────────
+   앞 블록이 너무 얇고 작았다. 숫자·막대·라벨을 전부 키우고 대비를 올린다.
+   눈금 그라디언트는 막대를 지저분하게 만들어 뺀다.                */
+.detail-info .stat-list{gap:2px}
+.detail-info .stat-row{display:grid;grid-template-columns:70px 1fr 58px 28px;align-items:center;gap:12px;padding:9px 10px;border-bottom:0;border-radius:8px;background:rgba(255,255,255,.03)}
+.detail-info .stat-row:nth-child(even){background:rgba(255,255,255,.055)}
+.detail-info .stat-label{font:800 13px/1 system-ui,sans-serif;color:#d3d9e6;letter-spacing:0}
+.detail-info .stat-bar::after{content:none}
+/* 눈금 제거 */
+.detail-info .stat-bar i{border-radius:7px;box-shadow:0 0 10px rgba(255,255,255,.14)}
+.detail-info .stat-value{font:900 20px/1 ui-monospace,monospace;text-align:right;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6);letter-spacing:-.02em}
+.detail-info .stat-row .grade{width:26px;height:26px}
+/* 섹션 제목을 능력치와 붙여 한 덩어리로 보이게 */
+.detail-info h3{margin:26px 0 8px;font-size:11px;color:#aab2c2}
+.detail-info h3 small{color:#79839a;font:600 9px/1 monospace;letter-spacing:.04em;text-transform:none;margin:0}
+@media(max-width:700px){
+  .detail-info .stat-row{grid-template-columns:58px 1fr 48px 24px;gap:9px;padding:8px}
+  .detail-info .stat-value{font-size:17px}
+  .detail-info .stat-label{font-size:12px}
+}
+/* ── 능력 3+3 그리드 (막대 없음) ───────────────────────────── */
+.detail-info .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 6px}
+.scell .grade{width:26px;height:26px}
+.scell .grade-none{width:26px;height:26px}
+/* 등급이 높을수록 칸을 살짝 물들여 한눈에 구분 */
+.scell[data-grade="S"]{border-color:rgba(255,255,255,.42);background:rgba(255,255,255,.10)}
+.scell[data-grade="A"]{border-color:rgba(227,59,176,.42);background:rgba(227,59,176,.11)}
+.scell[data-grade="B"]{border-color:rgba(224,64,47,.40);background:rgba(224,64,47,.10)}
+.scell[data-grade="C"]{border-color:rgba(216,165,33,.36);background:rgba(216,165,33,.09)}
+@media(max-width:700px){
+  .detail-info .stat-grid{grid-template-columns:1fr}
+  .scell>b{font-size:21px}
+}
+/* ============================================================
+   미니멀 패스 (2026-08-25)
+   장식(색 배경·그라디언트·글로우·그림자)을 걷어 낸다.
+   남기는 것: 타이포그래피 위계, 1px 헤어라인, 등급 아이콘 색.
+   ============================================================ */
+
+/* 능력 3+3 — 칸을 없애고 줄만 남긴다 */
+.detail-info .stat-grid{gap:0 28px}
+.sgcol{display:flex;flex-direction:column;gap:0}
+.scell{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:9px 0;border-radius:0;border:0;background:none;border-bottom:1px solid var(--line)}
+.scell[data-grade]{background:none;border-color:var(--line)}
+.sgcol .scell:last-child{border-bottom:0}
+.scell>span{font:600 12px/1 system-ui,sans-serif;color:#8b93a3;letter-spacing:.02em}
+.scell>b{font:700 20px/1 ui-monospace,monospace;color:var(--ink);letter-spacing:-.03em;text-shadow:none}
+.scell .grade,.scell .grade-none{width:22px;height:22px}
+/* 칩류 — 테두리만 */
+.ref-chips span,.ref-apt span,.apt-grid span{background:none;border-radius:0;
+  border:0;border-right:1px solid var(--line);padding:3px 12px 3px 0}
+.ref-chips span:last-child,.ref-apt span:last-child,.apt-grid span:last-child{border-right:0}
+.ref-abilities em{font-style:normal;font:700 10px/1.5 "Noto Sans JP",sans-serif;color:#c3cad8;background:none;padding:5px 9px;border-radius:0;font-size:10px;font-weight:700;border:1px solid var(--line)}
+/* 안내 박스 — 배경 없이 왼쪽 선만 */
+.proof{background:none;border:0;border-left:2px solid var(--line);border-radius:0;
+  padding:8px 0 8px 12px;margin-top:16px}
+.proof>span{width:20px;height:20px;border-radius:50%;display:none;place-items:center;background:var(--green);color:#fff;font-weight:900;flex:0 0 20px;font-size:11px}
+.proof.warn{background:none;border-color:rgba(245,181,46,.26);border-left-color:#5c5228}
+/* 개발 도구 접이 */
+.fx-dev{background:none;border-radius:0}
+.filters{background:none;border-radius:0}
+.filters>summary em{font-style:normal;min-width:18px;height:18px;padding:0 6px;border-radius:0;display:grid;place-items:center;background:none;color:var(--red);font:800 10px/1 monospace;border:1px solid var(--line)}
+/* 필터 칩 — 채우기 대신 테두리 */
+.chips button{border-radius:0;background:none}
+.chips button.on{background:none;color:var(--ink);border-color:var(--ink)}
+.traj-chips button.on{color:var(--ink);background:none!important}
+.segs{border-radius:0}
+.segs button.on{background:none;color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+.stat-filter label{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:0;border:1px solid var(--line);background:none}
+.stat-filter label.on{border-color:rgba(245,181,46,.45);background:none}
+.fb-reset{margin-left:auto;height:36px;padding:0 14px;border-radius:0;border:1px solid rgba(230,41,53,.4);background:none;color:#ff8f97;font:800 10px/1 monospace;letter-spacing:.06em}
+.team-row button,.pagesize select,.fb-field select{border-radius:0}
+/* 카드 그림자·라운드 제거 */
+.detail-page{border-radius:0;box-shadow:none}
+.detail-series,.effect-id-label{border-radius:0}
+.card-caption .cap-strip{display:block;overflow:hidden;border-radius:0;border:1px solid rgba(255,255,255,.08);background:#0d1016}
+.res-fold>summary,.detail-info h3{letter-spacing:.1em}
+/* 미니멀 마무리 — 남은 라운드·그림자·그라디언트 제거 */
+.detail-art{background:#0b0d12}
+.detail-tags span,.fx-match-level,.fx-layers,.detail-info code,.fx-dev code{border-radius:0}
+.effect-id-label i,.effect-live i{display:inline-block;width:5px;height:5px;border-radius:0;background:var(--fire);margin-right:7px;box-shadow:none;animation:none}
+.detail-page .proof>span{border-radius:0}
+.detail-tags span.ok,.detail-tags span.warn{background:none}
+/* ── 특수능력 3열 ─────────────────────────────────────────── */
+.skill-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 18px;margin:0 0 4px}
+.skill{border-bottom:1px solid var(--line)}
+.skill>summary::-webkit-details-marker{display:none}
+.skill>summary::before{content:"+";color:#5d6577;font:700 11px/1 monospace}
+.skill[open]>summary::before{content:"−"}
+.skill-body{padding:0 0 9px 14px}
+.skill-body p{margin:0 0 5px;font:400 11px/1.6 system-ui,sans-serif;color:#aab2c2}
+.skill-body p.none{color:#5d6577}
+.skill-body ul{margin:0;padding-left:14px;list-style:none}
+.skill-body li{position:relative;font:400 11px/1.65 system-ui,sans-serif;color:#8b93a3}
+.skill-body li::before{content:"·";position:absolute;left:-10px;color:#5d6577}
+@media(max-width:900px){.skill-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.skill-grid{grid-template-columns:1fr}}
+/* 특수능력 — 세로 3줄(행 3개)로 채우고 넘치면 오른쪽으로 흐른다 */
+.skill-grid{grid-template-columns:none;
+  grid-template-rows:repeat(3,auto);grid-auto-flow:column;
+  grid-auto-columns:minmax(132px,1fr);gap:0 20px}
+@media(max-width:900px){.skill-grid{grid-auto-columns:minmax(120px,1fr)}}
+@media(max-width:600px){
+  .skill-grid{grid-template-rows:none;grid-auto-flow:row;grid-auto-columns:auto}
+}
+/* 언어 전환 */
+.lang-switch{display:inline-flex;margin-left:14px;border:1px solid var(--line)}
+.lang-switch button:last-child{border-right:0}
+/* 상세 태그 안의 탄도 화살표 */
+.detail-tags .traj{padding:2px 8px}
+.detail-tags .traj .traj-cell{flex-direction:row;gap:6px}
+.detail-tags .traj .traj-cell svg{width:16px;height:16px;flex:0 0 16px}
+.detail-tags .traj .traj-cell b{font-size:11px;max-width:none}
+/* ── 배너 배경 이펙트 (거대한 "A" 대체) ─────────────────────── */
+.hero:after{content:none!important}
+.hero-fx .anss-stage,.hero-fx canvas{display:block}
+.hero>div{position:relative;z-index:1}
+@media(max-width:1000px){.hero-fx{opacity:.35;right:-24vw}}
+/* ============================================================
+   배너 — 에디토리얼 포스터 구성
+   이펙트(206° 시안블루)를 가로 광원 띠로 깔고, 선수 컷아웃을
+   오른쪽 아래로 흘려 판을 벗어나게 둔다. 제목이 인물과 겹쳐 깊이를 만든다.
+   ============================================================ */
+.hero{min-height:clamp(420px,52vw,620px);align-items:center;padding-block:clamp(48px,7vw,96px)}
+/* 선수 컷아웃 — 아래로 흘려 자른다 */
+.hero-figure{position:absolute;right:clamp(-40px,2vw,90px);bottom:-6%;
+  height:118%;width:auto;max-width:none;object-fit:contain;object-position:bottom;
+  z-index:1;pointer-events:none;
+  /* CL 아틀라스 512x1024 중 카드 그림(위 660)만 — 아래 텍스트 띠는 잘라 낸다 */
+  clip-path:inset(0 0 35.5% 0);
+  filter:drop-shadow(-24px 26px 34px rgba(16,32,48,.28));
+  mask-image:linear-gradient(180deg,#000 78%,transparent);
+  -webkit-mask-image:linear-gradient(180deg,#000 78%,transparent)}
+/* 제목이 인물 위로 */
+.hero>div:first-of-type{z-index:2}
+.hero h1 em{font-style:normal;color:transparent;background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;display:block}
+.hero-copy{font-size:15px;line-height:1.8;color:var(--muted);margin:26px 0 0;max-width:34ch}
+/* 얇은 기준선 하나 — 판을 잡아 준다 */
+.hero-rule{position:absolute;left:0;right:0;bottom:clamp(56px,9vw,104px);height:1px;
+  background:currentColor;opacity:.13;z-index:0}
+/* 수치는 아래쪽에 붙여 캡션처럼 */
+.hero-stats{align-self:flex-end;z-index:2;gap:clamp(20px,3vw,52px)}
+@media(max-width:1000px){
+  .hero{align-items:flex-start}
+  .hero-figure{height:74%;right:-8vw;bottom:-4%;opacity:.85}
+  .hero-stats{align-self:flex-start}
+}
+/* ── 배너 배치 교정 ────────────────────────────────────────────
+   앞 블록은 height 를 기준으로 잡아서, 폭이 좁아지면 인물이 판보다
+   커져 왼쪽으로 넘치고 아래 수치를 덮었다. **폭 기준**으로 바꾸고
+   오른쪽 끝에 못박는다. 넘침은 hero 가 자른다.                     */
+.hero{overflow:hidden;padding-right:clamp(20px,4.5vw,72px)}
+/* 글과 수치가 인물에 안 깔리도록 폭을 잡는다 */
+.hero>div:first-of-type{max-width:min(62%,640px)}
+@media(max-width:820px){
+  .hero{min-height:auto}
+  .hero-figure{width:46%;opacity:.5;bottom:auto;top:50%;transform:translateY(-50%)}
+  .hero>div:first-of-type,.hero-stats{max-width:none}
+}
+/* ── 배너 최종 배치 ────────────────────────────────────────────
+   수치가 인물 영역(오른쪽 420px)과 겹쳤다. 글·수치를 모두 왼쪽 단으로
+   모으고, 인물은 오른쪽 단을 통째로 쓴다.                          */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) clamp(280px,34%,440px);
+  align-items:center;column-gap:clamp(24px,4vw,64px)}
+@media(max-width:820px){
+  .hero{grid-template-columns:1fr}
+  .hero-figure{width:52%;opacity:.42}
+}
+/* ── 배너 이펙트: 원본 그대로 ──────────────────────────────────
+   회전·반투명·마스크를 걷어 낸다. 인게임처럼 **세워서 전강도**로 두고
+   선수 뒤에 놓는다. 카드 배경이 원래 그렇게 보인다.               */
+.hero-fx{
+  right:auto;left:auto;top:50%;
+  /* 인물(오른쪽 단)의 중심에 맞춘다 */
+  inset-inline-end:clamp(-60px,-1vw,0px);
+  transform:translateY(-50%);
+  transform-origin:center;
+  opacity:1;
+  mask-image:none;-webkit-mask-image:none;
+  mix-blend-mode:screen}
+@media(max-width:820px){.hero-fx{opacity:.6}}
+/* 이펙트를 인물 중심에 정확히 맞춘다.
+   인물은 오른쪽 끝(right:0)에 폭 clamp(280,34%,440) 로 붙어 있고
+   캔버스는 그보다 넓으므로, 차이의 절반만큼 오른쪽으로 밀어 낸다. */
+.hero-fx{inset-inline-end:calc((clamp(280px,34%,440px) - 842px) / 2)}
+@media(max-width:820px){
+  .hero-fx{inset-inline-end:auto;left:50%;transform:translate(-50%,-50%)}
+}
+/* ============================================================
+   배너 다듬기 — 스크린샷 기준 교정
+   ① 인물이 이펙트에 묻힌다 → 인물을 키우고 광원 중심에 세운다
+   ② 캔버스 사각 경계가 오른쪽에 그대로 보인다 → 페이드로 지운다
+   ③ 배너 아래가 칼로 자른 듯 끊긴다 → 다음 섹션으로 흘려 보낸다
+   ④ 탭 개수 뱃지가 활성 밑줄에 가린다
+   ============================================================ */
+
+/* ① 인물 확대 + 광원 중심 정렬 */
+.hero-figure{width:clamp(240px,30%,380px);max-height:78%;bottom:12%;
+  right:clamp(40px,7vw,140px);
+  filter:drop-shadow(0 18px 30px rgba(0,0,0,.5))}
+/* ② 캔버스 경계 지우기 */
+.hero-fx{
+  mask-image:radial-gradient(closest-side at 50% 50%,#000 62%,transparent 96%);
+  -webkit-mask-image:radial-gradient(closest-side at 50% 50%,#000 62%,transparent 96%)}
+/* ③ 배너 하단을 다음 섹션으로 흘린다 */
+.hero{border-bottom:0}
+/* ④ 탭 뱃지 */
+.type-tabs button{padding:0 6px}
+.type-tabs button em{font-style:normal;font-size:9px;font-weight:800;color:#98a0b0;background:#232a3a;border-radius:9px;padding:2px 6px;line-height:1;font:700 10px/1 monospace;opacity:.75;border:1px solid var(--line)}
+.type-tabs button.active em{background:var(--gold-grad);color:var(--red);opacity:1;border-color:rgba(245,181,46,.5)}
+/* 필터 라벨과 칩 줄 간격 정리 */
+.frow{padding:9px 14px}
+.frow>b{flex:0 0 52px;padding-top:6px;font:800 9px/1 monospace;letter-spacing:.14em;color:#7d8698;flex-basis:56px}
+/* 인물은 스테이지가 함께 그린다 — 별도 이미지 레이어 제거 */
+.hero-figure{display:none}
+/* 카드가 캔버스 안에 들어오므로 마스크는 가장자리만 살짝 */
+.hero-fx{
+  mask-image:radial-gradient(closest-side at 50% 50%,#000 74%,transparent 99%);
+  -webkit-mask-image:radial-gradient(closest-side at 50% 50%,#000 74%,transparent 99%);
+  mix-blend-mode:normal}
+/* ============================================================
+   배너 — 카드를 왼쪽 끝에 크게, 좌우 반전
+   글은 오른쪽 단으로 옮긴다. 인물이 화면 안쪽(오른쪽)을 보게 되어
+   시선이 글로 흐른다 — 반전의 이유가 이것이다.
+   ============================================================ */
+.hero{grid-template-columns:clamp(320px,44%,620px) minmax(0,1fr);
+  padding-left:0;padding-right:clamp(24px,5vw,88px)}
+.hero>div:first-of-type{grid-column:2;max-width:none;align-self:end}
+@media(max-width:900px){
+  .hero{grid-template-columns:1fr;padding-left:clamp(20px,4.5vw,72px)}
+  .hero>div:first-of-type,.hero-stats{grid-column:1}
+  .hero-fx{left:50%;transform:translate(-50%,-50%) scaleX(-1);opacity:.4}
+}
+/* ── 배너 = 선수 카드만 ────────────────────────────────────── */
+.hero-fx{display:none}
+.hero-figure{right:auto;left:0;bottom:auto;top:50%;height:auto;width:clamp(300px,42%,560px);max-height:none;object-fit:contain;object-position:bottom right;clip-path:inset(0 0 35.5% 0);mask-image:linear-gradient(180deg,#000 88%,transparent);-webkit-mask-image:linear-gradient(180deg,#000 88%,transparent);filter:drop-shadow(28px 24px 40px rgba(0,0,0,.5));position:absolute;display:block;transform:translateY(-50%) scaleX(-1);/* CL 아틀라스 512x1024 중 카드 그림(위 660)만 */
+  clip-path:inset(0 0 35.5% 0);z-index:1;pointer-events:none}
+@media(max-width:900px){
+  .hero-figure{left:auto;right:-10%;width:56%;opacity:.4;transform:translateY(-50%) scaleX(-1)}
+}
+/* 카드가 위로 치우쳐 있었다(배너 위로 223px 넘침).
+   세로 중앙 정렬을 버리고 **바닥에 세운다** — 인물이 지면에 선 그림이 된다. */
+.hero-figure{
+  top:auto;bottom:-3%;
+  transform:scaleX(-1);
+  width:clamp(280px,38%,500px);
+  max-height:132%;
+  mask-image:linear-gradient(180deg,#000 90%,transparent);
+  -webkit-mask-image:linear-gradient(180deg,#000 90%,transparent)}
+@media(max-width:900px){
+  .hero-figure{top:auto;bottom:-3%;transform:scaleX(-1)}
+}
+/* ── 오른쪽 = 배경 이펙트 ───────────────────────────────────────
+   글 뒤에 광원으로 깔린다. 왼쪽 카드와 대칭을 이루되, 타이포가 먼저
+   읽혀야 하므로 가장자리로 밀고 중앙을 비운다.                      */
+.hero-fx{display:block;position:absolute;
+  left:auto;right:0;top:50%;bottom:auto;
+  transform:translate(22%,-50%);
+  transform-origin:center;
+  z-index:0;opacity:.85;pointer-events:none;
+  mix-blend-mode:screen;
+  mask-image:radial-gradient(closest-side at 50% 50%,#000 66%,transparent 97%);
+  -webkit-mask-image:radial-gradient(closest-side at 50% 50%,#000 66%,transparent 97%)}
+.hero>div:first-of-type,.hero-stats{position:relative;z-index:2}
+@media(max-width:900px){
+  .hero-fx{right:-30%;opacity:.35}
+}
+/* ── 배너 문구: 사이트 이름 + 통계만 ────────────────────────── */
+.hero-copyblock{grid-column:2;position:relative;z-index:2;align-self:end}
+.hero-stats{display:flex!important;gap:48px;margin-right:5vw;max-width:none;flex-wrap:wrap;row-gap:14px;grid-column:2;align-self:start;margin:26px 0 0;margin-top:30px}
+/* ============================================================
+   .hero-figure 최종 정의 — 앞선 5개 규칙을 모두 덮는다.
+   [문제] 카드 높이가 818px 인데 배너가 620px 라 위쪽 180px 이
+     overflow:hidden 에 잘려 "머리가 위에 붙어 잘린" 것처럼 보였다.
+   [처리] 높이를 배너 안에 맞추고(96%) 폭은 비율로 따라가게 둔다.
+   ============================================================ */
+.hero-figure{
+  position:absolute;
+  left:clamp(0px,1vw,28px);right:auto;
+  top:auto;bottom:0;
+  height:96%;width:auto;
+  max-height:96%;max-width:46%;
+  transform:scaleX(-1);
+  transform-origin:bottom left;
+  object-fit:contain;object-position:bottom;
+  clip-path:inset(0 0 35.5% 0);
+  z-index:1;pointer-events:none;
+  filter:drop-shadow(26px 22px 36px rgba(0,0,0,.45));
+  mask-image:none;-webkit-mask-image:none}
+@media(max-width:900px){
+  .hero-figure{left:auto;right:-6%;height:78%;max-width:60%;opacity:.4;
+    transform:scaleX(-1);transform-origin:bottom right}
+}
+/* 좌우 반전 기준점 교정 — bottom left 로 두면 자기 왼쪽 밖으로 밀려나
+   화면에서 사라진다(실측 left −285px, 폭 298 중 13px 만 보였다). */
+.hero-figure{transform-origin:bottom center}
+@media(max-width:900px){.hero-figure{transform-origin:bottom center}}
+/* ============================================================
+   테마 — 화이트 기본 / 다크(차콜) 전환
+   [원칙] 크롬(헤더·필터·표·정보)은 밝게, **미디어 웰(배너·카드 프레임)은
+     어둡게** 둔다. 카드 이펙트는 가산 합성이라 흰 바탕에서는 사라진다.
+   [색] 이펙트 분석에서 나온 206° 시안을 아주 옅게 섞은 중성 화이트.
+   ============================================================ */
+:root{
+  --bg:#f6f8fa; --surface:#ffffff; --raised:#eef1f5;
+  --line:#dde3ea; --muted:#5d6b7a; --ink:#131a21;
+  --red:#d8342c; --green:#0e9f6e; --fire:#e2542f;
+  --gold-grad:linear-gradient(135deg,#f0c24a,#d99b20 55%,#a8761a);
+  --well:#15181c;            /* 미디어 웰 */
+  --well-2:#0f1216;
+}
+:root[data-theme="dark"]{
+  --bg:#1a1c1f; --surface:#212428; --raised:#292d32;
+  --line:rgba(255,255,255,.11); --muted:#98a1ab; --ink:#eef1f5;
+  --red:#ff6a5e; --green:#3ecf8e;
+  --well:#131619; --well-2:#0d0f12;
+}
+html,body{background:var(--bg);color:var(--ink)}
+main,.player-detail-page{background:var(--bg);color:var(--ink);box-shadow:none}
+.topbar{height:78px;display:flex;align-items:center;padding:0 4.5vw;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 92%,transparent);position:sticky;top:0;z-index:20;backdrop-filter:blur(14px)}
+.hero{padding:76px 4.5vw 54px;display:flex;justify-content:space-between;align-items:flex-end;background:var(--well);position:relative;overflow:hidden;color:#eef1f5}
+.hero-tagline,.hero-stats span{color:#9aa3ad}
+.finder,.results-head,.pagination{background:var(--bg)}
+.player-table{margin:0 4.5vw 30px;border:1px solid var(--line);background:var(--surface);overflow-x:auto;border-radius:14px;overflow:hidden}
+.table-head{height:42px;background:var(--raised);color:var(--muted);padding:0 13px;font-size:9px;font-weight:800;letter-spacing:.04em;text-align:center;border-bottom:1px solid var(--line)}
+.player-row{width:100%;min-height:70px;padding:5px 13px;border:0;border-top:1px solid #202634;background:var(--raised);text-align:center;transition:background .12s ease;text-decoration:none;position:relative;color:var(--ink);border-bottom:1px solid var(--line)}
+.player-row:hover{background:var(--raised)}
+.detail-page{width:min(1280px,calc(100% - 64px));margin:42px auto 70px;display:grid;grid-template-columns:minmax(360px,40%) 1fr;background:var(--surface);box-shadow:0 26px 80px rgba(0,0,0,.5);border-radius:18px;overflow:hidden;border:1px solid var(--line);align-items:start}
+.detail-art{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px 30px 38px;background:var(--well-2);overflow:hidden}
+.card-frame{position:relative;width:min(100%,420px);aspect-ratio:512/660;overflow:hidden;background:var(--well-2);box-shadow:none}
+.searchbox{height:56px;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center;padding:0 18px;max-width:780px;position:relative;border-radius:10px}
+.searchbox input{border:0;outline:0;background:transparent;flex:1;font-size:14px;color:var(--ink)}
+.fb-field select,.pagesize select,.chips button,.segs,.stat-filter label,
+.filters,.fx-dev,.team-row button{background:var(--surface);color:var(--ink)}
+.chips button{height:30px;padding:0 11px;border-radius:15px;border:1px solid var(--line);background:var(--raised);color:var(--muted);font:700 11px/1 system-ui,sans-serif;display:inline-flex;align-items:center;gap:6px;transition:color .12s,border-color .12s,background .12s}
+.chips button.on,.segs button.on{color:var(--ink);border-color:var(--ink)}
+.detail-info .stat-bar{position:relative;height:14px;border-radius:7px;background:color-mix(in srgb,var(--ink) 10%,transparent);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+.scell>b,.stat-value{color:var(--ink)}
+.scell>span,.stat-label,.skill-body p,.skill-body li{color:var(--muted)}
+.skill>summary{list-style:none;cursor:pointer;padding:8px 0;font:700 12px/1.3 system-ui,sans-serif;color:var(--ink);display:flex;align-items:center;gap:6px}
+footer{min-height:90px;padding:0 4.5vw;display:flex;align-items:center;border-top:1px solid var(--line);background:var(--well);color:#74777c;font:600 9px/1 monospace;letter-spacing:.06em}
+/* 테마 버튼 */
+.theme-switch{margin-left:8px;width:28px;height:26px;border:1px solid var(--line);
+  background:none;color:var(--muted);font-size:13px;line-height:1}
+.theme-switch:hover{color:var(--ink)}
+.lang-switch{border-color:var(--line)}
+.lang-switch button{height:26px;padding:0 9px;border:0;background:none;color:var(--muted);font:700 10px/1 system-ui,sans-serif;border-right:1px solid var(--line)}
+.lang-switch button.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+/* 표 행이 옛 세대의 흰 배경을 물고 있어 다크에서 글자가 사라졌다.
+   (라이트/다크 모두 rgb(238,241,245) 로 측정됨) */
+.player-row,.player-table .player-row{background:var(--surface);color:var(--ink)}
+.player-row:hover,.player-table .player-row:hover{background:var(--raised)}
+.player-row.card-row{min-height:58px;background:var(--raised);border-top:1px solid #1a1f2c}
+.group-cards{background:var(--raised);border-left:4px solid var(--red);box-shadow:inset 0 8px 12px -10px rgba(0,0,0,.7),inset 0 -8px 12px -10px rgba(0,0,0,.5);border-left-color:var(--line)}
+.group-cards-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 18px 9px 30px;font:800 9px/1.5 monospace;letter-spacing:.09em;color:var(--muted);text-transform:uppercase;border-bottom:1px solid #1e2432}
+.player-table .empty{margin:0;padding:44px 20px;text-align:center;font-size:13px;color:var(--muted);background:var(--surface);border-top:1px solid #202634;border-top-color:var(--line)}
+.player-identity strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.player-identity small,.series-cell small,.score span{color:var(--muted)}
+.series-cell b,.score b{color:var(--ink)}
+.row-photo{display:grid;place-items:center;flex:0 0 58px;width:58px;height:58px;overflow:hidden;background:var(--well-2);border-radius:9px}
+.count{background:var(--raised);border-radius:20px;font:700 10px/1 monospace;padding:6px 8px;color:var(--ink)}
+.type-tabs button{min-width:0;height:42px;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--muted);font-size:13px;font-weight:800;flex:1;max-width:180px;border-radius:8px 8px 0 0;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.type-tabs button.active{border-bottom-color:var(--red);color:var(--ink);box-shadow:inset 0 -2px 0 var(--red)}
+.results-head p,.section-index{color:var(--muted)}
+.pagination button{height:40px;border:1px solid var(--line);background:var(--surface);padding:0 18px;font-size:10px;font-weight:800;color:var(--ink);border-radius:8px}
+.pagination span{font:700 11px/1 monospace;color:var(--muted)}
+.pagination b{color:var(--ink)}
+/* ── 배너 인물 배치기 ──────────────────────────────────────── */
+.hero-stage{position:absolute;inset:0;pointer-events:none;z-index:1}
+.hero-card.movable{pointer-events:auto;cursor:grab;touch-action:none}
+.hero-card.movable:active{cursor:grabbing}
+.hero-card.sel{outline:1px dashed rgba(255,255,255,.55);outline-offset:4px}
+.hero-layout{position:fixed;right:16px;bottom:16px;z-index:60;width:290px;
+  padding:12px;background:var(--surface);border:1px solid var(--line);
+  display:flex;flex-direction:column;gap:8px;
+  font:600 11px/1.4 system-ui,sans-serif;color:var(--ink)}
+.hl-tabs{display:flex;gap:4px}
+.hl-tabs button{flex:1;height:26px;border:1px solid var(--line);background:none;color:var(--muted);
+  font:700 10px/1 ui-monospace,monospace}
+.hl-tabs button.on{color:var(--ink);border-color:var(--ink)}
+.hero-layout label{display:grid;grid-template-columns:18px 1fr 42px;align-items:center;gap:8px}
+.hero-layout label span{font:700 10px/1 ui-monospace,monospace;color:var(--muted)}
+.hero-layout label b{font:700 11px/1 ui-monospace,monospace;text-align:right}
+.hl-row{display:flex;gap:4px}
+.hl-row button{flex:1;height:26px;border:1px solid var(--line);background:none;color:var(--ink);font-size:10px}
+.hero-layout textarea{width:100%;border:1px solid var(--line);background:var(--raised);
+  color:var(--ink);font:500 10px/1.5 ui-monospace,monospace;padding:6px;resize:vertical}
+.hl-copy{height:30px;border:1px solid var(--ink);background:var(--ink);color:var(--surface);font-weight:800}
+.hero-layout p{margin:0;font-size:10px;color:var(--muted);line-height:1.6}
+/* 배치기를 쓰는 동안에는 옛 단일 이미지 규칙을 끈다 */
+.hero-figure{display:none!important}
+/* `.hero>div:first-of-type` 이 이제 .hero-stage 를 잡아 position 을 덮었다
+   (DOM 상 배치기 div 가 먼저 온다). 대상을 명시적으로 바꾼다. */
+.hero>div:first-of-type{position:static;z-index:auto;grid-column:auto}
+.hero .hero-copyblock{position:relative;z-index:2;grid-column:2;align-self:end}
+.hero .hero-stage{position:absolute;inset:0;z-index:1;pointer-events:none;
+  grid-column:1 / -1;width:auto;height:auto}
+/* 절대 배치된 그리드 자식은 grid-column 을 주면 **그 그리드 영역**이 기준이 된다.
+   영역이 마지막 행으로 잡혀 높이 0 이 됐다. 영역 지정을 없애 컨테이너 기준으로. */
+.hero .hero-stage{grid-column:auto;grid-row:auto;
+  top:0;right:0;bottom:0;left:0;width:auto;height:auto}
+/* 절대 배치 그리드 자식에도 align-self 가 먹어 높이가 0 이 됐다. */
+.hero .hero-stage{align-self:stretch;justify-self:stretch}
+/* ── 배너 인물 2인: 앞뒤 깊이 ──────────────────────────────────
+   뒤(z:0)는 한 톤 죽이고 살짝 흐리게, 앞(z:1)은 또렷하게.
+   같은 인물이 겹치므로 대비를 주지 않으면 하나로 뭉쳐 보인다.      */
+.hero-card{transition:none}
+.hero-card[style*="z-index: 0"]{
+  opacity:.42;filter:grayscale(.35) blur(1.2px) drop-shadow(0 22px 30px rgba(0,0,0,.5))}
+.hero-card[style*="z-index: 1"]{
+  filter:drop-shadow(-14px 20px 34px rgba(0,0,0,.55))}
+/* 바닥으로 흘리는 페이드 — 잘린 단면을 지운다 */
+.hero-card{mask-image:linear-gradient(180deg,#000 90%,transparent);
+  -webkit-mask-image:linear-gradient(180deg,#000 90%,transparent)}
+/* ============================================================
+   배너 최종 — 배경 없음(페이지와 같은 화이트), 인물만 남긴다
+   [문제] [style*="z-index: 0"] 은 React 가 공백 없이 쓰기 때문에
+     매칭되지 않았다. data-depth 로 바꾼다.
+   ============================================================ */
+.hero{background:var(--bg);color:var(--ink)}
+.hero::before{content:none;position:absolute;left:0;right:0;bottom:0;height:120px;background:linear-gradient(180deg,transparent,var(--bg));z-index:1;pointer-events:none}
+.hero-stats strong{font:800 30px/1 ui-monospace,monospace;letter-spacing:-.04em;color:var(--ink)}
+.hero-stats span{font-size:9px;color:var(--muted);margin-top:8px;letter-spacing:.12em}
+.hero-rule{left:clamp(24px,5vw,88px);right:clamp(24px,5vw,88px);bottom:clamp(40px,6vw,72px);background:var(--ink);opacity:.12}
+/* 앞뒤 깊이 — 흰 바탕이라 흐림 대신 **명도차**로 가른다 */
+.hero-card[data-depth="back"]{
+  opacity:.22;filter:grayscale(1) contrast(.9)
+    drop-shadow(0 18px 26px rgba(20,30,40,.18))}
+.hero-card[data-depth="front"]{
+  opacity:1;filter:drop-shadow(-10px 18px 30px rgba(20,30,40,.26))}
+/* ============================================================
+   배너 재정리
+   [문제] 인물을 1.4배(h146%) 로 키우자 905px 이 되어 620px 배너에서
+     머리가 273px 잘렸다. 인물을 자를 게 아니라 **배너를 키워야** 한다.
+   [처리] 배너 높이를 620 → 약 870 으로 올리고 인물은 h104% 로 되돌린다.
+     결과 높이 ≈ 905px 로 요청한 1.4배가 그대로 나오면서 잘리지 않는다.
+   ============================================================ */
+.hero{min-height:clamp(560px,64vw,880px)}
+/* 오른쪽 이펙트 복귀 — 글 뒤 광원 */
+.hero-fx{display:block!important;position:absolute;
+  left:auto;right:0;top:50%;bottom:auto;
+  transform:translate(26%,-50%);
+  z-index:0;opacity:.9;pointer-events:none;
+  mix-blend-mode:multiply;
+  mask-image:radial-gradient(closest-side at 50% 50%,#000 62%,transparent 96%);
+  -webkit-mask-image:radial-gradient(closest-side at 50% 50%,#000 62%,transparent 96%)}
+.hero .hero-copyblock,.hero .hero-stats{position:relative;z-index:2}
+.hero-stage{z-index:1}
+@media(max-width:900px){.hero-fx{right:-34%;opacity:.5}}
+/* ============================================================
+   배너 — 현대적 에디토리얼 재구성
+   ① 인물을 왼쪽 판 밖으로 흘려 여백을 비대칭으로 만든다
+   ② 워드마크를 크게·타이트하게, 아이브로에 인디케이터 점
+   ③ 통계는 바닥을 가로지르는 **레일**(구분선 + 모노 마이크로타이포)
+   ④ 오른쪽 끝 세로 라벨로 판을 잠근다
+   ============================================================ */
+.hero{position:relative;display:grid;
+  grid-template-columns:minmax(0,1fr);
+  align-content:center;
+  padding:clamp(56px,7vw,104px) clamp(24px,5vw,88px) 0;
+  min-height:clamp(560px,62vw,820px);
+  overflow:hidden}
+/* ① 인물 — 왼쪽으로 흘리고 아래는 레일 위에서 끊는다 */
+.hero-stage{z-index:1}
+.hero-card{position:absolute;width:auto;max-width:none;object-fit:contain;clip-path:inset(0 0 35.5% 0);filter:drop-shadow(-6px 26px 44px rgba(20,30,45,.22));mask-image:linear-gradient(180deg,#000 92%,transparent);-webkit-mask-image:linear-gradient(180deg,#000 92%,transparent)}
+/* ② 워드마크 */
+.hero-copyblock{grid-column:1;justify-self:end;text-align:right;
+  max-width:min(58ch,60%);position:relative;z-index:2}
+.hero .eyebrow i{width:6px;height:6px;background:var(--red);display:block}
+.hero h1{font-size:clamp(46px,7.4vw,112px);line-height:.9;letter-spacing:-.055em;margin:0;font-weight:900;color:var(--ink)}
+/* ③ 바닥 레일 */
+.hero-rail{grid-column:1;position:relative;z-index:2;
+  margin-top:clamp(40px,6vw,88px);
+  display:grid;grid-template-columns:repeat(4,1fr);
+  border-top:1px solid var(--line)}
+.hero-rail>div:last-child{border-right:0}
+.hero-rail>div:not(:first-child){padding-left:clamp(14px,2vw,28px)}
+.hero-rail strong{font:800 clamp(22px,2.4vw,34px)/1 ui-monospace,monospace;
+  letter-spacing:-.04em;color:var(--ink)}
+.hero-rail span{font:700 9px/1 ui-monospace,monospace;letter-spacing:.16em;
+  color:var(--muted);text-transform:uppercase}
+/* ④ 세로 라벨 */
+.hero-edge{position:absolute;right:clamp(8px,1.4vw,22px);top:50%;
+  transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;
+  font:700 9px/1 ui-monospace,monospace;letter-spacing:.3em;color:var(--muted);
+  opacity:.7;z-index:2;pointer-events:none}
+/* 옛 규칙 정리 */
+.hero-stats,.hero-rule{display:none}
+.hero-fx{position:absolute;right:auto;top:50%;transform:translate(-16%,-50%) scaleX(-1);transform-origin:center;pointer-events:none;z-index:0;opacity:.5;mask-image:radial-gradient(closest-side at 50% 50%,#000 70%,transparent 98%);-webkit-mask-image:radial-gradient(closest-side at 50% 50%,#000 70%,transparent 98%);inset-inline-end:auto;left:0}
+@media(max-width:900px){
+  .hero{padding-inline:20px}
+  .hero-copyblock{justify-self:start;text-align:left;max-width:none}
+  .hero-rail{grid-template-columns:repeat(2,1fr)}
+  .hero-rail>div:nth-child(2){border-right:0}
+  .hero-edge{display:none}
+}
+/* 레일이 shrink-to-fit 으로 356px 만 차지했다 → 폭을 강제한다.
+   카드가 레일을 251px 파고들므로, 레일에 페이지 바탕을 깔아
+   그 위로 얹는다(사진 위에 글이 겹치면 읽히지 않는다). */
+.hero-rail{justify-self:stretch;width:100%;box-sizing:border-box;
+  background:var(--bg);position:relative;z-index:3}
+/* 카드가 레일 뒤로 사라지는 경계를 부드럽게 */
+.hero-card{mask-image:linear-gradient(180deg,#000 82%,transparent 97%);
+  -webkit-mask-image:linear-gradient(180deg,#000 82%,transparent 97%)}
+/* 제목도 판 폭을 다 쓰도록 */
+.hero-copyblock{justify-self:end;width:min(58ch,62%)}
+/* ============================================================
+   배너 최종 구조 — 글 왼쪽 / 선수+이펙트 오른쪽(한 캔버스 합성)
+   앞선 .hero 그리드 선언들이 2열로 남아 레일 폭이 356px 로 줄었다.
+   여기서 한 번에 확정한다.
+   ============================================================ */
+main section.hero{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) clamp(340px,42%,600px);
+  grid-template-areas:"copy media" "rail rail";
+  align-items:center;column-gap:clamp(20px,3vw,56px);
+  padding:clamp(48px,6vw,92px) clamp(24px,5vw,88px) 0;
+  min-height:clamp(560px,60vw,800px)}
+main section.hero .hero-copyblock{
+  grid-area:copy;justify-self:start;text-align:left;width:auto;max-width:none}
+/* 미디어 — 오른쪽 칸에 꽉 채우고 넘치는 부분은 배너가 자른다 */
+.hero-media{grid-area:media;position:relative;justify-self:center;
+  display:block;line-height:0;z-index:1;pointer-events:none;
+  transform:scale(1.18);transform-origin:center}
+/* 더는 쓰지 않는 분리 레이어 */
+.hero-stage,.hero-fx,.hero-card,.hero-figure{display:none!important}
+@media(max-width:900px){
+  main section.hero{grid-template-columns:1fr;
+    grid-template-areas:"media" "copy" "rail"}
+  .hero-media{transform:scale(1);opacity:.9}
+}
+/* 캔버스(1026x1619) 가 배너 높이를 1850px 까지 늘렸다.
+   미디어 박스를 고정하고 그 안에서 캔버스를 넘치게 두되 잘라 낸다. */
+.hero-media{height:clamp(400px,48vw,640px);width:100%;
+  display:grid;place-items:center;overflow:hidden;
+  transform:none;position:relative}
+@media(max-width:900px){
+  .hero-media{height:clamp(300px,60vw,440px)}
+  .hero-media canvas{height:150%}
+}
+/* 캔버스는 props 로 크기가 정해진다. 박스는 그 크기에 맞추고,
+   넘칠 때만 잘라 낸다(더는 억지로 늘리지 않는다). */
+.hero-media{height:auto;max-height:clamp(420px,50vw,660px);width:auto;
+  justify-self:center;overflow:hidden}
+/* 여백 압축 — 배너가 871px 인데 실제 그림은 384px 뿐이라 위아래가 비었다. */
+main section.hero{
+  min-height:0;
+  padding:clamp(32px,3.6vw,56px) clamp(24px,5vw,88px) 0;
+  align-items:center;row-gap:0}
+main section.hero .hero-rail{grid-area:rail;justify-self:stretch;width:100%;margin-top:clamp(20px,2.6vw,40px)}
+.hero-media{max-height:none;height:auto}
+.hero-media canvas{display:block;max-width:100%;height:auto!important;width:auto!important;max-height:none;object-fit:contain}
+.hero .eyebrow{margin-bottom:12px;color:var(--muted);display:inline-flex;align-items:center;gap:8px;margin:0 0 18px;font:700 10px/1 ui-monospace,monospace;letter-spacing:.24em}
+.hero-tagline{margin:18px 0 0;font:600 12px/1.6 ui-monospace,monospace;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-top:12px}
+.hero-rail>div{padding:14px 0 16px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
+/* ============================================================
+   왼쪽 단 채우기 + 전반 UX
+   ============================================================ */
+
+/* 워드마크를 두 줄로 쌓아 왼쪽 단을 채운다 */
+.hero h1{display:flex;flex-direction:column;line-height:.84;
+  font-size:clamp(52px,8.6vw,132px);letter-spacing:-.06em}
+.hero h1 span:last-child{color:var(--red)}
+/* 주 행동 유도 — 목록으로 */
+.hero-cta{display:inline-flex;align-items:baseline;gap:10px;margin-top:26px;
+  padding:14px 20px;border:1px solid var(--ink);text-decoration:none;color:var(--ink);
+  font:800 12px/1 system-ui,sans-serif;letter-spacing:.04em;
+  transition:background .14s,color .14s}
+.hero-cta:hover{background:var(--ink);color:var(--surface)}
+.hero-cta b{font:800 15px/1 ui-monospace,monospace;letter-spacing:-.03em}
+.hero-cta i{font-style:normal;font:700 10px/1 ui-monospace,monospace;
+  letter-spacing:.12em;opacity:.6}
+/* [반박된 시도] 표 머리 sticky.
+   .player-table 은 `overflow:hidden; overflow-x:auto` 라 sticky 가 뷰포트가
+   아니라 그 스크롤 컨테이너 기준으로 붙는다. 세로 스크롤이 없으니 고정되지
+   않고 헤더만 어긋나 보였다. 컨테이너 구조를 바꾸기 전까지는 쓰지 않는다. */
+.table-head{position:static}
+/* 행 상호작용 명확히 */
+.player-row{transition:background .1s}
+.player-row:focus-visible{outline:2px solid var(--red);outline-offset:-2px}
+.player-row:hover .row-arrow{color:var(--red);transform:translateX(2px)}
+.row-arrow{font-size:22px;color:var(--muted);transition:color .12s,transform .12s}
+/* 검색창 강조 */
+.searchbox{height:56px;border-width:1px;transition:border-color .14s}
+.searchbox:focus-within{border-color:var(--ink);box-shadow:0 0 0 3px rgba(245,181,46,.14)}
+.searchbox input::placeholder{color:var(--muted);opacity:.8}
+/* 결과 헤드를 얇게 */
+.results-head{padding-block:26px 14px}
+.results-head h2{color:var(--ink);font-size:17px;letter-spacing:-.02em}
+@media(max-width:900px){
+  .hero h1{font-size:clamp(44px,13vw,80px)}
+}
+/* 표 머리 마무리 — 테마 변수만 쓰고 옛 세대의 하드코딩 색을 덮는다 */
+.player-table .table-head{height:40px;padding:0 13px;
+  background:var(--raised);color:var(--muted);
+  font:800 9px/40px ui-monospace,monospace;letter-spacing:.1em;
+  border-bottom:1px solid var(--line);text-align:center}
+.player-table .table-head span:first-child{text-align:left;padding-left:4px}
+
+/* ============================================================
+   가시성 — WCAG 2.1 AA (본문 4.5:1, 큰 글자 3:1)
+   실측으로 미달 19곳을 찾아 고친다. 색이 정보인 곳(탄도 화살표,
+   등급 아이콘)은 색을 유지하고 **글자만** 읽히는 색으로 바꾼다.
+   ============================================================ */
+:root{
+  --muted:#4d5966;          /* #5d6b7a → 흰 배경 대비 4.4 미달이었다 */
+  --red:#c62a20;            /* #d8342c 4.4 → 5.3 */
+}
+:root[data-theme="dark"]{
+  --muted:#a3adb8;          /* 차콜 배경에서 6:1 이상 */
+  --red:#ff7a6e;
+}
+
+/* 옛 세대의 하드코딩 회색을 전부 변수로 */
+.filters>summary,.frow>b,.chips button,.stat-filter label>span,
+.filter-note,.pagesize,.hero-tagline,.hero-rail span,.hero .eyebrow,
+.player-identity small,.series-cell small,.score span,.row-arrow,
+.results-head p,.section-index,.table-head,.skill-body p,.skill-body li,
+.scell>span,.stat-label,.lang-switch button,.theme-switch,
+.hero-edge,.detail-info h3,.detail-info h3 small,.fx-dev>summary{color:var(--muted)}
+
+/* 탄도: 화살표는 색을 유지, 글자는 본문색 */
+.traj-cell b{color:var(--ink)!important}
+.detail-tags .traj .traj-cell b{color:var(--ink)!important}
+
+/* 유형 칩 — 옅은 파랑 위 옅은 파랑이라 1.3 이었다 */
+.type-chip{border:1px solid var(--line);background:none}
+.type-chip.batter{color:#1a5fb4}
+.type-chip.pitcher{color:#b4441a}
+:root[data-theme="dark"] .type-chip.batter{color:#8fbcff}
+:root[data-theme="dark"] .type-chip.pitcher{color:#ffa07f}
+
+/* 선택된 칩·세그먼트는 대비를 확실히 */
+.chips button.on,.segs button.on,.team-row button.on{color:var(--ink);font-weight:800}
+
+/* 포커스 표시 — 키보드 이동이 보이게 (웹표준) */
+a:focus-visible,button:focus-visible,select:focus-visible,
+input:focus-visible,summary:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--red);outline-offset:2px}
+
+/* 움직임 최소화 선호 존중 */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+
+/* ============================================================
+   테마 변수 최종 선언 (반드시 파일 맨 끝)
+   [문제] 중복 정리로 `:root` 가 마지막 위치로 병합되면서, 그보다 앞에
+     있던 `:root[data-theme="dark"]` 를 라이트 값이 덮어썼다.
+     다크 모드에서 어두운 글자가 어두운 배경에 얹혀 대비 1.0 이 됐다.
+   [처리] 다크 팔레트를 **전 항목** 다시, 맨 끝에 선언한다.
+   ============================================================ */
+:root[data-theme="dark"]{
+  --bg:#1a1c1f; --surface:#212428; --raised:#292d32;
+  --line:rgba(255,255,255,.12);
+  --muted:#a3adb8; --ink:#eef1f5;
+  --red:#ff7a6e; --green:#3ecf8e; --fire:#ff8a5c;
+  --well:#131619; --well-2:#0d0f12;
+  --gold-grad:linear-gradient(135deg,#ffdd77,#e0a52a 55%,#a8761a);
+}
+:root[data-theme="dark"] .hero{background:var(--bg);color:var(--ink)}
+:root[data-theme="dark"] .player-row{background:var(--surface);color:var(--ink)}
+:root[data-theme="dark"] .table-head{background:var(--raised);color:var(--muted)}
+:root[data-theme="dark"] .searchbox,
+:root[data-theme="dark"] .filters,
+:root[data-theme="dark"] .player-table{background:var(--surface)}
+
+/* 세그먼트/칩의 하드코딩 회색(#8b93a3, 3.1:1)이 남아 있었다 */
+.segs button,.chips button,.fb-field,.hero-rail span,
+.filters>summary,.pagesize{color:var(--muted)}
+.segs button.on,.chips button.on{color:var(--ink)}
+
+/* 표 행 안의 옛 회색들 */
+.player-identity small,.series-cell small,.score span,
+.player-row.group-row .series-cell small,
+.player-row.group-row .row-arrow,
+.player-row.card-row .row-arrow{color:var(--muted)}
+.player-row.card-row .player-identity strong{color:var(--ink)}
+
+/* ── 남은 대비 미달 9곳 ─────────────────────────────────────── */
+
+/* 다크인데 순백 배경이 살아 있던 곳 (표 내부) */
+.player-table,.player-table *:not(.grade):not(.grade *):not(canvas):not(img){
+  background-color:transparent}
+.player-table{background:var(--surface)}
+.player-row{background:var(--surface)}
+.player-row:hover{background:var(--raised)}
+.player-row.card-row{background:var(--raised)}
+.table-head{background:var(--raised)}
+.group-cards{background:var(--raised)}
+
+/* 유형 칩 — 배경 틴트를 없애고 테두리로 */
+.type-chip,.type-chip.batter,.type-chip.pitcher{
+  background:none!important;border:1px solid currentColor;opacity:1}
+.type-chip.batter{color:#1a5fb4}
+.type-chip.pitcher{color:#a63d17}
+:root[data-theme="dark"] .type-chip.batter{color:#a8caff}
+:root[data-theme="dark"] .type-chip.pitcher{color:#ffb69b}
+
+/* 브랜드 글리프: 빨강 위 흰 글자 */
+.brand-glyph{color:#fff!important;background:var(--red)}
+
+/* 화살표·부가 정보 */
+.row-arrow{color:var(--muted)!important}
+.series-cell small,.player-identity small{color:var(--muted)!important}
+
+/* 푸터 미세 글자 */
+footer,footer span,footer p{color:var(--muted)}

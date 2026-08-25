@@ -1,0 +1,14 @@
+﻿container,index,resource_name,offset,png_size,width,height,output_file
+CARD2015S.CHK,1,ICON01,32,646,128,128,site/public/extracted-card-backgrounds-small/CARD2015S/001_ICON01_128x128.png
+CARD2015S.CHK,2,ICON02,704,981,128,128,site/public/extracted-card-backgrounds-small/CARD2015S/002_ICON02_128x128.png
+CARD2015S.CHK,3,ICON03,1712,1989,128,64,site/public/extracted-card-backgrounds-small/CARD2015S/003_ICON03_128x64.png
+CARD2015S.CHK,4,ICON04,3728,842,128,32,site/public/extracted-card-backgrounds-small/CARD2015S/004_ICON04_128x32.png
+CARD2015S.CHK,5,ICON05,4592,2136,128,72,site/public/extracted-card-backgrounds-small/CARD2015S/005_ICON05_128x72.png
+CARD2015S.CHK,6,CLMP00,6784,4457,128,128,site/public/extracted-card-backgrounds-small/CARD2015S/006_CLMP00_128x128.png
+CARD2015S.CHK,7,TEX00,14560,2136,128,72,site/public/extracted-card-backgrounds-small/CARD2015S/007_TEX00_128x72.png
+CARD2015S.CHK,8,TEX01,16720,5559,128,128,site/public/extracted-card-backgrounds-small/CARD2015S/008_TEX01_128x128.png
+CARD2015S.CHK,9,TEX02,22304,646,128,128,site/public/extracted-card-backgrounds-small/CARD2015S/009_TEX02_128x128.png
+CARD2015S.CHK,10,TEX03,22976,981,128,128,site/public/extracted-card-backgrounds-small/CARD2015S/010_TEX03_128x128.png
+CARD2015S.CHK,11,TEX04,23984,1989,128,64,site/public/extracted-card-backgrounds-small/CARD2015S/011_TEX04_128x64.png
+CARD2015S.CHK,12,TEX05,26000,842,128,32,site/public/extracted-card-backgrounds-small/CARD2015S/012_TEX05_128x32.png
+CARD2015S.CHK,13,TEX06,26864,1466,128,64,site/public/extracted-card-backgrounds-small/CARD2015S/013_TEX06_128x64.png

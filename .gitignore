@@ -37,4 +37,8 @@ yarn-error.log*
 /dist/
 /.wrangler/
 /outputs/
+/output/
 /work/
+/node_modules_broken_*/
+/.git-broken-*/
+.venv-tools/

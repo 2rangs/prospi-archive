@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""Export AnimSS animation data for the web player.
+
+Attribute ids come from AnimssNormalModel::updatePartAttributeSub in libAll.so
+(a 33-entry jump table; each case calls AnimssPart::set<Attr>):
+
+    0 CELL  1 POSX  2 POSY  3 POSZ  4 ROTX  5 ROTY  6 ROTZ  7 SCALEX 8 SCALEY
+    9 ALPHA 10 PRIORITY 11 FLIPH 12 FLIPV 13 HIDE 14 VERTEXCOLOR
+    15 VERTEXTRANSFORM 16 PIVOTX 17 PIVOTY 22 IMGFLIPH 23 IMGFLIPV
+    24 UVTRANSX 25 UVTRANSY 26 UVROTZ 27 UVSCALEX 28 UVSCALEY
+    30 USERDATA 31 INSTANCE 32 EFFECT
+
+Struct layout, also from the binary:
+    AnimssDescAttribute  +0x00 u32 attrId  +0x08 keyOff  +0x10 keyCount
+    AnimssDescKeyFrame   +0x00 s32 frame   +0x18 u32 interp  +0x20 value  (40B)
+
+Instance parts (kind 3) are named "<clip>_anime_N" and are inlined as children,
+which is how the game layers several effects into one background.
+"""
+import hashlib, io, json, os, re, struct, sys
+from PIL import Image
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from animss import parts as anim_parts, clips as anim_clips, _cstr
+from extract_sprites import parse_part, find_tagged, sheet_files, CHK_DIR
+
+WANT = {1: "x", 2: "y", 6: "rot", 7: "sx", 8: "sy", 9: "a", 13: "hide", 0: "cell", 14: "vcol"}
+MAX_DEPTH = 2
+
+def cellmaps(d):
+    """[(slot, [cells...])] in texture order, plus the crop hash for each cell."""
+    out = []
+    for off in find_tagged(d, b"PRCT"):
+        pr = parse_part(d, off)
+        if pr:
+            out.append(pr)
+    return out
+
+def crop_hash(im, cell):
+    x, y = int(round(cell["x"])), int(round(cell["y"]))
+    w, h = int(round(cell["w"])), int(round(cell["h"]))
+    x2, y2 = min(x + w, im.width), min(y + h, im.height)
+    if w <= 0 or h <= 0 or x >= im.width or y >= im.height or x2 <= x or y2 <= y:
+        return None
+    crop = im.crop((x, y, x2, y2))
+    if crop.getbbox() is None:
+        return None
+    buf = io.BytesIO(); crop.save(buf, "PNG", optimize=True)
+    return hashlib.md5(buf.getvalue()).hexdigest()[:16], crop.width, crop.height
+
+def read_vcol(d, cb, off):
+    """AnimssValue::Vcol -- blend type, then one ARGB + rate per corner.
+    Layout: +0x00 u32 blendType, +0x08 u64 dataOff, then u32 argb / f32 rate."""
+    try:
+        blend = struct.unpack_from("<I", d, cb + off)[0]
+        n = 4 if blend else 1
+        base = cb + off + 0x10
+        out = []
+        for i in range(n):
+            argb = struct.unpack_from("<I", d, base + i*8)[0]
+            rate = struct.unpack_from("<f", d, base + i*8 + 4)[0]
+            out.append([(argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF,
+                        round(rate if 0 <= rate <= 1 else 1.0, 3)])
+        return {"blend": blend, "c": out}
+    except Exception:
+        return None
+
+
+def read_tracks(d, cb, a_off, a_cnt):
+    tr = {}
+    for ai in range(a_cnt):
+        aid, k_off, k_cnt = struct.unpack_from("<QQQ", d, cb + a_off + ai*0x18)
+        if aid not in WANT or k_cnt > 4096:
+            continue
+        if aid == 14:
+            ko = cb + k_off
+            if ko + 0x28 <= len(d):
+                vc = read_vcol(d, cb, struct.unpack_from("<I", d, ko + 0x20)[0])
+                if vc: tr["vcol"] = vc
+            continue
+        keys = []
+        for k in range(k_cnt):
+            ko = cb + k_off + k*0x28
+            if ko + 0x28 > len(d): break
+            fr = struct.unpack_from("<i", d, ko)[0]
+            if aid == 0:
+                v = list(struct.unpack_from("<II", d, ko + 0x20))
+            elif aid == 13:
+                v = struct.unpack_from("<I", d, ko + 0x20)[0]
+            else:
+                v = round(struct.unpack_from("<f", d, ko + 0x20)[0], 4)
+                if abs(v) > 1e6: v = 0.0
+            keys.append([fr, v])
+        if keys:
+            tr[WANT[aid]] = keys
+    return tr
+
+def build(effect_id, cache, depth=0, want_clip=None, want_anim="anime_1"):
+    """Return (parts, meta) for an effect's main clips, inlining instances."""
+    path = os.path.join(CHK_DIR, f"ANSS_EF_{effect_id}_L.CHK")
+    if not os.path.exists(path):
+        return [], None
+    if effect_id not in cache:
+        d, ps = anim_parts(path)
+        prs = cellmaps(d)
+        sheets = sheet_files(effect_id)
+        images = {}
+        cells = {}
+        for pr in prs:
+            flat = []
+            for tex in pr["textures"]:
+                src = sheets.get(tex["slot"])
+                if src and src not in images:
+                    images[src] = Image.open(src).convert("RGBA")
+                for ci, cell in enumerate(tex["cells"]):
+                    h = crop_hash(images[src], cell) if src else None
+                    flat.append({"name": cell["name"],
+                                 "file": h[0] if h else None,
+                                 "w": h[1] if h else int(cell["w"]),
+                                 "h": h[2] if h else int(cell["h"]),
+                                 "px": round(cell["pivotX"], 4), "py": round(cell["pivotY"], 4),
+                                 "map": tex["slot"], "idx": ci})
+            cells[pr["part"]] = flat
+        for im in images.values(): im.close()
+        cache[effect_id] = (d, ps, cells)
+    d, ps, cells = cache[effect_id]
+
+    out = []
+    for part in ps:
+        cb = part["cb"]
+        flat = cells.get(part["name"], [])
+        # first cell of each cellmap, for CELL = cellmap index
+        maps = sorted({c["map"] for c in flat})
+        mapno = {m: i for i, m in enumerate(maps)}
+        bycell = {(mapno[c["map"]], c["idx"]): c for c in flat}
+        role = "front" if re.search(r"_f\d+(_\d+)?$", part["name"]) else "back"
+        for clip in anim_clips(d, part):
+            if want_clip and clip["name"] != want_clip:
+                continue
+            if not want_clip and clip["name"] != part["name"]:
+                continue
+            a_off, a_cnt = clip["anims"]
+            for ai in range(a_cnt):
+                ao = cb + a_off + ai*0x78
+                if _cstr(d, ao) != want_anim:
+                    continue
+                t_off, t_cnt = struct.unpack_from("<QQ", d, ao + 0x68)
+                if t_cnt > 4096: continue
+                base = len(out)
+                for t in range(t_cnt):
+                    pi, at_off, at_cnt = struct.unpack_from("<QQQ", d, cb + t_off + t*0x18)
+                    nd = clip["nodes"][pi] if pi < len(clip["nodes"]) else {"name": f"#{pi}", "parent": -1, "kind": 0}
+                    tracks = read_tracks(d, cb, at_off, at_cnt)
+                    vcol = tracks.pop("vcol", None)
+                    cellv = tracks.pop("cell", None)
+                    cell = None
+                    if nd["kind"] == 1 and cellv:
+                        mi, ci = cellv[0][1]
+                        cell = bycell.get((mi, ci))
+                    node = {"n": nd["name"], "p": nd["parent"] + base if nd["parent"] >= 0 else -1,
+                            "k": nd["kind"], "role": role, "t": tracks}
+                    if cell and cell["file"]:
+                        node["c"] = {k: cell[k] for k in ("file", "w", "h", "px", "py")}
+                    if vcol: node["v"] = vcol
+                    out.append(node)
+                # inline instances
+                if depth < MAX_DEPTH:
+                    for i in range(base, len(out)):
+                        nd = out[i]
+                        if nd["k"] != 3: continue
+                        m = re.match(r"^(ef_(\d+)_[a-z0-9_]*?)_(anime_\d+)$", nd["n"])
+                        if not m: continue
+                        cname, ref_eid, aname = m.group(1), m.group(2), m.group(3)
+                        sub, _ = build(ref_eid, cache, depth + 1, want_clip=cname, want_anim=aname)
+                        off2 = len(out)
+                        for s in sub:
+                            s = dict(s)
+                            s["p"] = s["p"] + off2 if s["p"] >= 0 else i
+                            s["role"] = nd["role"]
+                            out.append(s)
+    meta = None
+    for part in ps:
+        for clip in anim_clips(d, part):
+            meta = {"canvasW": clip["canvas"][0], "canvasH": clip["canvas"][1],
+                    "frames": clip["frames"], "fps": clip["fps"]}
+            break
+        if meta: break
+    return out, meta
+
+if __name__ == "__main__":
+    out_dir, ids = sys.argv[1], sys.argv[2:]
+    os.makedirs(out_dir, exist_ok=True)
+    if not ids:
+        ids = [re.match(r"ANSS_EF_(\d+)_L\.CHK$", f).group(1)
+               for f in sorted(os.listdir(CHK_DIR)) if f.endswith("_L.CHK")]
+    total = 0
+    for n, eid in enumerate(ids):
+        if n % 60 == 0: print(f"  ...{n}/{len(ids)}", flush=True)
+        cache = {}
+        try:
+            parts_, meta = build(eid, cache)
+        except Exception as ex:
+            print(f"  !! {eid}: {ex}"); continue
+        if not parts_: continue
+        doc = {"effectId": int(eid), **(meta or {}), "parts": parts_}
+        p = os.path.join(out_dir, f"{eid}.json")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(doc, f, separators=(",", ":"))
+        total += os.path.getsize(p)
+    print(f"exported {len(ids)} effects, {total/1048576:.1f} MB")

@@ -1,0 +1,10 @@
+﻿container,index,resource_name,offset,png_size,width,height,output_file
+ANSS_COM_BG800.CHK,1,CLMP00,32,209960,512,1024,site/public/extracted-card-ui-common/ANSS_COM_BG800/001_CLMP00_512x1024.png
+ANSS_COM_BG800.CHK,2,CLMP01,210016,13893,512,256,site/public/extracted-card-ui-common/ANSS_COM_BG800/002_CLMP01_512x256.png
+ANSS_COM_BG800.CHK,3,CLMP02,223936,2257,16,512,site/public/extracted-card-ui-common/ANSS_COM_BG800/003_CLMP02_16x512.png
+ANSS_COM_BG800.CHK,4,CLMP03,226224,5078,64,512,site/public/extracted-card-ui-common/ANSS_COM_BG800/004_CLMP03_64x512.png
+ANSS_COM_BG800.CHK,5,CLMP04,231328,308,32,256,site/public/extracted-card-ui-common/ANSS_COM_BG800/005_CLMP04_32x256.png
+ANSS_COM_BG800.CHK,6,CLMP05,231664,2227,64,64,site/public/extracted-card-ui-common/ANSS_COM_BG800/006_CLMP05_64x64.png
+ANSS_COM_BG800.CHK,7,CLMP06,233920,14865,256,256,site/public/extracted-card-ui-common/ANSS_COM_BG800/007_CLMP06_256x256.png
+ANSS_COM_BG800.CHK,8,CLMP07,248816,12765,512,512,site/public/extracted-card-ui-common/ANSS_COM_BG800/008_CLMP07_512x512.png
+ANSS_COM_BG800.CHK,9,CLMP08,261600,1725,512,64,site/public/extracted-card-ui-common/ANSS_COM_BG800/009_CLMP08_512x64.png

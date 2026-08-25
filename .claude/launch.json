@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "prospi-site",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vinext", "dev", "--port", "3000"],
+      "port": 3000
+    }
+  ]
+}

@@ -1,0 +1,208 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+/**
+ * Plays the app's own AnimSS animation data.
+ *
+ * Attribute ids and the keyframe struct were read out of libAll.so
+ * (AnimssNormalModel::updatePartAttributeSub dispatches a 33-entry jump table
+ * onto AnimssPart::setPosX / setPosY / setRotZ / setScaleX / setScaleY /
+ * setHide / …), so the transforms here are the game's own values rather than
+ * anything invented. Instance parts (kind 3) are inlined at export time, which
+ * is how one background ends up layering several effects.
+ */
+
+type Track = [number, number][];
+type Part = {
+  n: string; p: number; k: number; role: "back" | "front";
+  t: { x?: Track; y?: Track; rot?: Track; sx?: Track; sy?: Track; a?: Track; hide?: Track };
+  c?: { file: string; w: number; h: number; px: number; py: number };
+  v?: { blend: number; c: [number, number, number, number][] };
+};
+export type AnimDoc = { effectId: number; canvasW: number; canvasH: number; frames: number; fps: number; parts: Part[] };
+
+/** Center alpha per sprite cell, so solid cells are drawn rather than masked. */
+let alphaIndex: Record<string, number> | null = null;
+let alphaRequest: Promise<Record<string, number>> | null = null;
+function loadAlpha() {
+  if (alphaIndex) return Promise.resolve(alphaIndex);
+  if (!alphaRequest) {
+    alphaRequest = fetch("/effects/sprite-alpha.json")
+      .then(r => (r.ok ? r.json() : {}))
+      .catch(() => ({}))
+      .then((a: Record<string, number>) => { alphaIndex = a; return a; });
+  }
+  return alphaRequest;
+}
+
+const docCache = new Map<number, AnimDoc | null>();
+const inflight = new Map<number, Promise<AnimDoc | null>>();
+
+function loadDoc(effectId: number) {
+  if (docCache.has(effectId)) return Promise.resolve(docCache.get(effectId)!);
+  let p = inflight.get(effectId);
+  if (!p) {
+    p = fetch(`/effects/anim/${effectId}.json`)
+      .then(r => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((doc: AnimDoc | null) => { docCache.set(effectId, doc); inflight.delete(effectId); return doc; });
+    inflight.set(effectId, p);
+  }
+  return p;
+}
+
+/** Sample a keyframe track at `frame`; linear between keys, held at the ends. */
+function sample(track: Track | undefined, frame: number, fallback: number) {
+  if (!track || !track.length) return fallback;
+  if (frame <= track[0][0]) return track[0][1];
+  const last = track[track.length - 1];
+  if (frame >= last[0]) return last[1];
+  for (let i = 1; i < track.length; i += 1) {
+    const [f1, v1] = track[i];
+    if (frame <= f1) {
+      const [f0, v0] = track[i - 1];
+      const span = f1 - f0;
+      return span <= 0 ? v1 : v0 + (v1 - v0) * ((frame - f0) / span);
+    }
+  }
+  return last[1];
+}
+
+type World = { x: number; y: number; rot: number; sx: number; sy: number; a: number; hidden: boolean };
+
+function solve(doc: AnimDoc, frame: number) {
+  const world: World[] = new Array(doc.parts.length);
+  for (let i = 0; i < doc.parts.length; i += 1) {
+    const part = doc.parts[i];
+    const lx = sample(part.t.x, frame, 0);
+    const ly = sample(part.t.y, frame, 0);
+    const lrot = sample(part.t.rot, frame, 0);
+    const lsx = sample(part.t.sx, frame, 1);
+    const lsy = sample(part.t.sy, frame, 1);
+    const la = sample(part.t.a, frame, 1);
+    const hide = sample(part.t.hide, frame, 0) > 0.5;
+    const parent = part.p >= 0 && part.p < i ? world[part.p] : null;
+    if (!parent) {
+      world[i] = { x: lx, y: ly, rot: lrot, sx: lsx, sy: lsy, a: la, hidden: hide };
+      continue;
+    }
+    // rotate the child offset into the parent's frame, then scale
+    const rad = (parent.rot * Math.PI) / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    world[i] = {
+      x: parent.x + (lx * parent.sx * cos - ly * parent.sy * sin),
+      y: parent.y + (lx * parent.sx * sin + ly * parent.sy * cos),
+      rot: parent.rot + lrot,
+      sx: parent.sx * lsx,
+      sy: parent.sy * lsy,
+      a: parent.a * la,
+      hidden: parent.hidden || hide,
+    };
+  }
+  return world;
+}
+
+/**
+ * AnimssPart::setVertexColor(BlendType, colour). Blend 0 is one colour for the
+ * whole part, blend 1 is one per corner. The game multiplies the cell by it,
+ * which is why the plain white glow cells do not blow the card out. Here the
+ * cell is used as a mask over that colour (or gradient), which reproduces the
+ * tint for the additive glow cells these attributes are used on.
+ */
+/** Mean tint luminance; a part multiplied by black adds nothing when the
+ *  layers are composited additively, which is how the game hides plate cells. */
+function tintLuma(part: Part) {
+  if (!part.v) return 255;
+  const cs = part.v.c;
+  return cs.reduce((sum, [r, g, b]) => sum + (r * 0.299 + g * 0.587 + b * 0.114), 0) / cs.length;
+}
+
+function tintStyle(part: Part): React.CSSProperties | null {
+  const v = part.v;
+  if (!v || !part.c) return null;
+  const rgb = v.c.map(([r, g, b]) => `rgb(${r},${g},${b})`);
+  const flat = v.c.every(([r, g, b]) => r > 245 && g > 245 && b > 245);
+  if (flat) return null;                       // white -> no modulation
+  // A cell that is fully opaque through the middle has no shape to mask with,
+  // so masking a colour through it paints the whole rectangle. Those cells
+  // carry their own colour, so draw them as images instead.
+  if ((alphaIndex?.[part.c.file] ?? 0) >= 250) return null;
+  const bg = v.blend && rgb.length === 4
+    ? `linear-gradient(to right, ${rgb[0]} 0%, ${rgb[1]} 50%, ${rgb[3]} 100%)`
+    : rgb[0];
+  const mask = `url(/effects/sprites/${part.c.file}.png)`;
+  return {
+    background: bg,
+    WebkitMaskImage: mask, maskImage: mask,
+    WebkitMaskSize: "100% 100%", maskSize: "100% 100%",
+    WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+    WebkitMaskPosition: "center", maskPosition: "center",
+  } as React.CSSProperties;
+}
+
+export default function AnimSSPlayer({
+  effectId, layer = "back", paused = false,
+}: { effectId: number; layer?: "back" | "front"; paused?: boolean }) {
+  const [doc, setDoc] = useState<AnimDoc | null>(docCache.get(effectId) ?? null);
+  const [frame, setFrame] = useState(0);
+  const raf = useRef<number | null>(null);
+
+  const [, setAlphaReady] = useState(alphaIndex != null);
+  useEffect(() => {
+    let alive = true;
+    loadAlpha().then(() => { if (alive) setAlphaReady(true); });
+    loadDoc(effectId).then(d => { if (alive) setDoc(d); });
+    return () => { alive = false; };
+  }, [effectId]);
+
+  useEffect(() => {
+    if (!doc || paused) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const start = performance.now();
+    const tick = () => {
+      const elapsed = (performance.now() - start) / 1000;
+      setFrame((elapsed * doc.fps) % doc.frames);
+      raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => { if (raf.current != null) cancelAnimationFrame(raf.current); };
+  }, [doc, paused]);
+
+  if (!doc) return <div className={`fx fx-${layer}`} aria-hidden="true" />;
+
+  const world = solve(doc, frame);
+  const unit = 100 / doc.canvasW;   // canvas units -> % of the container
+
+  return <div className={`fx fx-${layer}`} aria-hidden="true" data-effect-id={effectId}>
+    {doc.parts.map((part, i) => {
+      if (!part.c || part.role !== layer) return null;
+      const w = world[i];
+      if (!w || w.hidden || w.a <= 0.01) return null;
+      if (tintLuma(part) < 12) return null;   // multiplied to black
+
+      const base: React.CSSProperties = {
+        width: `${part.c.w * unit}%`,
+        aspectRatio: `${part.c.w} / ${part.c.h}`,
+        left: `${50 + w.x * unit}%`,
+        top: `${50 + w.y * unit}%`,
+        opacity: Math.min(1, w.a),
+        transform: `translate(-50%, -50%) rotate(${w.rot}deg) scale(${w.sx}, ${w.sy})`
+          + ` translate(${part.c.px * 100}%, ${part.c.py * 100}%)`,
+      };
+      const tint = tintStyle(part);
+      if (tint) {
+        return <span key={`${i}-${part.n}`} className="fx-part fx-tint" style={{ ...base, ...tint }} />;
+      }
+      return <img
+        key={`${i}-${part.n}`}
+        className="fx-part"
+        src={`/effects/sprites/${part.c.file}.png`}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        style={base}
+      />;
+    })}
+  </div>;
+}

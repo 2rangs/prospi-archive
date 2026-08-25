@@ -1,0 +1,5 @@
+﻿container,index,resource_name,offset,png_size,width,height,output_file
+CARD2015L.CHK,1,CLMP00,64,7732,256,256,site/public/extracted-card-backgrounds/CARD2015L/001_CLMP00_256x256.png
+CARD2015L.CHK,2,CLMP01,7824,10689,512,64,site/public/extracted-card-backgrounds/CARD2015L/002_CLMP01_512x64.png
+CARD2015L.CHK,3,TEX00,24400,756,512,1024,site/public/extracted-card-backgrounds/CARD2015L/003_TEX00_512x1024.png
+CARD2015L.CHK,4,TEX01,25184,28337,512,512,site/public/extracted-card-backgrounds/CARD2015L/004_TEX01_512x512.png
