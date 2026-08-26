@@ -6,6 +6,15 @@ import { AnssDocument, CARD_ART_H, CARD_ART_REF_H, CARD_ART_W, BlendType, Cell, 
 import { Draw, VCol, evaluate } from "./evaluate";
 
 /**
+ * Sites 정적 호스트는 WebP를 application/octet-stream으로 내려 Pixi 로더가
+ * 간헐적으로 빈 텍스처를 만들었다. 공개 GitHub 저장소의 불변 커밋을 jsDelivr로
+ * 제공하면 image/webp + CORS 헤더가 보장되고, 배포 버전과 자산도 함께 고정된다.
+ */
+const EFFECT_TEXTURE_ROOT =
+  "https://cdn.jsdelivr.net/gh/2rangs/prospi-archive@a725f43772fc22d597b5eb5e44ff25793cfae618/public/effects";
+const effectTextureUrl = (path: string) => `${EFFECT_TEXTURE_ROOT}/${path}`;
+
+/**
  * Renders an evaluated ANSS frame.
  *
  * Logical space is the base screen (640 x 1136, GetBaseScreenWidth/Height) with
@@ -110,14 +119,14 @@ function loadedTexture(url: string): Texture {
 
 /** 렌더 루프용: 준비 단계에서 만들어 둔 것만 쓴다. */
 export function sheetTexture(sheet: string, additive: boolean): Texture | null {
-  const url = `/effects/sheets-webp/${sheet}.webp`;
+  const url = effectTextureUrl(`sheets-webp/${sheet}.webp`);
   if (!additive) return loadedTexture(url);
   if (sheetCache.has(sheet)) return sheetCache.get(sheet) ?? loadedTexture(url);
   return loadedTexture(url);
 }
 
 function computeSheet(sheet: string, additive: boolean): Texture | null {
-  const url = `/effects/sheets-webp/${sheet}.webp`;
+  const url = effectTextureUrl(`sheets-webp/${sheet}.webp`);
   const plain = loadedTexture(url);
   if (!plain) return null;
   if (!additive) return plain;
@@ -262,7 +271,7 @@ function lightTexture(cv: HTMLCanvasElement, px: Uint8ClampedArray,
 }
 
 function computeIntensity(cell: Cell, additive = true): Texture | null {
-  const url = `/effects/sprites-webp/${cell.file}.webp`;
+  const url = effectTextureUrl(`sprites-webp/${cell.file}.webp`);
   const key = `${cell.file}|${additive ? "a" : "m"}`;
   const plain = loadedTexture(url);
   if (!plain) return null;
@@ -381,7 +390,7 @@ function computeIntensity(cell: Cell, additive = true): Texture | null {
 const urlCache = new Map<string, string>();
 function spriteUrl(file: string): string {
   let u = urlCache.get(file);
-  if (!u) { u = `/effects/sprites-webp/${file}.webp`; urlCache.set(file, u); }
+  if (!u) { u = effectTextureUrl(`sprites-webp/${file}.webp`); urlCache.set(file, u); }
   return u;
 }
 
@@ -466,8 +475,8 @@ export function cellUrls(doc: AnssDocument) {
        *   버려진 뒤였다.
        * [신뢰도] CONFIRMED (드롭 카운터 계측)
        */
-      if (c.file) set.add(`/effects/sprites-webp/${c.file}.webp`);
-      if (uv && c.sheet) set.add(`/effects/sheets-webp/${c.sheet}.webp`);
+      if (c.file) set.add(effectTextureUrl(`sprites-webp/${c.file}.webp`));
+      if (uv && c.sheet) set.add(effectTextureUrl(`sheets-webp/${c.sheet}.webp`));
     }
   }
   return Array.from(set);
