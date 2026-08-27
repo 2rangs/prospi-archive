@@ -337,17 +337,9 @@ function PlayerPage() {
       </div>
 
       <div className="detail-info">
-        <div className="detail-heading">
-          <div className="detail-heading-copy">
-            <p className="eyebrow">PLAYER DETAIL</p>
-            <p className="reading">{card.roman || `IMAGE ${card.id}`}</p>
-            <h1>{card.name}</h1>
-          </div>
-          {ref?.spirits != null && <div className="detail-spirit">
-            <span>{t("spirits")}</span>
-            <strong>{ref.spirits.toLocaleString()}</strong>
-          </div>}
-        </div>
+        <p className="eyebrow">PLAYER DETAIL</p>
+        <p className="reading">{card.roman || `IMAGE ${card.id}`}</p>
+        <h1>{card.name}</h1>
         <div className="detail-tags">
           <span>{card.year}</span>
           <span>{card.playerType === "pitcher" ? t("pitcherCard") : t("batterCard")}</span>
@@ -379,6 +371,7 @@ function PlayerPage() {
             </div>
           </div>
           <div className="ref-chips">
+            <span><b>{t("spirits")}</b><i>{(ref.spirits ?? 0).toLocaleString()}</i></span>
             <span><b>{t("cost")}</b><i>{ref.cost}</i></span>
             {ref.hand && <span><b>{ref.kind === "batter" ? t("bats") : t("throws")}</b><i>{tv(ref.hand)}</i></span>}
             {ref.pos && <span><b>{t("position")}</b><i>{tv(ref.pos)}</i></span>}
