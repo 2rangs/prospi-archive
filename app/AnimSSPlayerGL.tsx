@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Application, Container, Sprite, Texture, Matrix, Assets } from "pixi.js";
 import { loadAnss } from "./anss/useAnss";
+import { effectTextureUrl } from "./anss/AnssStage";
 
 /**
  * WebGL(PixiJS) 재현. AnimSSPlayer(DOM)와 같은 키프레임 모델을 쓰되,
@@ -151,7 +152,7 @@ function cornerGradientTexture(cell: Cell, v: NonNullable<Part["v"]>) {
   const hit = gradientCache.get(key);
   if (hit) return hit;
 
-  const base = Texture.from(`/effects/sprites-webp/${cell.file}.webp`);
+  const base = Texture.from(effectTextureUrl(`sprites-webp/${cell.file}.webp`));
   const src = base.source?.resource as CanvasImageSource | undefined;
   if (!src) return base;
 
@@ -239,7 +240,7 @@ export default function AnimSSPlayerGL({
       });
       const loaded = new Set<string>();
       await Promise.all([...files].map(f =>
-        Assets.load(`/effects/sprites-webp/${f}.webp`).then(() => { loaded.add(f); }).catch(() => null)));
+        Assets.load(effectTextureUrl(`sprites-webp/${f}.webp`)).then(() => { loaded.add(f); }).catch(() => null)));
       if (disposed) { app.destroy(true); return; }
 
       // 파트별 스프라이트 생성(정적 셀). 플립북/틴트/블렌드 지정.
@@ -249,7 +250,7 @@ export default function AnimSSPlayerGL({
         if (!cell || !loaded.has(cell.file)) return null;
         const tex = part.v && part.v.blend !== 0
           ? cornerGradientTexture(cell, part.v)
-          : Texture.from(`/effects/sprites-webp/${cell.file}.webp`);
+          : Texture.from(effectTextureUrl(`sprites-webp/${cell.file}.webp`));
         const sp = new Sprite(tex);
         sp.anchor.set(0.5);
         sp.blendMode = blendOf(part.bl);
@@ -279,7 +280,7 @@ export default function AnimSSPlayerGL({
               cell = next;
               const tex = part.v && part.v.blend !== 0
                 ? cornerGradientTexture(cell, part.v)
-                : Texture.from(`/effects/sprites-webp/${cell.file}.webp`);
+                : Texture.from(effectTextureUrl(`sprites-webp/${cell.file}.webp`));
               if (sp.texture !== tex) sp.texture = tex;
             }
           }

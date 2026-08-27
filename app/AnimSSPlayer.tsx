@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { loadAnss } from "./anss/useAnss";
+import { effectTextureUrl } from "./anss/AnssStage";
 
 /**
  * Plays the app's own AnimSS animation data. (v2)
@@ -217,7 +218,7 @@ function tintStyle(part: Part, cell: Cell): React.CSSProperties | null {
   const bg = v.blend && rgb.length === 4
     ? `linear-gradient(to right, ${rgb[0]} 0%, ${rgb[1]} 50%, ${rgb[3]} 100%)`
     : rgb[0];
-  const mask = `url(/effects/sprites-webp/${cell.file}.webp)`;
+  const mask = `url(${effectTextureUrl(`sprites-webp/${cell.file}.webp`)})`;
   return {
     background: bg,
     WebkitMaskImage: mask, maskImage: mask,
@@ -297,7 +298,7 @@ export default function AnimSSPlayer({
       return <img
         key={`${i}-${part.n}`}
         className="fx-part"
-        src={`/effects/sprites-webp/${cell.file}.webp`}
+        src={effectTextureUrl(`sprites-webp/${cell.file}.webp`)}
         alt=""
         loading="lazy"
         decoding="async"

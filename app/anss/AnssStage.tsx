@@ -6,6 +6,11 @@ import { Application, Assets, Container, Matrix, Mesh, MeshGeometry, Rectangle, 
 import { AnssDocument, CARD_ART_H, CARD_ART_REF_H, CARD_ART_W, BlendType, Cell, PartType } from "./types";
 import { Draw, VCol, evaluate } from "./evaluate";
 
+/** Immutable effect textures live on the archive CDN, outside the Sites bundle. */
+const EFFECT_TEXTURE_ROOT =
+  "https://cdn.jsdelivr.net/gh/2rangs/prospi-archive@a725f43772fc22d597b5eb5e44ff25793cfae618/public/effects";
+export const effectTextureUrl = (path: string) => `${EFFECT_TEXTURE_ROOT}/${path}`;
+
 /**
  * Renders an evaluated ANSS frame.
  *
@@ -463,14 +468,14 @@ export function isTileWrap(part: { t?: Record<string, unknown> }, cell: Cell): b
 }
 
 export function sheetTexture(sheet: string, additive: boolean): Texture | null {
-  const url = `/effects/sheets-webp/${sheet}.webp`;
+  const url = effectTextureUrl(`sheets-webp/${sheet}.webp`);
   if (!additive) return Texture.from(url);
   if (sheetCache.has(sheet)) return sheetCache.get(sheet) ?? Texture.from(url);
   return Texture.from(url);
 }
 
 function computeSheet(sheet: string, additive: boolean): Texture | null {
-  const url = `/effects/sheets-webp/${sheet}.webp`;
+  const url = effectTextureUrl(`sheets-webp/${sheet}.webp`);
   const plain = Texture.from(url);
   if (!plain) return null;
   if (!additive) return plain;
@@ -616,7 +621,7 @@ function lightTexture(cv: HTMLCanvasElement, px: Uint8ClampedArray,
 }
 
 function computeIntensity(cell: Cell, additive = true): Texture | null {
-  const url = `/effects/sprites-webp/${cell.file}.webp`;
+  const url = effectTextureUrl(`sprites-webp/${cell.file}.webp`);
   const key = `${cell.file}|${additive ? "a" : "m"}`;
   const plain = Texture.from(url);
   if (!plain) return null;
@@ -737,7 +742,7 @@ function computeIntensity(cell: Cell, additive = true): Texture | null {
 const urlCache = new Map<string, string>();
 function spriteUrl(file: string): string {
   let u = urlCache.get(file);
-  if (!u) { u = `/effects/sprites-webp/${file}.webp`; urlCache.set(file, u); }
+  if (!u) { u = effectTextureUrl(`sprites-webp/${file}.webp`); urlCache.set(file, u); }
   return u;
 }
 
@@ -860,8 +865,8 @@ export function cellUrls(doc: AnssDocument) {
        *   버려진 뒤였다.
        * [신뢰도] CONFIRMED (드롭 카운터 계측)
        */
-      if (c.file) set.add(`/effects/sprites-webp/${c.file}.webp`);
-      if (uv && c.sheet) set.add(`/effects/sheets-webp/${c.sheet}.webp`);
+      if (c.file) set.add(effectTextureUrl(`sprites-webp/${c.file}.webp`));
+      if (uv && c.sheet) set.add(effectTextureUrl(`sheets-webp/${c.sheet}.webp`));
     }
   }
   return Array.from(set);

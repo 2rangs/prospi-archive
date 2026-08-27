@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { effectTextureUrl } from "./anss/AnssStage";
 
 /**
  * Card background effects rebuilt from the app's own AnimSS05 data.
@@ -192,7 +193,7 @@ export default function OriginalCardEffect({
         key={`${item.role}-${item.name}-${index}`}
         className={`fx-sprite fx-${item.kind}`}
         style={spriteStyle(item, plan)}
-        src={`/effects/sprites-webp/${src}.webp`}
+        src={effectTextureUrl(`sprites-webp/${src}.webp`)}
         alt=""
         loading="lazy"
         decoding="async"
