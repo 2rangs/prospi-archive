@@ -19,20 +19,35 @@ export type AnssSize = "L" | "S";
 
 const cache = new Map<string, AnssDocument | null>();
 const inflight = new Map<string, Promise<AnssDocument | null>>();
+// Decompressed ANSS JSON is much larger than its .gz file.  Keeping every
+// visited _S and _L document retained hundreds of large part/track graphs.
+// Active players keep their own reference, so evicting an old cache entry is
+// safe and only means it will be fetched again if revisited much later.
+const DOC_CACHE_CAP = 40;
 
-function fetchDoc(url: string) {
-  return fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null);
+function remember(key: string, doc: AnssDocument | null) {
+  cache.delete(key);
+  cache.set(key, doc);
+  while (cache.size > DOC_CACHE_CAP) {
+    const oldest = cache.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
 }
 
 export function loadAnss(effectId: number, size: AnssSize = "L") {
   const key = `${size}:${effectId}`;
-  if (cache.has(key)) return Promise.resolve(cache.get(key)!);
+  if (cache.has(key)) {
+    const hit = cache.get(key)!;
+    remember(key, hit); // LRU touch
+    return Promise.resolve(hit);
+  }
   let p = inflight.get(key);
   if (!p) {
     p = fetchGzipJson<AnssDocument>(
       `/effects/anim${size === "S" ? "-s" : ""}-gz/${effectId}.json.gz`)
       .then((doc: AnssDocument | null) => {
-        cache.set(key, doc);
+        remember(key, doc);
         inflight.delete(key);
         return doc;
       });

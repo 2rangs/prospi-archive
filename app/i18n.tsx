@@ -38,6 +38,8 @@ const JA = {
   fSeries: "シリーズ",
   fSpirits: "スピリッツ",
   fStats: "能力",
+  fEqualStats: "同値",
+  equalStatsOn: "同値",
   fAll: "すべて",
   fNormal: "通常",
   fSpecial: "SP·限定",
@@ -50,6 +52,10 @@ const JA = {
   colPlayer: "選手",
   colSeries: "シリーズ",
   colTraj: "弾道",
+  colSpirits: "スピリッツ",
+  colStats: "能力",
+  colAbilities: "特殊能力",
+  colTrajSpeed: "弾道・球速",
   colMeet: "ミート",
   colPower: "パワー",
   colSpeed: "走力",
@@ -61,6 +67,13 @@ const JA = {
   colControl: "制球",
   colStamina: "スタミナ",
   colPitches: "球種",
+  teamUnknown: "所属不明",
+  spiritsInline: "スピリッツ",
+  pitchCount: "球種",
+  noStats: "表記値なし",
+  cardsLabel: "カード",
+  other: "ほか",
+  variantsUnit: "種",
   playersUnit: "名",
   cardsUnit: "枚",
   empty: "該当する選手がいません。タブを「すべて」にするか、フィルターを緩めてください。",
@@ -129,7 +142,8 @@ const JA = {
 
 /** 매칭 근거 라벨의 한국어판. resolve.ts 의 MATCH_LABEL 이 일본어 기본. */
 export const MATCH_LABEL_KO: Record<string, string> = {
-  known: "실측 매핑", none: "전용 이펙트 없음 (실측)",
+  known: "실측 매핑", family: "실측 전파 (같은 그룹·variant)",
+  none: "전용 이펙트 없음 (실측)",
   rule: "규칙 예측 (variant→series)", guess: "미검증 추정 (같은 연도)",
   other: "미검증 추정 (다른 연도)", manual: "직접 지정",
 };
@@ -162,6 +176,8 @@ const KO: Partial<Record<Key, string>> = {
   fSeries: "시리즈",
   fSpirits: "스피리츠",
   fStats: "능력치",
+  fEqualStats: "동치",
+  equalStatsOn: "동치",
   fAll: "전체",
   fNormal: "일반",
   fSpecial: "SP·한정",
@@ -174,6 +190,10 @@ const KO: Partial<Record<Key, string>> = {
   colPlayer: "선수",
   colSeries: "시리즈",
   colTraj: "탄도",
+  colSpirits: "스피리츠",
+  colStats: "능력",
+  colAbilities: "특수능력",
+  colTrajSpeed: "탄도·구속",
   colMeet: "미트",
   colPower: "파워",
   colSpeed: "주력",
@@ -185,6 +205,13 @@ const KO: Partial<Record<Key, string>> = {
   colControl: "제구",
   colStamina: "스태미나",
   colPitches: "구종",
+  teamUnknown: "소속 미상",
+  spiritsInline: "스피리츠",
+  pitchCount: "구종",
+  noStats: "표기값 없음",
+  cardsLabel: "카드",
+  other: "외",
+  variantsUnit: "종",
   playersUnit: "명",
   cardsUnit: "장",
   empty: "찾는 선수가 없습니다. 탭을 «전체»로 바꾸거나 필터를 풀어 보세요.",
@@ -325,7 +352,14 @@ export function useT() {
  */
 export type Theme = "light" | "dark";
 const TSTORE = "prospi.theme";
-let theme: Theme = "light";
+/**
+ * 기본은 **다크**.
+ *
+ * 이펙트는 가산 합성이라 어두운 바닥 위에서 원본처럼 읽힌다. 흰 배경에서는
+ * 같은 픽셀이 옅고 뿌옇게 보인다 — 사용자가 "다크모드일 때는 정상 같다"고
+ * 확인해 줬다. 게임 화면도 어둡다.
+ */
+let theme: Theme = "dark";
 const tsubs = new Set<(t: Theme) => void>();
 
 export function setTheme(v: Theme) {
@@ -340,7 +374,7 @@ export function ThemeSwitch() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(TSTORE) as Theme | null;
-      const init: Theme = saved ?? "light";
+      const init: Theme = saved ?? "dark";
       theme = init;
       document.documentElement.dataset.theme = init;
       setV(init);

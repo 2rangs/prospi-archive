@@ -33,14 +33,22 @@ v2 additions over the first exporter:
   * CELL tracks with more than one key are exported as flipbooks:
     node.cells = [cell...], node.ct = [[frame, cellsIndex, interp]...]
 """
-import hashlib, io, json, os, random, re, struct, sys
+import hashlib, io, json, math, os, random, re, struct, sys
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from animss import parts as anim_parts, _cstr
 from extract_sprites import parse_part, find_tagged, sheet_files, CHK_DIR, CLS
 
+# 20/21 = SIZE_X / SIZE_Y — 셀의 자연 크기를 덮어쓰는 표시 크기다.
+# [근거] 값이 128.0 · 112.0 · 75.787 처럼 픽셀 규모이고 늘 20/21 이 쌍으로 온다
+#   (예: 1114005 의 eff_kira_1 이 20=128.0, 21=128.0). 키 종류 태그(+0x18)도
+#   float(2) 다. 문서화된 표에서 17 PIVOTY 와 22 IMGFLIPH 사이의 빈 자리이며,
+#   SpriteStudio 의 속성 순서(… PIVOT, ANCHOR, SIZE, IMGFLIP …)와 맞는다.
+# [범위] 키 75+73개 · 이펙트 16개. 작지만 그 파츠는 크기가 틀리게 그려진다.
+# [신뢰도] STRONG (값 규모 + 쌍 출현 + 자리)
 WANT = {1: "x", 2: "y", 4: "rx", 5: "ry", 6: "rot", 7: "sx", 8: "sy", 9: "a",
         10: "prio", 11: "fh", 12: "fv", 13: "hide", 16: "pvx", 17: "pvy",
+        20: "szx", 21: "szy",
         22: "ifh", 23: "ifv", 24: "uvx", 25: "uvy", 26: "uvrot",
         27: "uvsx", 28: "uvsy"}
 INT_ATTRS = {10, 11, 12, 13, 22, 23}
@@ -124,7 +132,27 @@ def crop_hash(im, cell):
 
 
 def read_vcol(d, cb, off):
-    """AnimssValue::Vcol -- blend type, then one ARGB + rate per corner."""
+    """AnimssValue::Vcol -- blend type, then one ARGB + rate per corner.
+
+    [핵심] ARGB 의 **최상위 바이트가 코너 알파**다. 종전에는 그 바이트를
+    버리고 rate float 만 알파로 썼다. 그 결과 A 바이트에 페이드/그라데이션을
+    담은 파츠가 **항상 최대 밝기로 떠 있었다.**
+
+    [근거 — 951004 `ef_951000_07_02b_2`] vcol 9키의 원시 덤프:
+      f0   corners = 0x001d5ce8 x4        (A=00, 파랑 #1d5ce8)  rate=1.0
+      f5   위 2코너 0xff1d5ce8 · 아래 2코너 0x001d5ce8  = 수직 와이프
+      f32~f140 전부 0xff1d5ce8            (완전 표시)
+      f148~f165 다시 A=00 코너            (페이드아웃)
+    rate 는 전 구간 1.0 — envelope 은 전적으로 A 바이트에 있다. 화면의
+    "항상 켜진 파란 판"의 색 #1d5ce8 과 정확히 일치한다.
+
+    [전수] vcol 키 91,999개 중 A<255 가 22,543개(24.5%) · 이펙트 471/682.
+    사용자 판정과의 교집합: 엉망 23개 중 22개 · 살짝 128개 중 127개.
+
+    [합성] 유효 알파 = rate(색 적용 강도) x A/255. eff_t 처럼 rate 쪽에
+    그라데이션을 담는 파츠(그때 A=ff)와 이 케이스(rate=1, A 가 envelope)
+    둘 다 이 곱으로 성립한다.
+    """
     try:
         blend = struct.unpack_from("<I", d, cb + off)[0]
         n = 4 if blend else 1
@@ -133,8 +161,10 @@ def read_vcol(d, cb, off):
         for i in range(n):
             argb = struct.unpack_from("<I", d, base + i*8)[0]
             rate = struct.unpack_from("<f", d, base + i*8 + 4)[0]
+            rate = rate if 0 <= rate <= 1 else 1.0
+            a = ((argb >> 24) & 0xFF) / 255.0
             out.append([(argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF,
-                        round(rate if 0 <= rate <= 1 else 1.0, 3)])
+                        round(rate * a, 3)])
         return {"blend": blend, "c": out}
     except Exception:
         return None
@@ -282,9 +312,6 @@ def clip_default_cells(d, cb, clip):
     return out
 
 
-EMITTER_CAP = 64          # 이미터 하나가 만들 파티클 상한
-
-
 def _u32(d, off):
     return struct.unpack_from("<I", d, off)[0]
 
@@ -334,6 +361,11 @@ def read_emitter(d, cb, clip, t_off, t_cnt):
                 else:
                     keys.append(round(struct.unpack_from("<f", d, ko + 0x20)[0], 4))
             if aid == 30:
+                if name == "param" and len(keys) >= 2:
+                    # Native initModelWorkStandard converts this integer range
+                    # to a millisecond countdown before enabling each model.
+                    vals = [iv for iv, _sv in keys]
+                    param["delay_ms"] = [min(vals), max(vals)]
                 for iv, sv in keys:
                     if "[EMITTER]" in sv:
                         is_emitter = True
@@ -417,7 +449,74 @@ def load_effect(effect_id, cache):
                     entry["rw"] = int(round(cell["w"]))
                     entry["rh"] = int(round(cell["h"]))
                 flat.append(entry)
-            cells[pr["part"]] = flat
+        # ---- 스크롤 창(_t/_u)의 원본 이미지를 찾아 UV 이동 단위를 기록한다 ----
+        #
+        # [문제] `fan01_01_t`(시트 2~66행) 처럼 **더 큰 셀에서 잘라낸 얇은 창**이
+        #   있고, 그 파츠는 UV 이동만으로 애니메이션한다. UV 이동 단위를 창 높이
+        #   (64)로 잡으면 원본 424행 중 **29%** 만 훑고 나머지는 화면에 영영 안
+        #   나온다. 실제로 1285005 의 eff_t 는 시트 -3~120행만 샘플하는데, 그
+        #   리본에서 가장 밝은 구간은 120~300행(평균 알파 65.7 vs 우리가 보여 준
+        #   구간 31.1)이다.
+        # [서명] 같은 텍스처 안에서 (a) x·폭이 같고 크기도 같은 형제 창이 바로
+        #   위/아래에 붙어 있고, (b) 그 둘을 감싸는 높이 2배 이상의 셀이 있을 때만
+        #   스크롤 창으로 본다. 우연한 아틀라스 겹침(포함 관계만 보면 78%가 걸린다)
+        #   을 걸러내기 위한 조건이다. 이 서명에 맞는 UV 셀 참조는 4,098개 /
+        #   105개 이펙트다.
+        # [근거] `fan01_01_t`(2,2,256,64) · `fan01_01_u`(2,66,256,64) ⊂
+        #   `fan01_01`(2,2,256,424). 1151003 의 `brush01_t/_u` ⊂ `brush01`,
+        #   1142004 의 `wa_t` ⊂ `wa_long` 도 같은 꼴이다.
+        # [신뢰도] POSSIBLE — 기하 서명에 기댄 해석. 서명에 맞을 때만 적용하므로
+        #   나머지 이펙트의 결과는 종전과 완전히 같다.
+        bytex = {}
+        for c in flat:
+            if "rx" in c:
+                bytex.setdefault(c["map"], []).append(c)
+        for c in flat:
+            if "rx" not in c:
+                continue
+            sibs = bytex.get(c["map"], [])
+            rx, ry, rw, rh = c["rx"], c["ry"], c["rw"], c["rh"]
+            has_sib = any(o is not c and o["rx"] == rx and o["rw"] == rw
+                          and o["rh"] == rh
+                          and (abs(o["ry"] - (ry + rh)) <= 1
+                               or abs((o["ry"] + o["rh"]) - ry) <= 1)
+                          for o in sibs)
+            if not has_sib:
+                continue
+            box = None
+            for o in sibs:
+                if o is c or o["rx"] != rx or o["rw"] != rw:
+                    continue
+                if o["rh"] < 2 * rh:
+                    continue
+                if o["ry"] <= ry and o["ry"] + o["rh"] >= ry + rh:
+                    if box is None or o["rh"] < box["rh"]:
+                        box = o
+            if box:
+                c["uy"] = box["ry"]      # 원본 이미지 상단 (시트 픽셀)
+                c["uh"] = box["rh"]      # UV 세로 이동 1.0 에 해당하는 높이
+            else:
+                # 감싸는 셀이 없으면 **쌍의 합집합**이 원본이다.
+                #
+                # [근거] 1285005 의 로고 광택 logo_eff_t01(0,0,256,96) ·
+                #   u01(0,96,256,96) 은 컨테이너 셀 없이 uvy -0.75 -> 1.0 로
+                #   흐른다. 단위를 합집합 높이 192 로 읽으면 광택이 위(빈 곳)
+                #   에서 들어와 훑고 정지값 1.0 에서 **둘 다 빈 행/시트 밖**에
+                #   놓여 사라진다 — 광택 연출 그대로다. 창 높이 96 으로 읽으면
+                #   정지 후 t01 이 u01 의 줄무늬를 가리켜 **정지된 광택이
+                #   91/121 프레임 동안 떠 있다**(시트 96~192행 avgA 85,
+                #   192행 아래 avgA 8->0 실측).
+                sib_ry = None
+                for o in sibs:
+                    if o is c or o["rx"] != rx or o["rw"] != rw or o["rh"] != rh:
+                        continue
+                    if abs(o["ry"] - (ry + rh)) <= 1 or abs((o["ry"] + o["rh"]) - ry) <= 1:
+                        sib_ry = o["ry"]
+                        break
+                if sib_ry is not None:
+                    c["uy"] = min(ry, sib_ry)
+                    c["uh"] = 2 * rh
+        cells[pr["part"]] = flat
     for im in images.values():
         im.close()
     clips_by_part = {p["name"]: clips_ex(d, p) for p in ps}
@@ -428,11 +527,10 @@ def load_effect(effect_id, cache):
 def emit_particles(ctx, em, role, out, parent_at, depth):
     """이미터 사양대로 파티클을 배치한다.
 
-    `interval` 프레임마다 `count` 개를 뿌리고 각 파티클은 참조된 애니메이션을
-    수명(그 애니메이션 길이)만큼 재생한다. 그래서 동시에 살아 있는 수는
-    ceil(수명 / interval) * count 다. 파티클마다 위치·회전·크기·알파를
-    `param` 범위 안에서 고정 난수로 정하고, 시작 시각을 수명 안에 고르게 편다.
-    난수는 이펙트·클립·인덱스로 시드를 고정해 매번 같은 결과가 나온다.
+    Native buildStandard allocates exactly the USERDATA integer on each
+    `[ANIME]` part. `interval` is only a required setting lookup in this runtime;
+    it does not multiply the model count. rect is (minimum x/y, positive range),
+    not (centre, width/height). param USERDATA is a millisecond start delay.
     """
     rect = em["rect"]
     prm = em["param"]
@@ -448,23 +546,25 @@ def emit_particles(ctx, em, role, out, parent_at, depth):
         if not info:
             continue
         life = max(1, info[4])
-        waves = max(1, min(EMITTER_CAP // max(1, count), -(-life // interval)))
-        total = min(EMITTER_CAP, waves * count)
+        total = count
         rnd = random.Random(f"{pname}:{cname}:{aname}:{ei}")
         for n in range(total):
             def rng(key, lo_hi, fallback=0.0):
                 r = prm.get(key)
                 return rnd.uniform(r[0], r[1]) if r else fallback
-            px = rect["x"] + (rnd.random() - 0.5) * rect["w"] + rng("x", None)
-            py = rect["y"] + (rnd.random() - 0.5) * rect["h"] + rng("y", None)
+            px = rect["x"] + rnd.random() * rect["w"]
+            py = rect["y"] + rnd.random() * rect["h"]
+            delay_ms = rng("delay_ms", None, 0.0)
+            delay = max(0, int(math.ceil(delay_ms * 30.0 / 1000.0)))
             node = {
                 "n": f"particle_{ei}_{n}",
                 "p": parent_at,
                 "k": 0,
                 "role": role,
-                "len": life,
+                "len": life + delay,
                 "afps": 30,
-                "user": -(n * life) // max(1, total),   # 수명 안에 고르게 편다
+                "loop": True,
+                "user": -delay,
                 "t": {
                     "x": [[0, round(px, 3), 1]],
                     "y": [[0, round(py, 3), 1]],
@@ -472,6 +572,9 @@ def emit_particles(ctx, em, role, out, parent_at, depth):
                     "sx": [[0, round(rng("sx", None, 1.0), 4), 1]],
                     "sy": [[0, round(rng("sy", None, 1.0), 4), 1]],
                     "a": [[0, round(rng("a", None, 1.0), 4), 1]],
+                    # The native model is disabled during its random countdown,
+                    # then runs the referenced animation once before re-init.
+                    "hide": [[0, 0, 0], [life, 1, 0]],
                 },
             }
             out.append(node)
@@ -515,9 +618,30 @@ def emit_clip(ctx, part, clip, anim_sel, role, out, parent_at, depth, user=None)
                 if _cstr(d, cb + _u + 0x30, 0x40).startswith("[LOOP]"):
                     anim_loop = True
     flat = ctx.cells.get(part["name"], [])
-    maps = sorted({c["map"] for c in flat})
-    mapno = {m: i for i, m in enumerate(maps)}
+    # CELL 키프레임의 mapIndex 는 **파트의 텍스처 배열 순서**(파일 순서)다.
+    #
+    # [문제] 종전에는 슬롯 이름을 sorted() 로 정렬해 번호를 다시 매겼다. 슬롯이
+    #   CLMP00.. 처럼 오름차순이면 우연히 맞지만, 파트가 앞선 슬롯을 다시 쓰면
+    #   순서가 뒤집힌다. 예: ef_1281004_f1 의 슬롯은 [CLMP33, CLMP22] 라
+    #   sorted() 가 CLMP22->0 으로 만들지만 키프레임의 0 은 CLMP33 이다.
+    #   그러면 셀이 다른 시트에서 찾아지거나(=다른 그림) 아예 못 찾는다(=안 그려짐).
+    # [측정] 원본 _L 682개의 PRCT 파트 1,664개 중 **143개**가 슬롯 비오름차순이고,
+    #   이펙트 기준 **111 / 682 (16%)** 가 영향을 받는다. 내보낸 결과에서도 셀
+    #   파츠 159,997개 중 5,992개(3.7%)가 그릴 이미지 없이 비어 있었다.
+    # [처리] flat 은 pr["textures"] 를 파일 순서로 훑어 만들므로, 첫 등장 순서로
+    #   번호를 매기면 그대로 파일 순서가 된다.
+    # [신뢰도] CONFIRMED (슬롯 순서 전수 조사)
+    mapno = {}
+    for c in flat:
+        if c["map"] not in mapno:
+            mapno[c["map"]] = len(mapno)
     bycell = {(mapno[c["map"]], c["idx"]): c for c in flat}
+    # 셀 이름 -> (mapIndex, cellIndex). CELL 트랙이 없는 노드를 이름으로 붙일 때 쓴다.
+    byname = {}
+    for c in flat:
+        if not c.get("file"):
+            continue
+        byname.setdefault(c["name"], []).append((mapno[c["map"]], c["idx"]))
 
     base = len(out)
     node_at = {}
@@ -546,6 +670,47 @@ def emit_clip(ctx, part, clip, anim_sel, role, out, parent_at, depth, user=None)
         if nd["kind"] == 1 and not cellkeys and pi in fallback_cells:
             # 이 애니메이션엔 CELL 트랙이 없다 -> 파츠에 붙어 있는 셀을 그린다
             cellkeys = [[0, fallback_cells[pi], 0]]
+        if nd["kind"] == 1 and not cellkeys:
+            # 마지막 수단: **노드 이름으로 셀을 찾는다.**
+            #
+            # [문제] 같은 클립의 어떤 애니메이션에도 CELL 트랙이 없는 셀파츠가
+            #   남는다. 그리면 안 되는 게 아니라 그릴 그림을 못 찾는 것이라
+            #   화면에서 통째로 빠진다. 전수 조사 결과 **1,381개 파츠 / 90개
+            #   이펙트**가 그 상태였다.
+            # [근거] SpriteStudio 계열은 파츠 이름을 기본으로 **표시할 셀 이름**
+            #   으로 짓고, 복제본에 `_1` `_2` 접미사를 붙인다. 실제로
+            #   `ef_1281004_b1_04` 의 `line_moto_1` `line_moto_2` 는 같은 파트의
+            #   셀 `line_moto`(CLMP27) 와 이름이 정확히 맞는다.
+            # [측정] 1,381개 중 **864개(63%)** 가 같은 PRCT 파트 안에서 이름이
+            #   **유일하게** 맞는다. 후보가 여럿인 136개와 이름이 아예 없는
+            #   381개는 근거가 부족하므로 **건드리지 않는다.**
+            # [신뢰도] POSSIBLE — 이름 규약에 기댄 추정이라 유일 매칭만 채택한다.
+            hit = byname.get(nd["name"])
+            if hit is None:
+                hit = byname.get(re.sub(r"(_\d+)+$", "", nd["name"]))
+            if hit and len({bycell[k]["file"] for k in hit}) == 1:
+                # 후보가 여럿이어도 잘라낸 그림이 하나면 어느 것을 골라도 같다
+                cellkeys = [[0, hit[0], 0]]
+            elif not hit:
+                # 같은 파트에 없으면 **이펙트 전체**에서 찾는다. 셀은 모두 같은
+                # 시트를 자른 것이라, 후보들의 이미지 해시가 하나로 모이면 어떤
+                # (map, idx) 를 골라도 같은 그림이다 — 그때만 채택한다.
+                want = nd["name"]
+                base = re.sub(r"(_\d+)+$", "", want)
+                cand = []
+                for other in ctx.cells.values():
+                    for c in other:
+                        if c.get("file") and c["name"] in (want, base):
+                            cand.append(c)
+                files = {c["file"] for c in cand}
+                if len(files) == 1:
+                    src = cand[0]
+                    # 이 파트의 셀 표에 없는 그림이므로 (map, idx) 대신 셀을
+                    # 직접 얹는다. 아래 해석 루프가 bycell 을 타지 않도록
+                    # 임시 항목을 등록한다.
+                    key = (-1, len(bycell))
+                    bycell[key] = src
+                    cellkeys = [[0, key, 0]]
         if nd["kind"] == 1 and cellkeys:
             resolved = []
             seen = {}
@@ -559,7 +724,8 @@ def emit_clip(ctx, part, clip, anim_sel, role, out, parent_at, depth, user=None)
                     seen[key] = len(resolved)
                     resolved.append({k: cell[k] for k
                                      in ("file", "w", "h", "px", "py", "alpha",
-                                         "sheet", "sw", "sh", "rx", "ry", "rw", "rh")
+                                         "sheet", "sw", "sh", "rx", "ry", "rw", "rh",
+                                         "uy", "uh")
                                      if k in cell})
                 ct.append([fr, seen[key], curve])
             if resolved:
@@ -634,6 +800,57 @@ def anime_targets(ctx):
     return out
 
 
+def restore_tree_order(parts):
+    """Restore the native stable part order after recursively inlining clips.
+
+    ``emit_clip`` has to discover all direct nodes before it can expand instance
+    and ANIME references.  That makes the flat export breadth-first: referenced
+    children are appended after later siblings.  The native scene graph visits
+    those children at the reference node, and its priority sort is stable, so
+    equal-priority children must precede the reference node's later siblings.
+
+    Rebuild the flat array in pre-order and remap parent indices.  This preserves
+    explicit priority sorting in the player while restoring its equal-priority
+    tie order without any effect-specific rules.
+    """
+    if not parts:
+        return parts
+    children = [[] for _ in parts]
+    roots = []
+    for i, node in enumerate(parts):
+        parent = node.get("p", -1)
+        if isinstance(parent, int) and 0 <= parent < len(parts) and parent != i:
+            children[parent].append(i)
+        else:
+            roots.append(i)
+
+    order = []
+    seen = set()
+
+    def visit(i):
+        if i in seen:
+            return
+        seen.add(i)
+        order.append(i)
+        for child in children[i]:
+            visit(child)
+
+    for root in roots:
+        visit(root)
+    # Malformed/cyclic input should remain visible rather than disappear.
+    for i in range(len(parts)):
+        visit(i)
+
+    remap = {old: new for new, old in enumerate(order)}
+    result = []
+    for old in order:
+        node = parts[old]
+        parent = node.get("p", -1)
+        node["p"] = remap.get(parent, -1)
+        result.append(node)
+    return result
+
+
 def build(effect_id, cache):
     ctx = load_effect(effect_id, cache)
     if not ctx:
@@ -666,7 +883,7 @@ def build(effect_id, cache):
                         "frames": top[4] if top else clip["frames"],
                         "fps": top[3] if top else clip["fps"]}
             emit_clip(ctx, part, clip, {"index": 0}, role, out, -1, 0)
-    return out, meta
+    return restore_tree_order(out), meta
 
 
 if __name__ == "__main__":

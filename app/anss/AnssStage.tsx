@@ -1,18 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Application, Assets, Container, Matrix, Mesh, MeshGeometry, Rectangle, Sprite, Texture } from "pixi.js";
-import { AnssDocument, CARD_ART_H, CARD_ART_REF_H, CARD_ART_W, BlendType, Cell, Part, PartType } from "./types";
+import { Application, Assets, Container, Matrix, Mesh, MeshGeometry, Rectangle, Shader, Sprite, Texture,
+  compileHighShaderGlProgram, localUniformBitGl, roundPixelsBitGl, textureBitGl, TextureSource } from "pixi.js";
+import { AnssDocument, CARD_ART_H, CARD_ART_REF_H, CARD_ART_W, BlendType, Cell, PartType } from "./types";
 import { Draw, VCol, evaluate } from "./evaluate";
-
-/**
- * Sites 정적 호스트는 WebP를 application/octet-stream으로 내려 Pixi 로더가
- * 간헐적으로 빈 텍스처를 만들었다. 공개 GitHub 저장소의 불변 커밋을 jsDelivr로
- * 제공하면 image/webp + CORS 헤더가 보장되고, 배포 버전과 자산도 함께 고정된다.
- */
-const EFFECT_TEXTURE_ROOT =
-  "https://cdn.jsdelivr.net/gh/2rangs/prospi-archive@a725f43772fc22d597b5eb5e44ff25793cfae618/public/effects";
-const effectTextureUrl = (path: string) => `${EFFECT_TEXTURE_ROOT}/${path}`;
 
 /**
  * Renders an evaluated ANSS frame.
@@ -28,6 +20,187 @@ const effectTextureUrl = (path: string) => `${EFFECT_TEXTURE_ROOT}/${path}`;
  */
 
 /** Material::AffectStatus states, reached from the part's BlendType. */
+/**
+ * 메시에 **정점 알파**를 넣기 위한 셰이더.
+ *
+ * [문제] 정점색이 `blend != 0`(모서리별)일 때 스프라이트는 그라데이션을 텍스처에
+ *   구워 넣지만, UV 파츠는 시트를 그대로 샘플하는 Mesh 라 그 경로를 타지 않는다.
+ *   그래서 모서리 알파가 통째로 버려지고, 양 끝이 사라져야 할 띠가 각진 불투명
+ *   판이 된다 — 1285005 의 `eff_t`(알파 0,0,1,1) · `eff_u`(1,1,0,0) 가 그것이다.
+ * [측정] 모서리별 알파가 서로 다른 정점색 키 4,584개 중 **2,989개가 UV/정점변형
+ *   파츠**(메시)이고 이펙트 37개에 걸쳐 있다.
+ * [처리] PIXI 의 high-shader 템플릿은 최종색을 `outColor * vColor` 로 낸다.
+ *   `vColor *= aColor` 한 줄을 하는 bit 를 끼워 정점 속성을 곱한다. 나머지
+ *   bit(localUniform·texture·roundPixels)는 기본 메시 셰이더와 같은 구성이다.
+ * [신뢰도] 원본 정점색 값 CONFIRMED · 모서리↔정점 대응은 스프라이트 경로와
+ *   같은 규약을 따랐다(POSSIBLE — 뒤집히면 그라데이션 방향만 반대가 된다).
+ */
+const vertexColorBitGl = {
+  name: "anss-vertex-color-bit",
+  vertex: { header: "in vec4 aColor;", main: "vColor *= aColor;" },
+};
+let vcolProgram: ReturnType<typeof compileHighShaderGlProgram> | null = null;
+export type VcolShader = Shader & { texture: Texture };
+export function makeVcolShader(): VcolShader {
+  vcolProgram ??= compileHighShaderGlProgram({
+    name: "anss-mesh-vcol",
+    bits: [localUniformBitGl, textureBitGl, vertexColorBitGl, roundPixelsBitGl],
+  });
+  const sh = new Shader({
+    glProgram: vcolProgram,
+    resources: {
+      uTexture: Texture.EMPTY.source,
+      textureUniforms: { uTextureMatrix: { type: "mat3x3<f32>", value: new Matrix() } },
+    },
+  }) as VcolShader;
+  // Mesh.shader 는 TextureShader 를 요구한다(텍스처 필드를 읽어 크기를 잡는다).
+  sh.texture = Texture.EMPTY;
+  return sh;
+}
+
+/** 네 모서리 알파가 모두 1 이면 그라데이션이 없는 것이다. */
+export function cornerAlphas(v?: VCol): number[] | null {
+  if (!v || v.blend === 0) return null;
+  const a = v.c.map(c => (c[3] ?? 1));
+  return a.some(x => x < 1 - 1e-6) ? a : null;
+}
+
+/**
+ * 코너별 **색까지** 돌려준다 (0..1 정규화, [r,g,b,a]).
+ *
+ * [문제] 사용자 보고 "711003/4/5 의 흰색이 너무 뿌옇다".
+ * [확인된 사실] 메시(UV) 파츠는 정점색 RGB 를 통째로 버리고 있었다.
+ *   정점색 버퍼에 `cd[o]=cd[o+1]=cd[o+2]=a` 로 **알파만** 넣었기 때문이다.
+ *   스프라이트 경로는 cellTexture 가 코너색을 텍스처에 구워 넣지만, 메시는
+ *   시트 원본을 그대로 쓰므로 구운 텍스처를 지나친다 -> 색이 사라져 흰색.
+ * [근거] 711005 는 렌더 픽셀의 **87% 가 무채색**(평균 채도 0.041)인데,
+ *   원본 데이터의 boke 파츠 정점색은 노랑->초록->시안 무지개다
+ *   (클립 이름도 `rainbow`). 정상 이펙트 1281005 는 무채색 18.8% · 채도 0.558.
+ * [연결] minor 분석에서 UV 파츠가 15.7배 편중된 것과 같은 뿌리다.
+ * [처리] 프리멀티플라이 규약을 지켜 rgb x a 를 넣는다(가산에서 알파가
+ *   먹히도록 — 기존 주석의 근거는 그대로 유효하다).
+ * [신뢰도] CONFIRMED (원본 정점색 vs 렌더 채도 실측)
+ */
+/**
+ * 정점색 셰이더를 **텍스처 소스별로 공유**한다.
+ *
+ * [문제] 사용자 보고 "렉 너무 심한디". 계측: 1281005 의 step 이 중앙 37ms
+ *   (p95 110ms) = 27fps/9fps. 메시 46개가 **각자 고유 셰이더 인스턴스**를
+ *   들고 있어 배칭이 전혀 안 되고 드로우마다 셰이더 바인드 + 유니폼 업로드가
+ *   일어났다.
+ * [처리] 정점색은 지오메트리 버퍼(aColor)에 들어가므로 같은 텍스처를 쓰는
+ *   메시끼리는 셰이더를 공유해도 결과가 같다. 소스 uid 로 캐시한다.
+ *   (전역 1개로 합치면 셰이더의 uTexture 가 공유돼 마지막 텍스처로 전부
+ *   그려지므로 안 된다 — 반드시 소스별이어야 한다.)
+ * [신뢰도] 구조 CONFIRMED / 개선폭은 아래 재계측으로 확인.
+ */
+const vcolShaders = new Map<number, VcolShader>();
+function vcolShaderFor(tex: Texture): VcolShader {
+  const source = tex.source;
+  const uid = (source as unknown as { uid: number }).uid;
+  let sh = vcolShaders.get(uid);
+  if (!sh) {
+    sh = makeVcolShader();
+    if (vcolShaders.size > 256) vcolShaders.clear();
+    vcolShaders.set(uid, sh);
+  }
+  sh.resources.uTexture = source;
+  sh.resources.uSampler = source.style;
+  sh.resources.textureUniforms.uniforms.uTextureMatrix = tex.textureMatrix.mapCoord;
+  sh.texture = tex;
+  return sh;
+}
+
+export function cornerColors(v?: VCol): number[][] | null {
+  if (!v || v.blend === 0 || !v.c.length) return null;
+  const out = v.c.map(c => [
+    (c[0] ?? 255) / 255, (c[1] ?? 255) / 255, (c[2] ?? 255) / 255, c[3] ?? 1,
+  ]);
+  const plain = out.every(c => c[0] > 1 - 1e-6 && c[1] > 1 - 1e-6 && c[2] > 1 - 1e-6
+    && c[3] > 1 - 1e-6);
+  return plain ? null : out;
+}
+
+/** 정점색을 굽지 않은 셀 텍스처 — 메시는 셰이더로 색을 입히므로 이중 적용을 막는다. */
+export function cellTexturePlain(cell: Cell, additive = false): Texture | null {
+  return intensityTexture(cell, additive) ?? Texture.from(spriteUrl(cell.file));
+}
+
+/**
+ * 스크롤 창(§34)의 UV 세로 이동 단위를 **원본 이미지 높이**로 쓸지.
+ *
+ * [상태] **기본 ON** (r56). §34 의 fan01(정지값 = 리본의 빈 꼬리)에 더해
+ * §40 의 로고 광택(정지값 = 빈 행/시트 밖 -> 광택이 사라짐)이 독립적으로
+ * 같은 해석을 지지한다. `window.__anssScrollWindow = false` 로 끈다.
+ */
+/**
+ * 이펙트 전용 크기 보정 (카드 아트 제외). 원본 스크린샷 실측 기준 0.72.
+ * `window.__anssFxScale` 로 바꿀 수 있다 (1 = 보정 없음).
+ */
+/**
+ * 카드+이펙트 전체를 프레임 대비 줄이는 계수. 원본 실측 기준 0.86.
+ * `window.__anssFitScale` 로 바꿀 수 있다 (1 = 보정 없음).
+ */
+/** 셀 = 시트 전체인 UV 파츠를 반복 샘플링할지. `window.__anssWrap` 로 토글. */
+/** UV 이동을 텍스처 페이지 단위로 읽을지 (docs §41). `window.__anssUvPage` 로 토글. */
+let uvPageUnits = true;
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "__anssUvPage", {
+    get: () => uvPageUnits,
+    set: (v: boolean) => { uvPageUnits = !!v; },
+    configurable: true,
+  });
+}
+
+// Native AnimssCellPart uses the texture sampler's CLAMP_TO_EDGE path even when
+// a cell occupies the full sheet. Repeat remains available only for A/B checks.
+let wrapFullSheet = false;
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "__anssWrap", {
+    get: () => wrapFullSheet,
+    set: (v: boolean) => { wrapFullSheet = !!v; },
+    configurable: true,
+  });
+}
+
+let fitScaleAdjust = 0.86;
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "__anssFitScale", {
+    get: () => fitScaleAdjust,
+    set: (v: number) => { fitScaleAdjust = Number(v) > 0 ? Number(v) : 1; },
+    configurable: true,
+  });
+}
+
+const artHeightCache = new Map<string, number>();
+let artCropOn = true;
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "__anssArtCrop", {
+    get: () => artCropOn,
+    set: (v: boolean) => { artCropOn = !!v; artHeightCache.clear(); },
+    configurable: true,
+  });
+}
+
+let fxScaleAdjust = 0.72;
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "__anssFxScale", {
+    get: () => fxScaleAdjust,
+    set: (v: number) => { fxScaleAdjust = Number(v) > 0 ? Number(v) : 1; },
+    configurable: true,
+  });
+}
+
+let scrollWindow = true;
+export const scrollWindowOn = () => scrollWindow;
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "__anssScrollWindow", {
+    get: () => scrollWindow,
+    set: (v: boolean) => { scrollWindow = !!v; },
+    configurable: true,
+  });
+}
+
 export function pixiBlend(bl?: number) {
   switch (bl) {
     case BlendType.Add: return "add" as const;           // FUNC_ADD, (SRC_ALPHA, ONE)
@@ -66,7 +239,7 @@ export function pixiBlend(bl?: number) {
  * [처리] 확정될 때까지 종전 동작(Mix 를 곱셈 tint 로) 유지.
  * [신뢰도] 분포 CONFIRMED · Mix=대체 REJECTED · rate 필드 자체 UNKNOWN
  */
-export function flatTint(v?: VCol) {
+function flatTint(v?: VCol) {
   if (!v || v.blend !== 0) return 0xffffff;
   const [r, g, b] = v.c[0];
   return (r << 16) | (g << 8) | b;
@@ -74,6 +247,30 @@ export function flatTint(v?: VCol) {
 
 const cornerCache = new Map<string, Texture>();
 const intensityCache = new Map<string, Texture | null>();
+/**
+ * 캐시 상한. 셋 다 종전에는 무한이었다.
+ *
+ * [문제] cornerCache 키는 셀 x 정점색(5비트 양자화)이라 이펙트를 옮겨 다니면
+ *   조합이 계속 늘어난다. 항목 하나가 캔버스 텍스처(수십~수백 KB GPU 메모리)라
+ *   /effects 에서 수십 개를 훑으면 GPU 메모리가 바닥나 **컨텍스트가 죽고 화면이
+ *   통째로 사라진다** — "일정 개수 이상 보면 사라지는 버그".
+ * [처리] 삽입 순서 = Map 순회 순서를 이용한 FIFO 상한. 넘치면 앞에서부터
+ *   destroy. 현재 문서가 쓰는 항목이 밀려나도 다음 프레임에 다시 만들므로
+ *   깜빡임 이상의 비용은 없다.
+ */
+const CACHE_CAP = 600;
+function capCache<V extends Texture | null>(m: Map<string, V>) {
+  /**
+   * [철회] 처음에는 밀려난 텍스처를 destroy(true) 했는데, 화면 스프라이트가
+   * 아직 그 텍스처를 쓰고 있으면 source 가 null 이 되어
+   * "Cannot read properties of null (reading 'alphaMode')" 로 죽는다(사용자
+   * 보고, r60). 캐시는 **참조만** 내려놓는다 — GPU 해제는 PIXI 의
+   * TextureGCSystem(기본: 한동안 안 쓰인 텍스처 자동 unload)에 맡긴다.
+   */
+  while (m.size > CACHE_CAP) {
+    m.delete(m.keys().next().value as string);
+  }
+}
 
 /**
  * 알파 채널이 없는 시트는 "강도 맵"이다 — 투명도가 아니라 밝기로 모양을 담는다.
@@ -96,38 +293,185 @@ const intensityCache = new Map<string, Texture | null>();
  * 바꿔야 한다(셀 크롭과 같은 규칙). 시트 해시로 캐시한다.
  */
 const sheetCache = new Map<string, Texture | null>();
-const loadedTextureCache = new Map<string, Texture>();
-
-/**
- * Assets.load(array)의 반환값만 믿고 뒤에서 Texture.from(url)을 호출하면 Pixi v8의
- * URL alias 캐시에 없는 경우가 있다. 실제로 아이콘 캔버스에서 파일은 200인데
- * `Asset id ... was not found in the Cache`가 반복되며 투명 배경이 됐다.
- * 로드된 Texture를 URL별로 직접 보관해 두 렌더러가 같은 객체를 사용한다.
- */
-export async function loadCellTextures(urls: string[]): Promise<void> {
-  await Promise.all(urls.map(async url => {
-    // 배포 서버가 WebP를 application/octet-stream으로 보내므로 확장자 자동 감지에
-    // 맡기지 않는다. 카드 이미지와 동일하게 Pixi 텍스처 파서를 명시한다.
-    const tex = await Assets.load<Texture>({ src: url, parser: "loadTextures" });
-    if (tex) loadedTextureCache.set(url, tex);
-  }));
-}
-
-function loadedTexture(url: string): Texture {
-  return loadedTextureCache.get(url) ?? Texture.from(url);
-}
 
 /** 렌더 루프용: 준비 단계에서 만들어 둔 것만 쓴다. */
+/**
+ * **타일 루프 파츠** 판정 — 셀 한 장을 이음매 없이 굴리는 UV 애니메이션.
+ *
+ * [문제] 사용자 보고 "이펙트 파츠 한두 개만 이상하다 / 이상하리만큼 뿌옇다".
+ * [확인된 사실] 시트의 **부분 셀**인데 UV 이동폭이 정확히 1.0 이상인 파츠가
+ *   그 증상의 주범이다. 품질 라벨 대조에서 이런 파츠를 50개 이상 가진 효과는
+ *   minor 22.1% vs clean 1.4% — **15.7배** 편중(전 특징 중 1위).
+ * [결정적 근거 — 실제 시트 픽셀 측정] minor 의 해당 파츠 1,299개 · 7,694
+ *   프레임에서 샘플 창의 평균 알파를 재면:
+ *     clamp(현행)     빈 창 7.5%
+ *     wrap-cell       빈 창 0.1%   ← 75배 개선
+ *     wrap-container  빈 창 5.1%
+ *   즉 현행은 프레임의 7.5% 에서 **아무것도 없는 자리**를 집어 가장자리 한
+ *   줄을 늘려 그린다 = 뿌연 얼룩. 셀 단위로 감으면 그 일이 없어진다.
+ * [경쟁 가설 — 기각] "UV 단위가 전부 셀"이라는 해석은 in-bounds 검사에서
+ *   기각됐다(page 29.4% vs cell 0.0%). 그래서 **전역 전환이 아니라** 아래
+ *   게이트에 걸리는 파츠만 셀 단위 + 반복으로 돌린다.
+ * [보존] §41 의 사인 광택(1082105 sign_ef_L/R)은 이동폭 0.72~0.91 로 게이트에
+ *   걸리지 않아 페이지 단위 clamp 를 그대로 유지한다. 반대로 사용자가 계속
+ *   지적한 1285005 의 logo_eff_t01/u01 쌍은 정확히 1.0 이라 걸린다.
+ * [신뢰도] 게이트 판정 CONFIRMED(픽셀 측정) / 시각적 최종 확인은 사용자 몫.
+ */
+/**
+ * UV 창이 **빈 자리**를 집는 파츠 표 (tools/uv_wrap.py 가 시트 픽셀로 실측).
+ *
+ * [문제] 사용자 보고 "배치가 미스매치 나거나 재생 자체가 이상하다. 약간
+ *   어긋난 것들이 대부분".
+ * [근거] 남은 minor 92개의 uvsy 파츠 1,109개 / 9,837프레임 측정 —
+ *   clamp(현행) 빈 창 7.4% vs wrap-cell 1.7% (4.4배). 표에 담긴 파츠는
+ *   "clamp 가 실제로 빈 자리를 집고, 감으면 그림이 있는" 경우만이다.
+ * [편중] 표 대상 효과 63개 = minor 32% vs clean 6% (5.47배).
+ * [보존] §41 의 사인 광택(1082105)은 빈 자리를 집지 않아 표에 없다 —
+ *   페이지 단위 clamp 를 그대로 유지한다.
+ */
+/**
+ * `_t`/`_u` 쌍을 합친 **스트립 텍스처** 표 (tools/uv_strip.py).
+ *
+ * [문제] r74 는 이 파츠들을 **개별 셀(반쪽)** 텍스처로 repeat 했다. 쌍이 하나의
+ *   그림이므로 반복 주기가 2배 빨라져 내용이 겹치고 뭉개진다 — 사용자가 본
+ *   "중앙이 노랑/흰색으로 날아감".
+ * [근거] 인접 쌍 624/624 에서 알파가 이음매에서 연속(교차 페이드) ·
+ *   해당 파츠 보유 효과가 minor 57% vs clean 10% (5.7배).
+ * [처리] 쌍을 위아래로 붙인 스트립을 repeat 로 샘플링하고, 파츠는 자기 절반
+ *   (0=위, 1=아래)을 창으로 쓴다. 그러면 주기가 쌍 전체가 된다.
+ */
+let uvStripTable: Record<string, Record<string, [string, number]>> | null = null;
+if (typeof window !== "undefined") {
+  void fetch("/effects/uv-strip.json")
+    .then(r => (r.ok ? r.json() : null))
+    .then((j) => { uvStripTable = j ?? {}; })
+    .catch(() => { uvStripTable = {}; });
+}
+/** 검증용 토글: `window.__anssStrip = 0` 으로 쌍 스트립을 끄고 A/B 비교한다. */
+// The native renderer never rebuilds _t/_u cells into a repeatable texture.
+// Keep the experimental path behind the existing toggle, but do not use it by
+// default: 1285005 was one of the effects whose UVs were changed by this hack.
+let stripOn = false;
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "__anssStrip", {
+    get: () => (stripOn ? 1 : 0),
+    set: (v: number) => { stripOn = !!Number(v); },
+    configurable: true,
+  });
+}
+/** 표 조회 키는 **셀 식별자**다 — 같은 파츠 이름이 서로 다른 셀을 쓸 수 있다. */
+function cellKey(c: Cell): string {
+  return `${c.sheet}:${c.rx ?? 0},${c.ry ?? 0},${c.rw}x${c.rh}`;
+}
+function stripOf(effectId: number | undefined, cell: Cell): [string, number] | null {
+  if (!stripOn || !uvStripTable || effectId == null || !cell.sheet) return null;
+  return uvStripTable[String(effectId)]?.[cellKey(cell)] ?? null;
+}
+/**
+ * 쌍 스트립을 외부(thumb.ts)에서도 쓰게 노출한다.
+ * `wantHalf` 를 주면 텍스처 대신 절반 인덱스(0=위, 1=아래)를 돌려준다.
+ */
+export function stripFor(effectId: number | undefined, cell: Cell,
+                         wantHalf = false): Texture | number | null {
+  const e = stripOf(effectId, cell);
+  if (!e) return null;
+  if (wantHalf) return e[1];
+  return stripTexture(e[0]);
+}
+
+const stripCache = new Map<string, Texture>();
+/**
+ * [수정] `Texture.from(url)` 은 **아직 로드되지 않은 URL** 에 대해 source 가 없는
+ *   객체를 돌려준다 -> "Cannot read properties of undefined (reading 'source')"
+ *   로 렌더 루프가 죽었다(사용자 보고). 로드 전에는 null 을 돌려 기존 경로로
+ *   내려가게 하고, 프리로드는 문서 전환 시 Assets.load 가 맡는다.
+ */
+export function stripUrl(hash: string): string {
+  return `/effects/strips-webp/${hash}.webp`;
+}
+function stripTexture(hash: string): Texture | null {
+  let t = stripCache.get(hash);
+  if (!t) {
+    const cached = Assets.cache.has(stripUrl(hash))
+      ? (Assets.get(stripUrl(hash)) as Texture | undefined) : undefined;
+    if (!cached || !cached.source) return null;
+    t = cached;
+    if (stripCache.size > 256) stripCache.clear();
+    stripCache.set(hash, t);
+  }
+  if (!t.source) { stripCache.delete(hash); return null; }
+  const st = t.source.style;
+  if (st.addressMode !== "repeat") { st.addressMode = "repeat"; st.update(); }
+  return t;
+}
+
+/** 이 문서가 쓰는 쌍 스트립 URL 목록 — 문서 전환 시 미리 싣는다. */
+export function stripUrls(doc: AnssDocument): string[] {
+  const tbl = uvStripTable?.[String(doc.effectId)];
+  if (!tbl) return [];
+  const set = new Set<string>();
+  for (const v of Object.values(tbl)) set.add(stripUrl(v[0]));
+  return [...set];
+}
+
+let uvWrapTable: Record<string, string[]> | null = null;
+const uvWrapSets = new Map<string, Set<string>>();
+let uvCellRepeat = false;
+if (typeof window !== "undefined") {
+  void fetch("/effects/uv-wrap.json")
+    .then(r => (r.ok ? r.json() : null))
+    .then((j: Record<string, string[]> | null) => { uvWrapTable = j ?? {}; })
+    .catch(() => { uvWrapTable = {}; });
+  Object.defineProperty(window, "__anssCellRepeat", {
+    get: () => (uvCellRepeat ? 1 : 0),
+    set: (v: number) => { uvCellRepeat = !!Number(v); },
+    configurable: true,
+  });
+}
+function isUvWrap(effectId: number | undefined, name: string): boolean {
+  if (!uvCellRepeat) return false;
+  if (!uvWrapTable || effectId == null) return false;
+  const key = String(effectId);
+  let set = uvWrapSets.get(key);
+  if (!set) {
+    const list = uvWrapTable[key];
+    if (!list) return false;
+    set = new Set(list);
+    uvWrapSets.set(key, set);
+  }
+  return set.has(name);
+}
+
+const tileWrapCache = new WeakMap<object, boolean>();
+export function isTileWrap(part: { t?: Record<string, unknown> }, cell: Cell): boolean {
+  if (!uvCellRepeat) return false;
+  const hit = tileWrapCache.get(part);
+  if (hit !== undefined) return hit;
+  let v = false;
+  const sub = !!(cell.sheet && cell.sw && cell.sh &&
+    !(cell.rx === 0 && cell.ry === 0 && cell.rw === cell.sw && cell.rh === cell.sh));
+  if (sub) {
+    for (const k of ["uvx", "uvy"] as const) {
+      const tr = part.t?.[k] as [number, number, number][] | undefined;
+      if (!tr) continue;
+      for (const key of tr) if (Math.abs(key[1]) >= 1 - 1e-6) { v = true; break; }
+      if (v) break;
+    }
+  }
+  tileWrapCache.set(part, v);
+  return v;
+}
+
 export function sheetTexture(sheet: string, additive: boolean): Texture | null {
-  const url = effectTextureUrl(`sheets-webp/${sheet}.webp`);
-  if (!additive) return loadedTexture(url);
-  if (sheetCache.has(sheet)) return sheetCache.get(sheet) ?? loadedTexture(url);
-  return loadedTexture(url);
+  const url = `/effects/sheets-webp/${sheet}.webp`;
+  if (!additive) return Texture.from(url);
+  if (sheetCache.has(sheet)) return sheetCache.get(sheet) ?? Texture.from(url);
+  return Texture.from(url);
 }
 
 function computeSheet(sheet: string, additive: boolean): Texture | null {
-  const url = effectTextureUrl(`sheets-webp/${sheet}.webp`);
-  const plain = loadedTexture(url);
+  const url = `/effects/sheets-webp/${sheet}.webp`;
+  const plain = Texture.from(url);
   if (!plain) return null;
   if (!additive) return plain;
   const key = sheet;
@@ -177,6 +521,7 @@ function computeSheet(sheet: string, additive: boolean): Texture | null {
   ctx.putImageData(img, 0, 0);
   const tex = Texture.from(cv);
   sheetCache.set(key, tex);
+  capCache(sheetCache);
   return tex;
 }
 
@@ -184,8 +529,8 @@ function computeSheet(sheet: string, additive: boolean): Texture | null {
 function intensityTexture(cell: Cell, additive = true): Texture | null {
   const url = spriteUrl(cell.file);
   const ikey = `${cell.file}|${additive ? "a" : "m"}`;
-  if (intensityCache.has(ikey)) return intensityCache.get(ikey) ?? loadedTexture(url);
-  return loadedTexture(url);
+  if (intensityCache.has(ikey)) return intensityCache.get(ikey) ?? Texture.from(url);
+  return Texture.from(url);
 }
 
 /**
@@ -271,9 +616,9 @@ function lightTexture(cv: HTMLCanvasElement, px: Uint8ClampedArray,
 }
 
 function computeIntensity(cell: Cell, additive = true): Texture | null {
-  const url = effectTextureUrl(`sprites-webp/${cell.file}.webp`);
+  const url = `/effects/sprites-webp/${cell.file}.webp`;
   const key = `${cell.file}|${additive ? "a" : "m"}`;
-  const plain = loadedTexture(url);
+  const plain = Texture.from(url);
   if (!plain) return null;
   if (intensityCache.has(key)) return intensityCache.get(key) ?? plain;
   const src = plain.source?.resource as CanvasImageSource | undefined;
@@ -315,6 +660,7 @@ function computeIntensity(cell: Cell, additive = true): Texture | null {
     ctx.putImageData(img, 0, 0);
     const softened = Texture.from(cv);
     intensityCache.set(key, softened);
+    capCache(intensityCache);
     return softened;
   }
   // 여기부터는 알파가 전부 1 인 셀이다 -> 반드시 휘도 알파로 바꿔야 한다
@@ -375,6 +721,7 @@ function computeIntensity(cell: Cell, additive = true): Texture | null {
     ctx.putImageData(img, 0, 0);
     const tex0 = Texture.from(cv);
     intensityCache.set(key, tex0);
+    capCache(intensityCache);
     return tex0;
   }
   const tex = lightTexture(cv, px, ctx, img);
@@ -390,7 +737,7 @@ function computeIntensity(cell: Cell, additive = true): Texture | null {
 const urlCache = new Map<string, string>();
 function spriteUrl(file: string): string {
   let u = urlCache.get(file);
-  if (!u) { u = effectTextureUrl(`sprites-webp/${file}.webp`); urlCache.set(file, u); }
+  if (!u) { u = `/effects/sprites-webp/${file}.webp`; urlCache.set(file, u); }
   return u;
 }
 
@@ -399,12 +746,15 @@ export function cellTexture(cell: Cell, v?: VCol, additive = false): Texture | n
   // prepare()가 강도맵 변환뿐 아니라 atlas crop 경계도 판정한다. 알파가 있는
   // 일반 블렌드 셀도 가장자리 보정 대상일 수 있으므로 같은 캐시를 통과시킨다.
   const base = intensityTexture(cell, additive);
-  const plain = base ?? loadedTexture(url);
+  const plain = base ?? Texture.from(url);
   if (!plain) return null;
   if (!v || v.blend === 0) return plain;
 
   // 정점색이 애니메이션되므로 캐시 키를 5비트로 양자화한다(색 32단계).
-  const key = `${cell.file}|${v.c.map(c => c.slice(0, 3).map(n => n >> 3).join(",")).join("|")}`;
+  // 알파도 키에 넣는다 — 종전에는 slice(0,3) 로 알파를 빼서, RGB 가 같고
+  // 알파만 다른 그라데이션이 서로 같은 캐시 항목으로 뭉개졌다.
+  const key = `${cell.file}|${v.c.map(c =>
+    `${c[0] >> 3},${c[1] >> 3},${c[2] >> 3},${Math.round((c[3] ?? 1) * 31)}`).join("|")}`;
   const hit = cornerCache.get(key);
   if (hit) return hit;
   const src = plain.source?.resource as CanvasImageSource | undefined;
@@ -438,7 +788,9 @@ export function cellTexture(cell: Cell, v?: VCol, additive = false): Texture | n
    * getting it wrong flips the gradient vertically, nothing else.
    * [신뢰도] row-major STRONG, row order POSSIBLE.
    */
-  put(0, 1, 0); put(1, 1, 1); put(0, 0, 2); put(1, 0, 3);
+  // Native AnimssCellPart::updateCell uses the fixed destination-vertex table
+  // { 0, 3, 1, 2 }: c0=TL, c1=BL, c2=TR, c3=BR.
+  put(0, 0, 0); put(0, 1, 1); put(1, 0, 2); put(1, 1, 3);
 
   // canvas "multiply" is a separable blend over source-over compositing, so an
   // opaque gradient also overwrites the destination alpha. Multiply the colour,
@@ -448,10 +800,43 @@ export function cellTexture(cell: Cell, v?: VCol, additive = false): Texture | n
   ctx.drawImage(g, 0, 0, 2, 2, 0, 0, cell.w, cell.h);
   ctx.globalCompositeOperation = "destination-in";
   ctx.drawImage(src, 0, 0, cell.w, cell.h);
+
+  /**
+   * 모서리 **알파**도 곱한다.
+   *
+   * [문제] 위 그라데이션은 `rgb(...)` 만 칠했다. 정점색의 네 번째 채널(알파)은
+   *   버려져서, RGB 가 네 모서리 모두 흰색이고 **알파만 0↔1 로 갈리는** 파츠가
+   *   아무 감쇠 없이 그려졌다. 그런 파츠는 부드럽게 사라져야 할 띠가 각진
+   *   불투명 판이 된다 — 화면에서 "네모난 게 떠다니는" 증상.
+   * [측정] 정점색 키 380,400개 중 모서리별 알파가 서로 다른 것 **4,584개**,
+   *   영향 이펙트 **48개**. 그중 **3,970개는 RGB 가 네 모서리 모두 같아**
+   *   알파만이 유일한 효과다. 1285005 의 `eff_t`(알파 0,0,1,1)와
+   *   `eff_u`(1,1,0,0)가 대표적이다 — 둘이 맞물려 띠의 양 끝을 지운다.
+   * [처리] 2x2 알파 램프를 destination-in 으로 한 번 더 곱한다. 셀 자신의
+   *   알파를 복원한 뒤에 적용하므로 최종 알파 = 셀알파 x 모서리알파다.
+   * [신뢰도] CONFIRMED (원본 정점색 값 + 기하)
+   */
+  const ca = v.c.map(c => c[3] ?? 1);
+  if (Math.min(...ca) < 1 - 1e-6) {
+    const ga = document.createElement("canvas");
+    ga.width = 2; ga.height = 2;
+    const gac = ga.getContext("2d");
+    if (gac) {
+      const puta = (x: number, y: number, i: number) => {
+        gac.fillStyle = `rgba(0,0,0,${ca[Math.min(i, ca.length - 1)]})`;
+        gac.fillRect(x, y, 1, 1);
+      };
+      puta(0, 0, 0); puta(0, 1, 1); puta(1, 0, 2); puta(1, 1, 3);
+      ctx.globalCompositeOperation = "destination-in";
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(ga, 0, 0, 2, 2, 0, 0, cell.w, cell.h);
+    }
+  }
   ctx.globalCompositeOperation = "source-over";
 
   const tex = Texture.from(cv);
   cornerCache.set(key, tex);
+  capCache(cornerCache);
   return tex;
 }
 
@@ -475,8 +860,8 @@ export function cellUrls(doc: AnssDocument) {
        *   버려진 뒤였다.
        * [신뢰도] CONFIRMED (드롭 카운터 계측)
        */
-      if (c.file) set.add(effectTextureUrl(`sprites-webp/${c.file}.webp`));
-      if (uv && c.sheet) set.add(effectTextureUrl(`sheets-webp/${c.sheet}.webp`));
+      if (c.file) set.add(`/effects/sprites-webp/${c.file}.webp`);
+      if (uv && c.sheet) set.add(`/effects/sheets-webp/${c.sheet}.webp`);
     }
   }
   return Array.from(set);
@@ -493,7 +878,85 @@ export function cellUrls(doc: AnssDocument) {
  * [처리] 문서를 바꿀 때 필요한 셀·시트를 모두 훑어 미리 계산하고, 8개마다 한 번씩
  *   프레임을 양보해 한 번에 오래 멈추지 않게 한다. 렌더 루프는 캐시만 조회한다.
  */
-export async function prepare(doc: AnssDocument, includeUvCells = false): Promise<void> {
+/**
+ * 이전 문서의 GPU 텍스처를 내린다.
+ *
+ * [문제] 이펙트를 서너 개 보면 화면이 사라진다(사용자 보고). 문서를 바꿀 때
+ *   스프라이트는 부수지만 **텍스처는 캐시와 Assets 에 남아** GPU 메모리가
+ *   문서마다 수십 MB 씩 쌓였다. 캐시 상한(r60)은 참조만 끊고, PIXI 기본
+ *   TextureGC 는 3600프레임(약 2분) 뒤에나 내리므로 서너 번 전환이면 먼저
+ *   컨텍스트가 죽는다.
+ * [처리] 문서 전환 시, **새 문서가 쓰지 않는** 캐시 항목과 Assets URL 을
+ *   즉시 destroy/unload 한다. 이전 문서의 스프라이트는 같은 전환 코드에서
+ *   이미 파괴되므로 안전하다.
+ */
+export async function releaseUnused(next: AnssDocument | null): Promise<void> {
+  const keepFiles = new Set<string>();
+  const keepSheets = new Set<string>();
+  if (next) {
+    for (const p of next.parts) {
+      for (const c of p.cells ?? (p.c ? [p.c] : [])) {
+        if (!c) continue;
+        if (c.file) keepFiles.add(c.file);
+        if (c.sheet) keepSheets.add(c.sheet);
+      }
+    }
+  }
+  /**
+   * [철회 — r80] 여기서 `destroy(true)` 를 부르면 **행 아이콘(thumb.ts)** 이
+   *   아직 쓰고 있는 텍스처의 source 까지 죽는다. thumb.ts 는 같은
+   *   cellTexture/sheetTexture(=cornerCache·intensityCache·sheetCache)를
+   *   공유하므로, 이펙트를 바꾸는 순간 목록의 아이콘이 파괴된 소스를 가리켜
+   *   렌더 중 죽는다 — 사용자 보고 "다른 거 재생하면 뻑간다".
+   *   r60 에서 같은 이유로 이미 참조 해제로 바꿨던 것을 r72 가 되돌렸던 것이라
+   *   다시 철회한다. GPU 해제는 아래 textureGC 설정에 맡긴다.
+   */
+  const sweep = (m: Map<string, Texture | null>, keep: Set<string>) => {
+    for (const k of [...m.keys()]) {
+      if (keep.has(k.split("|")[0])) continue;
+      m.delete(k);
+    }
+  };
+  sweep(cornerCache as Map<string, Texture | null>, keepFiles);
+  sweep(intensityCache, keepFiles);
+  sweep(sheetCache, keepSheets);
+  /**
+   * 정점색 셰이더 캐시도 **함께** 비운다.
+   *
+   * [문제] 사용자 보고 "이펙트 다른 거 재생하면 이전 거 지워라, 자꾸 뻑간다".
+   * [원인] r78 에서 셰이더를 텍스처 소스 uid 로 캐시했는데, 바로 위 sweep 이
+   *   그 소스를 destroy 해도 캐시는 남아 **파괴된 소스를 가리키는 셰이더**가
+   *   다음 문서에서 재사용됐다. 소스가 null 이 되어 렌더 중 크래시
+   *   ("Cannot read properties of null (reading 'alphaMode')" 계열)로 이어진다.
+   * [처리] 문서 전환마다 셰이더 캐시를 비운다. 셰이더는 텍스처당 1개라
+   *   재생성 비용이 작고, uid 는 재사용될 수 있으므로 부분 삭제보다 안전하다.
+   */
+  for (const sh of vcolShaders.values()) {
+    try { (sh as unknown as { destroy?: () => void }).destroy?.(); } catch { /* 이미 파괴됨 */ }
+  }
+  vcolShaders.clear();
+  // Assets 캐시의 스프라이트/시트 URL 도 내린다 (새 문서 것 제외)
+  const toUnload: string[] = [];
+  for (const key of ["sprites-webp", "sheets-webp"] as const) {
+    void key;
+  }
+  const cacheAny = Assets.cache as unknown as { _cache?: Map<string, unknown> };
+  const inner = cacheAny._cache;
+  if (inner) {
+    for (const k of inner.keys()) {
+      if (typeof k !== "string") continue;
+      const m1 = k.match(/\/effects\/sprites-webp\/([0-9a-f]{16})\.webp$/);
+      const m2 = k.match(/\/effects\/sheets-webp\/([0-9a-f]{16})\.webp$/);
+      if (m1 && !keepFiles.has(m1[1])) toUnload.push(k);
+      else if (m2 && !keepSheets.has(m2[1])) toUnload.push(k);
+    }
+  }
+  // [철회] Assets.unload 도 내부 텍스처를 파괴해 위와 같은 크래시를 만든다.
+  //   URL 목록은 진단용으로만 남긴다.
+  void toUnload;
+}
+
+export async function prepare(doc: AnssDocument): Promise<void> {
   const cells = new Map<string, { cell: Cell; additive: boolean; uv: boolean }>();
   const sheets = new Map<string, boolean>();
   for (const p of doc.parts) {
@@ -518,9 +981,8 @@ export async function prepare(doc: AnssDocument, includeUvCells = false): Promis
     await yieldSoon();
   }
   for (const { cell, additive, uv } of cells.values()) {
-    // 상세(_L)는 UV 파츠에 시트를 쓰지만 아이콘(_S)은 베이크된 셀을 그대로
-    // 그린다. 아이콘 로더는 includeUvCells=true 로 셀 텍스처도 준비해야 한다.
-    if (!uv || includeUvCells) computeIntensity(cell, additive);
+    // UV 파츠는 시트 텍스처를 쓰므로 셀 크롭 변환은 필요 없다
+    if (!uv) computeIntensity(cell, additive);
     await yieldSoon();
   }
 }
@@ -678,10 +1140,43 @@ export default function AnssStage({
        * [현행] 스프라이트를 하나로 녹이는 것은 해상도가 아니라 가산 누적이
        *   맡는다(알파=휘도 + 프리멀티 상쇄).
        */
+      /**
+       * 화면 픽셀 밀도만큼 그린다.
+       *
+       * [문제] resolution 이 1 이라 백킹 버퍼가 **CSS 픽셀 수와 같았다**.
+       *   Retina(dpr 2)에서는 브라우저가 그것을 2배로 늘려 표시하므로 파티클
+       *   윤곽·불꽃 가닥이 전부 두 배로 뭉개진다. 원본 게임은 단말 해상도로
+       *   그리므로, 우리 쪽만 세로/가로 절반 해상도로 합성하고 있었다.
+       * [측정] 선수 상세에서 백킹 885x1825 · CSS 885x1825 · dpr 2
+       *   = 물리 1770x3650 을 885x1825 버퍼로 채움(2배 확대).
+       * [처리] resolution 에 devicePixelRatio 를 곱한다. autoDensity 는 계속
+       *   false 이고 CSS 크기는 아래에서 직접 지정하므로 레이아웃은 그대로다.
+       * [주의] 선수 상세의 캔버스는 카드 틀보다 크고 overflow:hidden 으로
+       *   잘린다(이펙트가 카드 밖으로 번지므로 의도된 구조다). 그래서 백킹이
+       *   885x1825 x dpr2 = 6.5M 화소까지 간다. 화소 예산 9M 을 넘지 않도록
+       *   배율을 되돌린다 — 저사양/모바일에서 프레임이 무너지는 것을 막는다.
+       * [신뢰도] CONFIRMED (dpr·백킹 실측)
+       */
+      const PIXEL_BUDGET = 9e6;
+      let dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+      const area = Math.max(1, width * height);
+      while (dpr > 1 && area * dpr * dpr > PIXEL_BUDGET) dpr -= 0.25;
       await app.init({
         width, height, backgroundAlpha: 0, antialias: true,
-        resolution: renderScaleRef.current,
+        resolution: renderScaleRef.current * dpr,
         autoDensity: false,
+        /**
+         * 안 쓰이는 GPU 텍스처를 **빨리** 내린다.
+         *
+         * [문제] 기본값은 60프레임마다 검사 · 3600프레임(약 2분) 미사용 시 해제라,
+         *   이펙트를 서너 개 넘기면 VRAM 이 먼저 바닥나 컨텍스트가 죽었다.
+         * [처리] 30프레임마다 검사 · 300프레임(10초) 미사용이면 해제. 명시적
+         *   destroy 와 달리 **사용 중인 텍스처는 건드리지 않으므로** 행 아이콘이
+         *   공유하는 텍스처를 깨지 않는다.
+         */
+        textureGCActive: true,
+        textureGCCheckCountMax: 30,
+        textureGCMaxIdle: 300,
       });
       app.canvas.style.width = `${width}px`;
       app.canvas.style.height = `${height}px`;
@@ -706,7 +1201,16 @@ export default function AnssStage({
         app.canvas.style.width = `${b.width}px`;
         app.canvas.style.height = `${b.height}px`;
         stage.position.set(b.width / 2 + b.offsetX, b.height * b.originY + b.offsetY);
-        stage.scale.set(b.scale ?? b.height / CARD_ART_REF_H);
+        /**
+         * 프레임 대비 전체 크기 보정. (docs §38)
+         *
+         * [근거] 원본 스크린샷 실측 — 카드아트/화면폭 **0.61** ·
+         *   불고리/화면폭 **0.78**. 보정 전 우리 값은 0.71 / 0.93 이었다.
+         *   둘의 **상대비(고리/카드 1.30)는 이미 맞으므로**, 전체에 0.86 을
+         *   곱하면 0.61 / 0.80 이 되어 원본과 맞는다.
+         * [주의] 스크린샷 눈대중이라 +-15%. `window.__anssFitScale = 1` 로 끈다.
+         */
+        stage.scale.set((b.scale ?? b.height / CARD_ART_REF_H) * fitScaleAdjust);
       }
       app.stage.addChild(stage);
       stageRef.current = stage;
@@ -716,7 +1220,13 @@ export default function AnssStage({
                     docId: () => docRef.current?.effectId ?? null,
                     draws: 0, noUv: false,
                     dropMix: 0, dropMute: 0, dropTex: 0,
-                    dropFiles: new Set<string>() };
+                    dropFiles: new Set<string>(),
+                    // 디버그 A/B: true 로 두면 스크롤 창(§34)을 끄고 창 높이를
+                    // 이동 단위로 되돌린다. 같은 세션에서 전/후를 비교한다.
+                    noScrollWindow: false,
+                    // 파츠 이름별로 그려진 스프라이트를 되짚기 위한 디버그 색인.
+                    // 특정 레이어만 남기고 렌더해 원본과 대조할 때 쓴다.
+                    byPart: new Map<string, unknown[]>() };
       (window as unknown as { __anss?: unknown }).__anss = dbg;
 
       const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -814,10 +1324,12 @@ export default function AnssStage({
         const draws: Draw[] = evaluate(d, frame, roleRef.current);
         dbg.draws = draws.length;
         dbg.dropMix = 0; dbg.dropMute = 0; dbg.dropTex = 0; dbg.dropFiles.clear();
+        dbg.byPart.clear();
 
         live.clear();
         draws.forEach((dr, order) => {
-          const blend = pixiBlend(dr.part.bl);
+          // 조상 그룹 블렌드까지 반영한 값 (evaluate 의 plan.blend)
+          const blend = pixiBlend(dr.blend ?? dr.part.bl);
           if (!backdropRef.current && blend === "normal") { dbg.dropMix++; return; }
           if (muteRef.current?.has(dr.part.n)) { dbg.dropMute++; return; }
           const tex = cellTexture(dr.cell, dr.vcol, blend === "add");
@@ -842,10 +1354,57 @@ export default function AnssStage({
           // 켰을 때와 껐을 때 밝기·구조를 비교해 번짐의 원인을 가린다.
           // Attribute 15 deforms individual corners, so it also requires a mesh.
           const wantMesh = (!!dr.hasUv && !dbg.noUv) || !!dr.hasVert;
-          const sheetTex = wantMesh && dr.cell.sheet
+          // 타일 루프 파츠는 시트가 아니라 **개별 셀 텍스처**를 반복 샘플링한다.
+          // 그러면 rx/ry=0·rw/rh=1 이 되어 UV 이동 단위가 자동으로 셀이 되고,
+          // repeat 가 이음매 없이 감아 준다(위 isTileWrap 의 근거 참조).
+          // 쌍 스트립이 있으면 그것이 최우선 (주기 = 쌍 전체)
+          const strip = wantMesh ? stripOf(d?.effectId, dr.cell) : null;
+          const tileWrap = wantMesh && !!dr.cell.sheet
+            && (isTileWrap(dr.part, dr.cell) || isUvWrap(d?.effectId, dr.part.n));
+          const stripTex = strip ? stripTexture(strip[0]) : null;
+          const tileTex = stripTex
+            ?? (tileWrap ? cellTexturePlain(dr.cell, blend === "add") : null);
+          if (tileTex) {
+            const st = tileTex.source.style;
+            if (st.addressMode !== "repeat") { st.addressMode = "repeat"; st.update(); }
+          }
+          const sheetTex = wantMesh && dr.cell.sheet && !tileWrap && !stripTex
             ? sheetTexture(dr.cell.sheet, blend === "add") : null;
+          /**
+           * 셀이 **시트 전체**인 UV 파츠는 반복 샘플링한다.
+           *
+           * [문제] UV 이동이 [0,1] 을 벗어나면 clamp 는 가장자리 한 줄을
+           *   늘린다. 셀이 시트 일부면 이웃 셀 내용이 보이는 게 맞지만,
+           *   **셀이 곧 시트 전체**이면 이웃이 아예 없어서 늘어난 줄무늬만
+           *   남는다. 그런 파츠의 uv 이동은 "한 바퀴 흘려보내기" 로만 뜻이
+           *   통한다 — 예: 851005 `Cell_logo_kemuri_tx` 는 512x64 시트를
+           *   통째로 쓰면서 uvy 를 0 -> 1.0 으로 민다.
+           * [범위] 셀 = 시트 전체이고 uv 이동이 0 을 벗어나는 파츠
+           *   **1,924개 / 131개 이펙트**.
+           * [주의] 소스는 시트 단위로 공유된다. 다만 이 조건에서는 그 시트를
+           *   쓰는 UV 파츠가 모두 전체를 샘플하므로 부작용이 없다.
+           * [디버그] `window.__anssWrap = false` 로 끈다. (docs §40)
+           */
+          if (sheetTex) {
+            const c0 = dr.cell;
+            if (c0.rx === 0 && c0.ry === 0 && c0.rw === c0.sw && c0.rh === c0.sh) {
+              const style = sheetTex.source.style;
+              const want = wrapFullSheet ? "repeat" : "clamp-to-edge";
+              if (style.addressMode !== want) {
+                style.addressMode = want;
+                // _resourceId 가 캐시되므로 update() 를 불러야 샘플러가 바뀐다
+                style.update();
+              }
+            }
+          }
           let sp = sprites.get(dr.index);
           if (sp && (sp instanceof Mesh) !== wantMesh) {
+            // 메시는 프레임 전용 geometry/셰이더까지 함께 부순다 (GPU 누수 방지)
+            if ((sp as Mesh).geometry) {
+              // 셰이더는 텍스처 소스별 공유 자원이라 메시와 함께 부수지 않는다
+              (sp as Mesh & { _anssVcol?: unknown })._anssVcol = undefined;
+              (sp as Mesh).geometry.destroy();
+            }
             sp.destroy(); sprites.delete(dr.index); sp = undefined;
           }
           if (!sp) {
@@ -855,7 +1414,12 @@ export default function AnssStage({
                 uvs: new Float32Array(8),
                 indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
               });
-              sp = new Mesh({ geometry, texture: sheetTex ?? tex });
+              // 정점 알파용 속성. 그라데이션이 없는 메시는 계속 1 로 남는다.
+              geometry.addAttribute("aColor", {
+                buffer: new Float32Array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
+                format: "float32x4",
+              });
+              sp = new Mesh({ geometry, texture: sheetTex ?? tileTex ?? tex });
             } else {
               sp = new Sprite();
               sp.anchor.set(0.5);
@@ -863,9 +1427,82 @@ export default function AnssStage({
             sprites.set(dr.index, sp);
             stage.addChild(sp);
           }
-          const use = sp instanceof Mesh ? (sheetTex ?? tex) : tex;
+          const use = sp instanceof Mesh ? (sheetTex ?? tileTex ?? tex) : tex;
           if (sp.texture !== use) sp.texture = use;
           if (sp instanceof Mesh) {
+            /**
+             * 모서리 알파를 정점 속성으로 넣는다.
+             *
+             * 모서리 순서는 스프라이트 경로(cellTexture)의 2x2 램프와 같은 규약을
+             * 쓴다 — c[2],c[3] 이 이미지 위쪽 행, c[0],c[1] 이 아래쪽 행이다.
+             * 메시 정점은 map(u0,v0)=위왼 · (u1,v0)=위오 · (u1,v1)=아래오 ·
+             * (u0,v1)=아래왼 순이므로 c[2] c[3] c[1] c[0] 으로 대응한다.
+             */
+            const ca = cornerAlphas(dr.vcol);
+            const cc = cornerColors(dr.vcol);
+            const colBuf = sp.geometry.getBuffer("aColor");
+            if (colBuf) {
+              const cd = colBuf.data as Float32Array;
+              /**
+               * 코너 순서 — 원본 c[0],c[1] 이 **위쪽** 두 코너다.
+               *
+               * [문제] 사용자 보고 "무지개가 딱딱 구분된다. 자연스럽게 번져야
+               *   한다". 종전에는 c[2],c[3] 을 위로 놓아 **그라데이션이 상하
+               *   반전**됐고, 위아래로 맞물린 판마다 이음매에서 색이 튀었다.
+               * [결정적 근거] 세로로 정확히 맞물린 4코너 이웃쌍 1,230건 전수
+               *   검사 — 위판의 아래 코너와 아래판의 위 코너가 일치하는 조합은
+               *   `c0,c1=위` 가설이 **41건**, 현행 `c2,c3=위` 가설이 **2건**.
+               *   711005 의 형제 이펙트 712005 의 boke_4->boke_3->boke_2->boke_1
+               *   연쇄가 그 41건에 포함된다.
+               * [보강] 711005 의 다섯 판은 높이 28.4px · 간격 28.5px 로 정확히
+               *   맞물리고, 코너색 연쇄(초록-시안-보라-마젠타-주황)도 연속이다.
+               *   반전만 바로잡으면 이음매 없는 무지개가 된다.
+               * [신뢰도] CONFIRMED (전수 통계 41:2)
+               *
+               * 메시 정점은 (위왼, 위오, 아래오, 아래왼) 순이므로
+               * c0 c1 c3 c2 로 대응한다.
+               */
+              // Native BBMsf vertices are TL,BL,BR,TR and updateCell writes
+              // CHK c0..c3 to destinations {0,3,1,2}. Thus CHK is
+              // TL,TR,BL,BR; our TL,TR,BR,BL mesh needs c0,c1,c3,c2.
+              const order = ca ? [ca[0], ca[1], ca[3], ca[2]] : [1, 1, 1, 1];
+              const rgbOrder = cc ? [cc[0], cc[1], cc[3], cc[2]] : null;
+              let changed = false;
+              for (let k = 0; k < 4; k += 1) {
+                const a = order[Math.min(k, order.length - 1)] ?? 1;
+                const o = k * 4;
+                if (cd[o + 3] !== a) changed = true;
+                /**
+                 * RGB 도 알파로 곱한다 — vColor 는 **프리멀티플라이드**다.
+                 *
+                 * [문제] rgb=1 로 두면 알파 채널만 줄어든다. 가산 블렌드는
+                 *   (ONE, ONE) 로 원본 rgb 를 그대로 더하므로 알파를 아무리
+                 *   낮춰도 화면이 어두워지지 않는다. 그래서 그라데이션이 걸린
+                 *   파츠가 **모서리까지 꽉 찬 사각형**으로 보였다.
+                 * [근거] 1285005 의 eff_t·eff_u 만 남기고 f30 을 렌더해 A/B:
+                 *   켜진 픽셀 수는 225,158 로 동일한데 평균 밝기가 107 -> 52.7.
+                 *   화면에서도 딱딱한 블록이 끝으로 갈수록 사라지는 띠가 된다.
+                 * [신뢰도] CONFIRMED (동일 프레임 실측 + 육안)
+                 */
+                const col = rgbOrder?.[Math.min(k, rgbOrder.length - 1)];
+                if (col) {
+                  // 프리멀티플라이드: rgb x a
+                  const r = col[0] * a, g = col[1] * a, b = col[2] * a;
+                  if (cd[o] !== r || cd[o + 1] !== g || cd[o + 2] !== b) changed = true;
+                  cd[o] = r; cd[o + 1] = g; cd[o + 2] = b; cd[o + 3] = a;
+                } else {
+                  cd[o] = a; cd[o + 1] = a; cd[o + 2] = a; cd[o + 3] = a;
+                }
+              }
+              if (changed) colBuf.update();
+              if (ca || cc) {
+                // 기본 메시 셰이더는 aColor 를 안 읽는다. 필요한 메시에만 붙인다.
+                const m = sp as Mesh & { _anssVcol?: VcolShader };
+                const sh = vcolShaderFor(sp.texture);
+                if (m.shader !== sh) m.shader = sh;
+                m._anssVcol = sh;
+              }
+            }
             const uv = dr.uv!;
             const hw = dr.cell.w / 2, hh = dr.cell.h / 2;
             const pos = sp.geometry.getBuffer("aPosition");
@@ -877,14 +1514,38 @@ export default function AnssStage({
              * 쓰는 경우 그 값을 시트 좌표로 옮긴다. 그래야 UV 가 셀 밖으로
              * 나갔을 때 시트의 이웃 내용이 보인다(원본은 clamp 라 반복은 없다).
              */
-            const u0 = 0.5 - 0.5 * uv.sx + uv.x, u1 = 0.5 + 0.5 * uv.sx + uv.x;
-            const v0 = 0.5 - 0.5 * uv.sy + uv.y, v1 = 0.5 + 0.5 * uv.sy + uv.y;
+            // 창(스케일)은 셀 중심 기준, 이동은 아래 map 에서 단위를 골라 더한다
+            const u0 = 0.5 - 0.5 * uv.sx, u1 = 0.5 + 0.5 * uv.sx;
+            const v0 = 0.5 - 0.5 * uv.sy, v1 = 0.5 + 0.5 * uv.sy;
             const c = dr.cell;
             const useSheet = !!(sheetTex && c.sheet && c.sw && c.sh && c.rw && c.rh);
-            const rx = useSheet ? (c.rx ?? 0) / c.sw! : 0;
-            const ry = useSheet ? (c.ry ?? 0) / c.sh! : 0;
-            const rw = useSheet ? c.rw! / c.sw! : 1;
-            const rh = useSheet ? c.rh! / c.sh! : 1;
+            // 스트립: 위 절반 = [0,0.5), 아래 절반 = [0.5,1). 이동 단위는 1(스트립 전체)
+            // Native uses exact atlas-cell boundaries. Its +/-0.5 constants
+            // form the centred UV quad; they are not a half-texel inset.
+            const rx = stripTex ? 0 : (useSheet ? (c.rx ?? 0) / c.sw! : 0);
+            const ry = stripTex ? strip![1] * 0.5 : (useSheet ? (c.ry ?? 0) / c.sh! : 0);
+            const rw = stripTex ? 1 : (useSheet ? c.rw! / c.sw! : 1);
+            const rh = stripTex ? 0.5 : (useSheet ? c.rh! / c.sh! : 1);
+            /**
+             * UV 이동(uvx·uvy)의 단위는 **텍스처 페이지 전체**다. (docs §41)
+             *
+             * [결정적 근거 — 1082105 사인 광택] `sign_ef_L/R` 쿼드는 부모 x 로
+             *   -131 -> 381, 정확히 **512 = 시트 폭**을 이동한다. uvx 를 시트
+             *   단위로 읽으면 f80 에서 쿼드가 로고의 318~510 구간 위에 있을 때
+             *   샘플 창이 320~512 — **2px 오차로 일치**한다(광택이 지나가는
+             *   자리의 로고 그림을 그대로 비춘다). 셀 단위(96px)로 읽으면 창이
+             *   87px 만 움직여 광택이 로고를 따라가지 못한다 — 사용자가 본
+             *   "광택 위치 안 맞음"이다.
+             * [보강] 1285005 로고 광택도 정지값(uvy=1.0)이 페이지 단위에서
+             *   시트 밖/빈 행에 떨어져 광택이 **사라진다**. 셀 단위에서는 이웃
+             *   셀 줄무늬를 가리켜 91/121 프레임 동안 정지된 광택이 떠 있었다.
+             *   §34 의 fan01 사례(정지값 = 리본의 빈 꼬리)도 같은 방향이다.
+             * [해석] GL 표준 그대로 — UV 는 텍스처 정규화 좌표이고 이동도 그
+             *   좌표에서 이뤄진다. §34 의 uh(컨테이너 추정)는 이것의 부분
+             *   근사였으므로 페이지 단위가 켜져 있으면 쓰지 않는다.
+             * [디버그] `window.__anssUvPage = false` 로 셀 단위로 되돌린다.
+             */
+            const uvUnitY = useSheet && c.uh && scrollWindow && !uvPageUnits ? c.uh / c.sh! : rh;
             const r = uv.rot * Math.PI / 180;
             const cr = Math.cos(r), sr = Math.sin(r);
             const ud = uvb.data as Float32Array;
@@ -897,8 +1558,9 @@ export default function AnssStage({
                 cu = 0.5 + du * cr - dv * sr;
                 cv = 0.5 + du * sr + dv * cr;
               }
-              ud[i] = rx + cu * rw;
-              ud[i + 1] = ry + cv * rh;
+              // 이동: 페이지 단위(기본) 또는 셀/컨테이너 단위(폴백)
+              ud[i] = rx + cu * rw + uv.x * (stripTex ? 1 : (uvPageUnits && useSheet ? 1 : rw));
+              ud[i + 1] = ry + cv * rh + uv.y * (stripTex ? 1 : (uvPageUnits && useSheet ? 1 : uvUnitY));
             };
 
             const vt = dr.vert;
@@ -918,9 +1580,24 @@ export default function AnssStage({
           // evaluate() already folded the pivot into dr.x / dr.y.
           // flip the frame, not the texture: negate the y row and y translation
           // Matrix 를 프레임마다 새로 만들지 않고 하나를 덮어쓴다
-          scratch.a = dr.a; scratch.b = -dr.b; scratch.c = -dr.c; scratch.d = dr.d;
-          scratch.tx = dr.x; scratch.ty = -dr.y;
+          /**
+           * 이펙트만 줄이는 보정 계수. 카드 아트는 건드리지 않는다.
+           *
+           * [근거] 인게임 스크린샷(1285005, MAJOR 카드) 실측:
+           *   불고리 외곽 지름 약 725px · 카드 아트 폭 약 558px
+           *   (선수 키 720px / 카드아트 660논리 x 512) -> **고리/카드 = 1.30**.
+           *   우리 렌더는 스테이지 논리단위에서 고리 806 · 카드 445 -> **1.81**.
+           *   1.30 / 1.81 = 0.72 만큼 이펙트가 크다.
+           * [주의] 스크린샷 픽셀을 눈으로 잰 값이라 +-15% 오차가 있다.
+           *   `window.__anssFxScale = 1` 로 보정을 끄고 비교할 수 있다.
+           */
+          const K = fxScaleAdjust;
+          scratch.a = dr.a * K; scratch.b = -dr.b * K;
+          scratch.c = -dr.c * K; scratch.d = dr.d * K;
+          scratch.tx = dr.x * K; scratch.ty = -dr.y * K;
           sp.setFromMatrix(scratch);
+          const bucket = dbg.byPart.get(dr.part.n);
+          if (bucket) bucket.push(sp); else dbg.byPart.set(dr.part.n, [sp]);
         });
         for (const [i, sp] of sprites) if (!live.has(i)) sp.visible = false;
       };
@@ -971,10 +1648,56 @@ export default function AnssStage({
       app.canvas.style.height = `${height}px`;
     }
     stage.position.set(width / 2 + offsetX, height * originY + offsetY);
-    stage.scale.set(scale ?? height / CARD_ART_REF_H);
+    // docs §38 — 프레임 정합 보정을 리사이즈 경로에도 동일 적용
+    stage.scale.set((scale ?? height / CARD_ART_REF_H) * fitScaleAdjust);
   }, [width, height, originY, scale, offsetX, offsetY]);
 
   // 카드 이미지는 미리 로드해야 첫 프레임부터 그려진다
+/**
+ * 카드 아트의 **실제 그림 높이**를 알파로 잰다.
+ *
+ * [문제] 사용자 요청 "선수 사진에 맞게 이펙트 크기가 유동적으로 바뀌어야 함".
+ * [확인된 사실] CL 아틀라스는 512x1024 이고 코드는 위 **660행**을 카드 그림으로
+ *   가정해 왔다. 그런데 12장 실측에서 그림은 y≈606~619 에서 끝나고
+ *   (615~776 이 완전 투명), 그 아래는 이름띠다. 즉 660 크롭에는 **46px 의 빈
+ *   여백**이 붙어, 카드 스프라이트의 중심이 실제 선수 그림의 중심보다
+ *   23단위(3.7%) 위로 밀린다 — 이펙트가 선수를 기준으로 어긋나 보이는 원인.
+ * [처리] 카드를 실을 때 알파 행 합계로 그림/이름띠 경계를 찾아 그 높이로
+ *   자른다. 카드마다 다르면 다른 대로 따라간다. 못 찾으면 종전 상수로.
+ * [디버그] `window.__anssArtCrop = false` 로 끄고 A/B 할 수 있다.
+ * [신뢰도] 경계 위치 CONFIRMED(12장 실측, 606~619) / 시각적 최종 판단은 사용자.
+ */
+function measureArtHeight(src: TextureSource, key: string): number {
+  const hit = artHeightCache.get(key);
+  if (hit !== undefined) return hit;
+  const H = src.height || CARD_ART_H;
+  let out = Math.min(CARD_ART_H, H);
+  try {
+    const img = (src as unknown as { resource?: CanvasImageSource }).resource;
+    if (img) {
+      const cv = document.createElement("canvas");
+      cv.width = 64;                       // 가로는 줄여도 행 판정에 지장 없다
+      cv.height = H;
+      const g = cv.getContext("2d", { willReadFrequently: true });
+      if (g) {
+        g.drawImage(img, 0, 0, src.width || CARD_ART_W, H, 0, 0, 64, H);
+        const d = g.getImageData(0, 0, 64, H).data;
+        let run = 0, end = -1;
+        for (let y = 200; y < H; y += 1) {   // 위쪽 200행은 늘 그림이다
+          let any = 0;
+          for (let x = 0; x < 64; x += 1) if (d[(y * 64 + x) * 4 + 3] > 16) { any = 1; break; }
+          if (any) { run = 0; continue; }
+          run += 1;
+          if (run >= 6) { end = y - run + 1; break; }   // 완전 투명 6행 = 경계
+        }
+        if (end > 200) out = end;
+      }
+    }
+  } catch { /* 픽셀을 못 읽으면 상수로 */ }
+  artHeightCache.set(key, out);
+  return out;
+}
+
   useEffect(() => {
     if (!cardArt) { cardTexRef.current = null; cardArtReadyRef.current = null; return; }
     let alive = true;
@@ -982,8 +1705,10 @@ export default function AnssStage({
     Assets.load({ src: cardArt, parser: "loadTextures" })
       .then((tex: Texture) => {
         if (!alive || !tex?.source) return;
-        // 아틀라스 512x1024 중 카드 그림은 위 660 행
-        const h = Math.min(CARD_ART_H, tex.source.height || CARD_ART_H);
+        // 아틀라스에서 카드 그림이 끝나는 행을 **실측**해 자른다 (위 주석 참조)
+        const h = artCropOn
+          ? measureArtHeight(tex.source, cardArt)
+          : Math.min(CARD_ART_H, tex.source.height || CARD_ART_H);
         cardTexRef.current = new Texture({
           source: tex.source,
           frame: new Rectangle(0, 0, Math.min(CARD_ART_W, tex.source.width || CARD_ART_W), h),
@@ -1000,7 +1725,13 @@ export default function AnssStage({
     readyRef.current = null;
     const stage = stageRef.current;
     if (stage) {
-      for (const sp of spritesRef.current.values()) sp.destroy();
+      for (const sp of spritesRef.current.values()) {
+        if ((sp as Mesh).geometry) {
+          (sp as Mesh & { _anssVcol?: unknown })._anssVcol = undefined;
+          (sp as Mesh).geometry.destroy();
+        }
+        sp.destroy();
+      }
       spritesRef.current.clear();
       stage.removeChildren();
       /**
@@ -1013,8 +1744,11 @@ export default function AnssStage({
     }
     if (!doc) return;
     let alive = true;
-    const urls = cellUrls(doc);
-    (urls.length ? loadCellTextures(urls).catch(() => undefined) : Promise.resolve())
+    // 쌍 스트립도 함께 미리 싣는다 (로드 전에는 stripTexture 가 null 을 돌려준다)
+    const urls = [...cellUrls(doc), ...stripUrls(doc)];
+    // 이전 문서의 텍스처를 먼저 내려 GPU 를 비운다 (r72 — "서너 개 보면 사라짐" 수정)
+    releaseUnused(doc)
+      .then(async () => { if (urls.length) await Assets.load(urls).catch(() => undefined); })
       .then(() => (alive ? prepare(doc) : undefined))
       .then(() => { if (alive) readyRef.current = doc.effectId; });
     return () => { alive = false; };

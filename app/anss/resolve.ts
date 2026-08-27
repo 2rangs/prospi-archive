@@ -27,6 +27,7 @@
 
 export type MatchLevel =
   | "known"     // 실측 매핑
+  | "family"    // 같은 (group, variant 접두) 의 실측을 전파 — 21건 실측에서 충돌 0
   | "none"      // 실측 결과 전용 이펙트가 없음
   | "rule"      // variant -> series 규칙 예측 (실측 2건 일치)
   | "guess"     // 같은 group 안에서 고른 추정값 (검증 안 됨)
@@ -100,7 +101,7 @@ export function decodeEffectId(id: string): EffectKey | null {
  *   VAR 0700 -> 1214005, VAR 0100 -> 1201005. 같은 선수·같은 시리즈에서 갈리므로
  *   series 문자열은 키가 될 수 없다. variant 표는 실측 14건 전부 충돌 0.
  */
-export type LearnedKey = { series: string; sub: string };
+export type LearnedKey = { series: string; sub: string; effectId?: string };
 
 /**
  * variant 앞 2자리는 **홀·짝이 한 쌍**이고, 쌍은 같은 이펙트를 쓴다.
@@ -113,21 +114,70 @@ export type LearnedKey = { series: string; sub: string };
  *   배우면 실측 한 건이 prefix 두 개를 덮는다.
  * [신뢰도] STRONG (쌍 2개에서 직접 확인, 나머지 11건과 충돌 없음)
  */
-const pairOf = (pre: string) => String(Math.ceil(Number(pre) / 2));
-
+/**
+ * 실측에서 (group, variant 접두) -> 이펙트를 배운다.
+ *
+ * [확인된 사실] 이펙트는 선수가 아니라 **카드 시리즈(variant)에 딸려 있다.**
+ *   실측 21건에서 (group, variant) -> effect 충돌이 **0건**이고,
+ *   그룹10 variant 2700 의 서로 다른 선수 3명(大谷·ダルビッシュ·上沢)이
+ *   같은 1041005 를 쓴다. 홀짝 짝꿍(2700/2800, 3100/3200, 4700/4800)도
+ *   항상 같은 이펙트다(각성 변형).
+ * [주의] 예전 구현은 group 을 무시하고 variant 접두만 배워서, 그룹10의
+ *   "27"->1041005 와 그룹11의 "27"->1142005 가 충돌해 먼저 온 쪽이 이겼다.
+ *   cardId 는 group + playerId(4) + variant(4) 이므로 group 은 앞자리에서
+ *   바로 나온다.
+ */
 export function learnSeries(known: Record<string, string>): Record<string, LearnedKey> {
   const out: Record<string, LearnedKey> = {};
   for (const [cardId, effectId] of Object.entries(known)) {
-    if (!/^\d{10}$/.test(cardId)) continue;
+    if (!/^\d{9,10}$/.test(cardId)) continue;
     if (!/^\d{6,7}$/.test(effectId)) continue;     // 10자리면 '전용 이펙트 없음'
+    const group = cardId.slice(0, -8);
     const variant = cardId.slice(-4, -2);
-    const key = { series: effectId.slice(-5, -3), sub: effectId.slice(-3, -1) };
-    if (!out[variant]) out[variant] = key;
-    // 짝꿍 prefix 도 같이 배운다
+    const key = { series: effectId.slice(-5, -3), sub: effectId.slice(-3, -1),
+                  effectId };
+    const put = (pre: string) => {
+      const k = `${group}:${pre}`;
+      const prev = out[k];
+      if (!prev) { out[k] = { ...key }; return; }
+      /**
+       * 같은 (group, variant 접두) 에 실측이 여럿인데 이펙트가 다르면
+       * **series 만 믿고 sub·정확한 id 는 전파하지 않는다.**
+       * [근거] 그룹10 variant 47: 大谷 -> 1082105(sub 10, 사인판) ·
+       *   田中賢介 -> 1082005(sub 00, 무사인판). 시리즈는 같아도 사인 유무로
+       *   sub 가 선수마다 갈린다 — 카드별 실측 없이는 알 수 없다.
+       */
+      if (prev.effectId && prev.effectId !== effectId) {
+        prev.effectId = undefined;
+        if (prev.sub !== key.sub) prev.sub = "00";
+      }
+    };
+    put(variant);
+    // 홀짝 짝꿍 prefix 도 같이 배운다 (실측 3쌍 모두 동일 이펙트)
     const p = Number(variant);
     if (Number.isFinite(p) && p > 0) {
-      const mate = String(p % 2 === 1 ? p + 1 : p - 1).padStart(2, "0");
-      if (!out[mate]) out[mate] = key;
+      put(String(p % 2 === 1 ? p + 1 : p - 1).padStart(2, "0"));
+    }
+  }
+  /**
+   * 교차그룹 합의: 같은 variant 접두가 **여러 그룹에서 같은 series** 로
+   * 측정되면, 실측이 없는 그룹에도 그 series 를 예측으로 쓴다.
+   *
+   * [근거] 35 -> 17 이 그룹 3·6 에서 동일. 반대로 27 은 그룹10=41 ·
+   *   그룹11=42 로 갈리므로(연도별 증가 계열) 합의가 없으면 전파하지 않는다.
+   * [주의] 종전의 하드코딩 표(25=16 · 27=42 · 31=51 · 35=61)는 실측 채점에서
+   *   **11건 중 6건이 틀렸다** — 35=61, g10 27=42 가 모두 오답. 표를 지우고
+   *   이 데이터 유도 합의로 대체한다.
+   */
+  const byPre = new Map<string, Set<string>>();
+  for (const [k, v] of Object.entries(out)) {
+    const pre = k.split(":")[1];
+    if (!byPre.has(pre)) byPre.set(pre, new Set());
+    byPre.get(pre)!.add(v.series);
+  }
+  for (const [pre, sers] of byPre) {
+    if (sers.size === 1 && !out[`*:${pre}`]) {
+      out[`*:${pre}`] = { series: [...sers][0], sub: "00" };
     }
   }
   return out;
@@ -145,9 +195,12 @@ export function predictSeries(
 
   if (!Number.isFinite(v)) return null;
 
-  // 실측에서 배운 표가 가장 강한 근거다 (series 와 sub 둘 다 담고 있다)
-  const ls = learned?.[pre];
+  // 실측에서 배운 표가 가장 강한 근거다 — (group, variant 접두) 로 조회
+  const ls = learned?.[`${group}:${pre}`];
   if (ls && has(ls.series)) return ls;
+  // 이 그룹엔 실측이 없어도, 다른 그룹들이 같은 series 로 합의하면 그것을 쓴다
+  const cross = learned?.[`*:${pre}`];
+  if (cross && has(cross.series)) return { series: cross.series, sub: "00" };
 
   /**
    * VAR 01 = 그 시즌 기본 이펙트 (series 01).
@@ -173,19 +226,10 @@ export function predictSeries(
   if (familyV === 23 && has("12")) return { series: "12", sub: "00" };
 
   /**
-   * 장기간 고정된 특수 카드 패밀리. 실측표가 있으면 위의 learned가 먼저 이기며,
-   * 여기서는 아직 개별 실측이 없는 같은 계열 카드만 보완한다.
-   * 25=OB(series16), 27/28=WS(series42), 31/32=대표(series51), 35=GOB(series61).
-   * 없는 연도에는 억지로 다른 이펙트를 고르지 않고 아래 폴백으로 내려간다.
+   * [철회] 하드코딩 특수 패밀리 표(25=16 · 27=42 · 31=51 · 35=61)는 실측 26건
+   * 채점에서 **11건 중 6건 오답**이라 삭제했다(35 는 실제 17, g10 의 27 은 41).
+   * 그 역할은 위의 learned 교차그룹 합의(`*:{pre}`)가 데이터로 대신한다.
    */
-  const familySeries: Record<number, string> = {
-    25: "16", 26: "16",
-    27: "42", 28: "42",
-    31: "51", 32: "51",
-    35: "61", 36: "61",
-  };
-  const family = familySeries[familyV];
-  if (family && has(family)) return { series: family, sub: "00" };
 
   if (familyV % 2 === 1 && familyV >= 3 && familyV <= 15) {
     const k = (familyV + 1) / 2;
@@ -235,6 +279,13 @@ export function resolveEffect(
   }
   const mine = pool.filter(e => e.group === group);
 
+  // 같은 (group, variant 접두) 의 실측이 있으면 그 이펙트를 그대로 쓴다
+  const fam = learned?.[`${group}:${variant.slice(0, 2)}`];
+  if (fam?.effectId) {
+    const k = pool.find(e => e.effectId === fam.effectId);
+    if (k) return { effectId: k.effectId, level: "family", rank: k.rank };
+  }
+
   // 규칙 예측이 그 연도에 실제로 있으면 그것을 쓴다
   const key = predictSeries(variant, pool, group, learned);
   if (key) {
@@ -279,6 +330,7 @@ export function effectCandidates(
 /** 기본 표기는 일본어. 한국어는 app/i18n.tsx 의 MATCH_LABEL_KO 가 덮는다. */
 export const MATCH_LABEL: Record<MatchLevel, string> = {
   known:  "実測マッピング",
+  family: "実測の伝播（同グループ・同variant）",
   none:   "専用エフェクトなし（実測）",
   rule:   "規則予測（variant→series）",
   guess:  "未検証推定（同年度）",

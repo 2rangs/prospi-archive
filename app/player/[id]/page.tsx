@@ -63,42 +63,6 @@ function StatRow({ label, value, suffix, floor = 0, ceil = 100 }:
   </div>;
 }
 
-/**
- * Break chart. The app's ledger keeps twelve pitch slots: six break directions
- * (→ ↘ ↓ ↙ ← and straight) in two groups, so `direction % 6` is the direction
- * and `direction / 6` the group. Ray length is the recorded break level.
- */
-const ANGLES: Record<number, number | null> = { 0: 180, 1: 135, 2: 90, 3: 45, 4: 0, 5: null };
-function BreakChart({ pitches }: { pitches: Pitch[] }) {
-  const rays = pitches.filter(pitch => ANGLES[pitch.direction % 6] != null);
-  const straight = pitches.filter(pitch => ANGLES[pitch.direction % 6] == null);
-  // Break directions fan downward from the release point, so the hub sits high.
-  const cx = 110, cy = 22, reach = 84;
-  return <div className="break-chart">
-    <svg viewBox="0 0 220 114" role="img" aria-label="구종 변화 방향 도표">
-      {[0, 45, 90, 135, 180].map(angle => {
-        const rad = (angle * Math.PI) / 180;
-        return <line key={angle} className="guide" x1={cx} y1={cy}
-          x2={cx + Math.cos(rad) * reach} y2={cy + Math.sin(rad) * reach} />;
-      })}
-      {rays.map((pitch, index) => {
-        const rad = (ANGLES[pitch.direction % 6]! * Math.PI) / 180;
-        const len = 24 + Math.min(pitch.level, 7) * 9;
-        return <line key={`${pitch.direction}-${index}`} className={`ray group-${Math.floor(pitch.direction / 6)}`}
-          x1={cx} y1={cy} x2={cx + Math.cos(rad) * len} y2={cy + Math.sin(rad) * len} strokeWidth={4} />;
-      })}
-      <circle className="hub" cx={cx} cy={cy} r={straight.length ? 7 : 4} />
-    </svg>
-    <ul className="break-legend">
-      {pitches.map((pitch, index) => <li key={`${pitch.direction}-${pitch.kind}-${index}`}>
-        <i>{pitch.arrow}</i><span>{pitch.name || "오리지널"}</span>
-        <Grade value={pitch.power}/>
-        <b>{pitch.level ? "■".repeat(pitch.level) : "—"}</b>
-        <small>{pitch.speed}km/h</small>
-      </li>)}
-    </ul>
-  </div>;
-}
 
 /**
  * 인게임식 구종 차트 (game8 카드 페이지의 캡처와 같은 표현).
@@ -373,9 +337,17 @@ function PlayerPage() {
       </div>
 
       <div className="detail-info">
-        <p className="eyebrow">PLAYER DETAIL</p>
-        <p className="reading">{card.roman || `IMAGE ${card.id}`}</p>
-        <h1>{card.name}</h1>
+        <div className="detail-heading">
+          <div className="detail-heading-copy">
+            <p className="eyebrow">PLAYER DETAIL</p>
+            <p className="reading">{card.roman || `IMAGE ${card.id}`}</p>
+            <h1>{card.name}</h1>
+          </div>
+          {ref?.spirits != null && <div className="detail-spirit">
+            <span>{t("spirits")}</span>
+            <strong>{ref.spirits.toLocaleString()}</strong>
+          </div>}
+        </div>
         <div className="detail-tags">
           <span>{card.year}</span>
           <span>{card.playerType === "pitcher" ? t("pitcherCard") : t("batterCard")}</span>
@@ -407,7 +379,6 @@ function PlayerPage() {
             </div>
           </div>
           <div className="ref-chips">
-            <span><b>{t("spirits")}</b><i>{(ref.spirits ?? 0).toLocaleString()}</i></span>
             <span><b>{t("cost")}</b><i>{ref.cost}</i></span>
             {ref.hand && <span><b>{ref.kind === "batter" ? t("bats") : t("throws")}</b><i>{tv(ref.hand)}</i></span>}
             {ref.pos && <span><b>{t("position")}</b><i>{tv(ref.pos)}</i></span>}

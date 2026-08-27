@@ -45,13 +45,23 @@ footer>span{margin-left:auto}
 /* Compact player database list */
 .type-tabs{display:flex;margin-bottom:18px;border-bottom:1px solid var(--line)}
 .table-head,.player-row{display:grid;align-items:center;min-width:1000px}
-.player-table.batter .table-head,.player-table.batter .player-row{grid-template-columns:minmax(245px,2.5fr) 90px repeat(6,minmax(68px,.72fr)) 34px}
-.player-table.pitcher .table-head,.player-table.pitcher .player-row{grid-template-columns:minmax(245px,2.5fr) 90px 115px 90px 110px 90px 75px 34px}
+/* 열 간 빈 공간을 줄인다 — 선수 칸은 상한을 두고, 능력 칸은 내용 폭에 맞춘다 */
+/* 모든 탭 공통 열 — 선수 · 시리즈 · 스피리츠 · 탄도/구속 · [스텟/스킬 2줄] · 화살표
+   열 폭은 내용에 맞춰 고정하고 마지막 칸만 남는 폭을 먹는다 (빈 공간 지적 반영) */
+.player-table .table-head,.player-table .player-row{grid-template-columns:250px 168px 86px 96px minmax(340px,1fr) 30px}
+.stat-inline{gap:18px}
+.stat-inline em b{min-width:2ch}
+.score.spirits b{font-variant-numeric:tabular-nums;font-weight:700;color:#e0a020;letter-spacing:.02em}
+.stat-inline{display:flex;align-items:center;gap:14px;min-width:0;overflow:hidden}
+.stat-inline em{display:inline-flex;flex-direction:column;align-items:flex-start;font-style:normal;line-height:1.15}
+.stat-inline em small{font-size:9px;letter-spacing:.08em;opacity:.55;text-transform:uppercase}
+.stat-inline em b{font-size:14px;font-variant-numeric:tabular-nums}
+.stat-inline .traj-cell b{font-size:12px}
 .table-head span:first-child{text-align:left;padding-left:4px}
 .player-identity{display:flex;align-items:center;gap:12px;text-align:left;min-width:0}
 .row-photo img{width:55px;height:55px;object-fit:contain;filter:drop-shadow(0 5px 4px rgba(0,0,0,.18))}
 .player-identity>span:last-child{display:flex;flex-direction:column;min-width:0}
-.series-cell{display:flex;flex-direction:column;gap:5px}
+.series-cell{display:flex;flex-direction:column;gap:4px;text-align:left;align-items:flex-start}
 .series-cell b{font:800 12px/1 monospace}
 .score{display:flex;align-items:center;justify-content:center;gap:5px;font-style:normal}
 .score b{font:800 13px/1 monospace}
@@ -118,6 +128,83 @@ footer>span{margin-left:auto}
   .detail-page{width:100%;margin:0;grid-template-columns:1fr;box-shadow:none}.detail-page .detail-page .detail-info{padding:34px 20px 45px}.detail-page .detail-info h1{font-size:34px}.detail-page .detail-info .detail-stats{grid-template-columns:repeat(2,1fr)}
   .detail-tags{flex-wrap:wrap}.pitch-table{overflow-x:auto}.pitch-head,.pitch-row{min-width:340px;grid-template-columns:minmax(135px,1fr) 42px 76px 65px}.pitch-row{padding-left:8px;padding-right:8px}.detail-info dl>div{grid-template-columns:90px minmax(0,1fr)}
   .effect-showcase{grid-template-columns:1fr;min-height:0}.effect-demo{min-height:470px}.effect-copy{padding:48px 20px}.effect-copy h2{font-size:38px}.effect-copy dl div{grid-template-columns:90px 1fr}
+}
+
+/* ── 선수 상세 r105: 카드 스테이지와 정보 패널을 분리한 편집형 레이아웃 ── */
+.player-detail-page .detail-page{
+  width:min(1380px,calc(100% - 72px));margin:36px auto 76px;
+  grid-template-columns:minmax(390px, .92fr) minmax(520px,1.08fr);
+  gap:18px;align-items:start;background:transparent;border:0;box-shadow:none;
+  border-radius:0;overflow:visible
+}
+.player-detail-page .detail-art{
+  position:sticky;top:96px;min-height:calc(100vh - 132px);
+  padding:38px 30px 28px;border:1px solid var(--line);border-radius:18px;
+  background:
+    radial-gradient(circle at 50% 28%,rgba(66,79,103,.26),transparent 44%),
+    linear-gradient(145deg,#11151b,#090b0e 72%);
+  box-shadow:0 24px 70px rgba(0,0,0,.32);isolation:isolate
+}
+.player-detail-page .detail-art::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:-1;border-radius:inherit;
+  background:linear-gradient(90deg,transparent 49.9%,rgba(255,255,255,.035) 50%,transparent 50.1%),
+    linear-gradient(0deg,transparent 49.9%,rgba(255,255,255,.025) 50%,transparent 50.1%);
+  background-size:72px 72px;mask-image:linear-gradient(#000,transparent 82%)
+}
+.player-detail-page .detail-art .card-frame{width:min(100%,440px)}
+.player-detail-page .detail-info{
+  min-width:0;padding:42px 46px 48px;background:var(--surface);
+  border:1px solid var(--line);border-radius:18px;
+  box-shadow:0 24px 70px rgba(0,0,0,.22)
+}
+.detail-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+  padding-bottom:20px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.detail-heading-copy{min-width:0}
+.detail-heading .eyebrow{margin:0 0 14px;color:#d5a337!important}
+.detail-heading .reading{margin:0 0 5px;font:700 10px/1 ui-monospace,monospace;
+  color:var(--muted);letter-spacing:.13em;text-transform:uppercase}
+.detail-heading h1,.detail-page .detail-info .detail-heading h1{
+  margin:0;font-size:clamp(34px,4vw,54px);line-height:1;letter-spacing:-.065em;
+  overflow-wrap:anywhere
+}
+.detail-spirit{flex:0 0 auto;min-width:126px;padding:13px 15px 11px;
+  border-left:2px solid #d8a12c;background:color-mix(in srgb,#d8a12c 8%,transparent);
+  display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.detail-spirit span{font:800 8px/1 ui-monospace,monospace;color:var(--muted);letter-spacing:.18em}
+.detail-spirit strong{font:900 28px/.9 ui-monospace,monospace;color:#efbd4b;letter-spacing:-.06em}
+.player-detail-page .detail-tags{margin-bottom:4px}
+.player-detail-page .detail-tags span{padding:6px 9px;border-color:var(--line);background:transparent}
+.player-detail-page .detail-info h3{margin-top:32px;margin-bottom:12px}
+.player-detail-page .detail-info .stat-grid{
+  gap:0 30px;padding:4px 18px;background:color-mix(in srgb,var(--raised) 62%,transparent);
+  border:1px solid var(--line)
+}
+.player-detail-page .detail-info .sgcol+.sgcol{border-left:1px solid var(--line);padding-left:30px}
+.player-detail-page .detail-info .scell{min-height:52px;padding:11px 0}
+.player-detail-page .detail-info .scell>span{font-size:12px}
+.player-detail-page .detail-info .scell>b{font-size:23px}
+.player-detail-page .ref-chips{margin-top:10px;padding:0;border-bottom:1px solid var(--line)}
+.player-detail-page .ref-chips span{min-height:40px;padding:9px 15px 9px 0;margin-right:15px}
+.player-detail-page .fx-dev{width:min(440px,100%);margin-top:2px;background:rgba(255,255,255,.025)}
+.player-detail-page .card-caption.original{width:min(440px,100%);background:transparent;padding:8px 14px 6px}
+.player-detail-page .proof{margin-top:22px;padding:12px 0 12px 14px}
+.player-detail-page .pitch-fan{border-radius:10px;background:radial-gradient(560px 240px at 50% 24%,#1a1f2b,#0e1117 75%)}
+
+@media(max-width:1050px){
+  .player-detail-page .detail-page{width:min(760px,calc(100% - 40px));grid-template-columns:1fr;gap:16px}
+  .player-detail-page .detail-art{position:relative;top:auto;min-height:0;padding-block:34px}
+}
+@media(max-width:640px){
+  .player-detail-page .detail-page{width:100%;margin:0;gap:0}
+  .player-detail-page .detail-art,.player-detail-page .detail-info{border-left:0;border-right:0;border-radius:0}
+  .player-detail-page .detail-art{padding:26px 14px 22px}
+  .player-detail-page .detail-info{padding:28px 20px 40px}
+  .detail-heading{align-items:flex-start;gap:14px}
+  .detail-heading h1,.detail-page .detail-info .detail-heading h1{font-size:34px}
+  .detail-spirit{min-width:96px;padding:10px 11px}
+  .detail-spirit strong{font-size:22px}
+  .player-detail-page .detail-info .stat-grid{grid-template-columns:1fr;padding:3px 14px}
+  .player-detail-page .detail-info .sgcol+.sgcol{border-left:0;border-top:1px solid var(--line);padding-left:0}
 }
 /* CL card-layout atlas is 512x1024: the player art sits in the top slot
    (content measured at y12..y623 across all 12 groups) and the series and name
@@ -305,7 +392,6 @@ footer>span{margin-left:auto}
 }
 /* 하단 = 이름 영역. 크롭 상자는 카드마다 측정해 인라인 style 로 들어온다
    (고정 상자는 이름 길이에 따라 중심이 135~174 로 흩어져 정렬이 깨졌다). */
-.row-photo .rp-name{position:absolute;left:11%;right:11%;bottom:5%;overflow:hidden;display:block}
 @media(max-width:700px){
   .group-cards{border-left-width:3px}
   .group-cards-head{padding-left:16px}
@@ -318,9 +404,6 @@ footer>span{margin-left:auto}
      282/2 와 같으므로 그것만으로 가운데 정렬이 된다.
      배율 = W/282 → img 폭 512*(W/282)=181.56%, 위로 900*(W/282)=319.15% 이동.
      (margin 의 % 는 컨테이너 **폭** 기준이라 계산이 그대로 맞는다.) */
-.row-photo .rp-name{position:absolute;left:0;right:0;bottom:0;aspect-ratio:282/72;
-  overflow:hidden;display:block;background:none}
-.row-photo .rp-name img{position:absolute;left:0;top:0;height:auto;max-width:none;aspect-ratio:512/1024;filter:none;width:181.56%;margin-top:-319.15%;image-rendering:auto}
 .player-row.card-row .player-identity small{font-size:9px}
 .player-row.card-row .series-cell b{font-size:12px}
 .player-row.card-row .row-arrow{color:#a7acb1}
@@ -473,8 +556,10 @@ nav a:hover{color:#d8dce4}
 /* ── 목록 아이콘 ─────────────────────────────────────────────────────
    소스 CS 카드가 128x128 이므로 **그 이상으로 키우지 않는다**(확대하면 흐려짐).
    아틀라스(512x1024)의 인게임 이름 타이포 띠는 y 896~988 → -175% 로 노출. */
-.row-photo{position:relative;flex:0 0 76px;width:76px;height:76px;max-width:128px;max-height:128px;overflow:hidden;border-radius:9px;background:linear-gradient(150deg,#1b2130,#11141b);display:block}
+.row-photo{position:relative;container-type:inline-size;flex:0 0 76px;width:76px;height:76px;max-width:128px;max-height:128px;overflow:hidden;border-radius:9px;background:linear-gradient(150deg,#1b2130,#11141b);display:block}
 .row-photo .rp-fx{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* front 층(사인·로고)은 사진 위 — z 는 사진(auto)보다 높게, 이름 띠 아래 */
+.row-photo .rp-fx-front{z-index:2;pointer-events:none}
 /* 선수 이미지는 자르지도, 이름 띠에 눌리지도 않는다 — 아이콘을 꽉 채운다.
    이름 띠는 아래에 겹쳐 얹으므로 사진 크기를 깎지 않는다. */
 .row-photo .rp-art{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:50% 50%;filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))}
@@ -487,12 +572,18 @@ nav a:hover{color:#d8dce4}
      위 끝은 선수 몸통과 붙어 71~102 로 흩어진다. 2015~2026 전 연도 공통.
    [처리] 우리가 깔던 어두운 그라디언트를 뺀다 — 원본에 없는 배경이었다.
      글자는 그 판 안에 놓는다: 아래 여백 4/128=3%, 높이 27/128≈21%. */
-.row-photo .rp-name{position:absolute;left:50%;right:auto;transform:translateX(-50%);
-  bottom:3%;height:21%;overflow:hidden;display:block}
-/* CL 아틀라스는 512x1024. 로드 전에도 박스가 잡히도록 종횡비를 명시한다
-   (height:auto 로 두면 로드 전 높이 0 → lazy 가 영영 트리거되지 않는다). */
-.row-photo .rp-name img{position:absolute;left:0;top:0;width:100%;height:auto;max-width:none;
-  aspect-ratio:512/1024;margin-top:-175%;filter:none;image-rendering:auto}
+/* .row-photo .rp-name 규칙은 아래 한 곳에만 둔다.
+   같은 선택자가 세 벌 있었고 뒤엣것이 앞엣것을 전부 덮어써서, 앞 두 벌은
+   aspect-ratio 와 background 만 흘려보내는 죽은 코드였다. 실제 크기·크롭은
+   NameStrip 이 카드마다 인라인 style 로 지정한다(app/page.tsx). */
+.row-photo .rp-name{position:absolute;z-index:3;left:7%;right:7%;bottom:3.125%;height:18.75%;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;
+  color:#fff;font-style:normal;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  box-sizing:border-box;font-size:12.9cqw;font-weight:900;line-height:1;letter-spacing:-.04em;
+  text-shadow:-1px -1px 0 #111,1px -1px 0 #111,-1px 1px 0 #111,1px 1px 0 #111,0 2px 2px #000}
+.row-photo .rp-name.two-glyph{justify-content:center;letter-spacing:.55em;padding-left:.55em}
+.row-photo .rp-name.three-glyph{justify-content:center;letter-spacing:.3em;padding-left:.3em}
+.row-photo .rp-name.long{font-size:10.2cqw;letter-spacing:-.08em}
 .player-row.card-row .row-photo{width:62px;height:62px;flex-basis:62px}
 @media(max-width:640px){.row-photo{flex-basis:65px;width:65px;height:65px}}
 /* ============================================================
@@ -614,8 +705,10 @@ nav a:hover{color:#d8dce4}
 .traj-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0}
 .traj-cell svg{width:22px;height:22px;flex:0 0 22px;
   filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))}
-.traj-cell b{font:800 8px/1.15 system-ui,sans-serif;letter-spacing:-.02em;text-align:center;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:74px}
+/* 칸 폭은 충분한데 max-width 74px 로 스스로 잘라내고 있었다(사용자 지적).
+   상한을 칸에 맡기고, 정말 넘칠 때만 말줄임. */
+.traj-cell b{font:800 9px/1.15 system-ui,sans-serif;letter-spacing:-.02em;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .traj-none{font:700 11px/1 monospace;color:#4d5566;font-style:normal}
 @media(max-width:700px){
   .player-table.batter .table-head,
@@ -1018,8 +1111,8 @@ main,.player-detail-page{background:var(--bg);color:var(--ink);box-shadow:none}
 .hero-tagline,.hero-stats span{color:#9aa3ad}
 .finder,.results-head,.pagination{background:var(--bg)}
 .player-table{margin:0 4.5vw 30px;border:1px solid var(--line);background:var(--surface);overflow-x:auto;border-radius:14px;overflow:hidden}
-.table-head{height:42px;background:var(--raised);color:var(--muted);padding:0 13px;font-size:9px;font-weight:800;letter-spacing:.04em;text-align:center;border-bottom:1px solid var(--line)}
-.player-row{width:100%;min-height:70px;padding:5px 13px;border:0;border-top:1px solid #202634;background:var(--raised);text-align:center;transition:background .12s ease;text-decoration:none;position:relative;color:var(--ink);border-bottom:1px solid var(--line)}
+.table-head{height:42px;background:var(--raised);color:var(--muted);padding:0 13px;font-size:9px;font-weight:800;letter-spacing:.04em;text-align:left;border-bottom:1px solid var(--line)}
+.player-row{width:100%;min-height:70px;padding:5px 13px;border:0;border-top:1px solid #202634;background:var(--raised);text-align:left;transition:background .12s ease;text-decoration:none;position:relative;color:var(--ink);border-bottom:1px solid var(--line)}
 .player-row:hover{background:var(--raised)}
 .detail-page{width:min(1280px,calc(100% - 64px));margin:42px auto 70px;display:grid;grid-template-columns:minmax(360px,40%) 1fr;background:var(--surface);box-shadow:0 26px 80px rgba(0,0,0,.5);border-radius:18px;overflow:hidden;border:1px solid var(--line);align-items:start}
 .detail-art{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px 30px 38px;background:var(--well-2);overflow:hidden}
@@ -1030,6 +1123,10 @@ main,.player-detail-page{background:var(--bg);color:var(--ink);box-shadow:none}
 .filters,.fx-dev,.team-row button{background:var(--surface);color:var(--ink)}
 .chips button{height:30px;padding:0 11px;border-radius:15px;border:1px solid var(--line);background:var(--raised);color:var(--muted);font:700 11px/1 system-ui,sans-serif;display:inline-flex;align-items:center;gap:6px;transition:color .12s,border-color .12s,background .12s}
 .chips button.on,.segs button.on{color:var(--ink);border-color:var(--ink)}
+.chips .team-filter{height:38px;padding:0 10px 0 6px;gap:5px}
+.chips .team-filter .team-badge{width:27px;height:27px;flex-basis:27px;margin-right:0;border-radius:6px}
+.chips .team-filter.on .team-badge{box-shadow:0 0 0 1px color-mix(in srgb,var(--ink) 55%,transparent)}
+.chips .equal-filter{height:36px;padding-inline:8px 12px}
 .detail-info .stat-bar{position:relative;height:14px;border-radius:7px;background:color-mix(in srgb,var(--ink) 10%,transparent);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
 .scell>b,.stat-value{color:var(--ink)}
 .scell>span,.stat-label,.skill-body p,.skill-body li{color:var(--muted)}
@@ -1219,7 +1316,11 @@ main section.hero .hero-copyblock{
   display:block;line-height:0;z-index:1;pointer-events:none;
   transform:scale(1.18);transform-origin:center}
 /* 더는 쓰지 않는 분리 레이어 */
-.hero-stage,.hero-fx,.hero-card,.hero-figure{display:none!important}
+/* 미디어를 hero-media 로 합치며 옛 레이어를 껐는데, 그 뒤 HeroStage 를
+   다시 쓰게 되면서 배너 인물이 통째로 사라졌다. 카드 레이어는 살린다. */
+.hero-fx,.hero-figure{display:none!important}
+.hero-stage{display:block}
+.hero-card{display:block}
 @media(max-width:900px){
   main section.hero{grid-template-columns:1fr;
     grid-template-areas:"media" "copy" "rail"}
@@ -1402,3 +1503,268 @@ input:focus-visible,summary:focus-visible,[tabindex]:focus-visible{
 
 /* 푸터 미세 글자 */
 footer,footer span,footer p{color:var(--muted)}
+
+/* ── 카드 배경 페이지: 이펙트가 잘리던 문제 ──────────────────────
+   .card-frame 이 aspect-ratio 512/660 + overflow:hidden 이라 캔버스가
+   그 상자에 맞춰 잘렸다. 이 페이지에서는 캔버스 크기를 그대로 보여 준다. */
+.fx-page .card-frame{aspect-ratio:auto;overflow:visible;width:auto;max-width:none;
+  background:var(--well-2);display:grid;place-items:center;padding:12px}
+.fx-page .card-frame canvas{display:block;max-width:100%;height:auto}
+/* [문제] .fx-stage-col .card-frame:before 는 **절대배치 + z-index:0** 이라,
+   배치되지 않은 .anss-stage(정적 흐름)보다 나중에 칠해진다. 그래서 불투명한
+   #0b0c0f 판이 캔버스를 통째로 덮어 이펙트가 하나도 안 보였다 — 재생은
+   정상이었고 화면만 검었다(실측: elementsFromPoint 최상단 = .card-frame,
+   renderer.extract 로 뽑은 스테이지에는 그림이 있었다).
+   상세 화면이 멀쩡했던 것은 거기서는 캔버스가 .fx-layer(절대배치 z-index 1/3)
+   안에 들어 있어 이미 판 위였기 때문이다. 같은 층으로 올려 준다. */
+.fx-page .card-frame>.anss-stage{position:relative;z-index:1}
+.fx-stage-col{min-width:0;overflow:visible}
+
+/* ── 초기 로딩 화면 ─────────────────────────────────────────── */
+.preload{min-height:100vh;display:grid;place-content:center;justify-items:center;gap:18px;
+  background:var(--bg);color:var(--ink)}
+.preload-mark{margin:0;font:900 clamp(24px,4vw,44px)/1 system-ui,sans-serif;letter-spacing:-.05em}
+.preload-bar{width:min(280px,60vw);height:2px;background:var(--line);overflow:hidden}
+.preload-bar i{display:block;height:100%;background:var(--ink);transition:width .2s ease}
+.preload-pct{margin:0;font:700 10px/1 ui-monospace,monospace;letter-spacing:.2em;color:var(--muted)}
+
+/* 이펙트 품질 탭 (app/anss/quality.ts · docs §39)
+   이 패널은 다크 테마 안의 **흰 표면**이라 --line 같은 다크용 토큰을 쓰면
+   테두리·글자가 사라진다. 주변 select 와 같은 '어두운 알약' 규약을 따른다. */
+.fx-tabs{display:flex;gap:6px;margin:10px 0 4px;flex-wrap:wrap}
+.fx-tabs button{padding:6px 12px;border-radius:999px;border:1px solid transparent;
+  background:#292d32;color:#eef1f5;font:inherit;cursor:pointer}
+.fx-tabs button:hover{background:#343940}
+.fx-tabs button b{opacity:.6;margin-left:4px;font-weight:600}
+.fx-tabs button.on{background:#e0a020;color:#1a1206}
+.fx-tabs button.on b{opacity:.75}
+.fx-note{margin:2px 0 8px;font-size:12px;color:#6c7176;line-height:1.5}
+.fx-grid button.check{box-shadow:inset 3px 0 0 #c9922a}
+.fx-grid button.worst{box-shadow:inset 3px 0 0 #c0492f}
+
+/* 품질 판정 컨트롤 (docs §39) — 흰 표면 위 어두운 알약 규약 */
+.fx-judge{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0 6px}
+.fx-judge .fj-label{font-size:12px;color:#8d9298;margin-right:2px}
+.fx-judge button{padding:5px 11px;border-radius:999px;border:1px solid transparent;
+  background:#292d32;color:#eef1f5;font:inherit;font-size:13px;cursor:pointer}
+.fx-judge button:hover{background:#343940}
+.fx-judge button.on.clean{background:#3f8f5a;color:#f2fbf5}
+.fx-judge button.on.minor{background:#c9922a;color:#1a1206}
+.fx-judge button.on.broken{background:#c0492f;color:#fdf1ee}
+.fx-tabs button.on.clean{background:#3f8f5a;color:#f2fbf5}
+.fx-tabs button.on.minor{background:#c9922a;color:#1a1206}
+.fx-tabs button.on.broken{background:#c0492f;color:#fdf1ee}
+.fx-judge .fj-reset{background:transparent;color:#8d9298;border-color:#d5d9de}
+.fx-judge .fj-hint{font-size:11px;color:#a3adb8;margin-left:auto}
+.fx-export{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 2px;font-size:12px;color:#6c7176}
+.fx-export button{padding:5px 11px;border-radius:999px;border:1px solid transparent;
+  background:#292d32;color:#eef1f5;font:inherit;font-size:12px;cursor:pointer}
+.fx-export button:hover{background:#343940}
+.fx-grid button.edited{outline:1px dashed #9aa4b0;outline-offset:-3px}
+
+/* 빈 값 표기 — 대시 나열 대신 흐린 점 (docs: 표 개편) */
+.score-none{font-style:normal;color:color-mix(in srgb, currentColor 22%, transparent);font-weight:600}
+.stat-none{font:600 11px/1 system-ui;font-style:normal;color:color-mix(in srgb, currentColor 30%, transparent);letter-spacing:.04em}
+
+/* 아이콘 배경 스켈레톤 — 이펙트가 준비될 때까지 은은한 시머, 준비되면 페이드인 */
+.row-photo{position:relative}
+/* 로딩 배경 = 게임 기본 마스코트(CS1260000100, "선수 없음" 아이콘)를 흐리게 +
+   시머. 이펙트 첫 프레임이 그려지면 페이드아웃. (사용자 제안: 디폴트 실루엣 활용) */
+.row-photo::before{content:"";position:absolute;inset:0;z-index:0;border-radius:inherit;
+  background:
+    linear-gradient(100deg,
+      color-mix(in srgb, currentColor 4%, transparent) 35%,
+      color-mix(in srgb, currentColor 11%, transparent) 50%,
+      color-mix(in srgb, currentColor 4%, transparent) 65%),
+    url("/img/placeholder-player.png") center/72% no-repeat;
+  background-size:220% 100%, 72%;
+  filter:grayscale(1) opacity(.9);
+  animation:rp-shimmer 1.4s ease-in-out infinite;
+  transition:opacity .5s ease;pointer-events:none;opacity:.35}
+/* 사진이 뜨면 스켈레톤을 즉시 없앤다 — 카드 아트가 투명 컷아웃이라
+   뒤에 남아 있으면 "no image" 마스코트가 선수 뒤로 비친다(사용자 보고). */
+.row-photo[data-loaded]::before{opacity:0;animation:none}
+.row-photo:has(.rp-fx[data-ready])::before{opacity:0;animation:none}
+.row-photo .rp-fx{opacity:0;transition:opacity .45s ease}
+.row-photo .rp-fx[data-ready]{opacity:1}
+@keyframes rp-shimmer{0%{background-position:130% 0}100%{background-position:-90% 0}}
+
+/* 특수능력 칩 + 포지션 — 남던 빈 폭을 채운다 */
+/* 스킬 3분할 — 행마다 3칸 고정 그리드라 세로로 정렬이 맞는다 (사용자 요청) */
+.ability-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;min-width:0}
+.ability-chips em{font:700 10px/1.1 system-ui;font-style:normal;padding:5px 6px;border-radius:6px;
+  background:color-mix(in srgb, currentColor 8%, transparent);
+  border:1px solid color-mix(in srgb, currentColor 14%, transparent);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;min-width:0}
+.pos-chip{font:800 9px/1 system-ui;font-style:normal;padding:2px 5px;margin-right:5px;border-radius:4px;
+  background:#2d3340;color:#dfe5ee;letter-spacing:.05em}
+
+/* 탄도(타자) / 구속(투수) 공용 선두 칸 */
+.lead-cell{display:flex;align-items:center;justify-content:flex-start;min-width:0}
+.lead-cell.speed b{font:800 15px/1 monospace;font-variant-numeric:tabular-nums}
+.lead-cell.speed small{font:700 9px/1 system-ui;opacity:.55;margin-left:3px}
+
+/* 스텟(윗줄) + 특수능력(아랫줄) 2단 스택 — 사용자 지정 배치 */
+.stat-stack{display:flex;flex-direction:column;gap:5px;min-width:0;justify-content:center}
+.stat-line{display:flex;align-items:baseline;gap:13px;min-width:0;overflow:hidden}
+.stat-line .stat-item{display:inline-flex;align-items:baseline;gap:4px;font-style:normal;line-height:1.1;white-space:nowrap}
+.stat-line .stat-item small{font-size:9px;letter-spacing:.06em;opacity:.55}
+.stat-line .stat-item b{font-size:13.5px;font-variant-numeric:tabular-nums}
+.skill-line{display:flex;gap:6px;min-width:0;overflow:visible;flex-wrap:wrap}
+.skill-line em{font:700 10px/1.1 system-ui;font-style:normal;padding:4px 8px;border-radius:999px;
+  background:color-mix(in srgb, currentColor 8%, transparent);
+  border:1px solid color-mix(in srgb, currentColor 14%, transparent);
+  white-space:nowrap;overflow:visible;text-overflow:clip;max-width:none}
+
+/* ================= 가독성 패치 (사용자 요청) =================
+   원칙: ① 이름/스피리츠/스텟 숫자 = 크게·진하게, 라벨 = 작게·연하게
+        ② 줄무늬 + 뚜렷한 호버로 행 추적성 확보
+        ③ 헤더 고정(sticky) — 스크롤 중에도 열 의미 유지 */
+.player-row{min-height:72px;padding:8px 16px}
+.player-row:nth-child(even){background:color-mix(in srgb, var(--raised) 88%, #7a8598 4%)}
+.player-row:hover{background:color-mix(in srgb, var(--raised) 78%, #8fa0c0 14%)}
+.player-identity strong{font-size:15px;letter-spacing:-.01em}
+.player-identity small{opacity:.72}
+.table-head{position:sticky;top:0;z-index:5;backdrop-filter:blur(6px);
+  font-size:10px;letter-spacing:.08em;height:40px;padding:0 16px}
+.score b{font-size:14px;font-variant-numeric:tabular-nums}
+.score.spirits b{font-size:15px}
+.series-cell b{font-size:12.5px}
+.series-cell small{font-size:10px;opacity:.75}
+.stat-line .stat-item b{font-size:14px}
+.stat-line .stat-item small{font-size:9.5px}
+.skill-line em{font-size:10.5px;padding:4px 9px}
+.lead-cell .traj-cell svg{width:24px;height:24px;flex-basis:24px}
+.row-arrow{opacity:.5}
+.player-row:hover .row-arrow{opacity:1}
+
+/* 포지션 배지 — 스피리츠 옆 (사용자 지정 위치) */
+.score.spirits{display:flex;align-items:center;gap:6px}
+/* 포지션 배지 — 한 글자 한자가 또렷하게 읽히도록 크게·대비 강하게 */
+.pos-badge{font:800 14px/1 system-ui;font-style:normal;min-width:26px;height:26px;
+  display:inline-grid;place-items:center;padding:0 5px;border-radius:7px;
+  background:#4a7dd6;color:#fff;letter-spacing:0;
+  box-shadow:inset 0 -1px 0 rgba(0,0,0,.25)}
+
+/* 스텟줄 등급 아이콘 정렬 */
+.stat-line .stat-item .grade{width:15px;height:15px;display:inline-flex;flex:0 0 15px;transform:translateY(1px)}
+.stat-line .stat-item .grade img{width:100%;height:100%;object-fit:contain}
+
+/* ============ UX 마감 패스 (다크 대비·타이포 스케일·포커스) ============ */
+/* 포지션 배지 — 기존 .score em 규칙(9px·absolute)에 밀리지 않게 명시 승격 */
+.score.spirits em.pos-badge{position:static;margin:0;width:auto;min-width:26px;height:26px;
+  font-size:14px;line-height:1;border-radius:7px}
+/* 탄도 이름 — 7px 로 줄어드는 하위 규칙 차단 */
+.lead-cell .traj-cell b{font:800 10.5px/1.15 system-ui,sans-serif;max-width:100%}
+/* 보조 텍스트 최소 크기 확보 */
+.player-identity small{font-size:10px}
+.table-head span{font-size:10.5px}
+/* 스킬 칩 — 배경/테두리를 반 단계 올려 다크에서 형태가 잡히게 */
+.skill-line em{background:color-mix(in srgb, currentColor 11%, transparent);
+  border-color:color-mix(in srgb, currentColor 22%, transparent)}
+/* 키보드 포커스 — 행이 <a> 라 반드시 보여야 한다 */
+.player-row:focus-visible{outline:2px solid #e0a020;outline-offset:-2px;border-radius:4px}
+.fx-tabs button:focus-visible,.fx-judge button:focus-visible{outline:2px solid #e0a020;outline-offset:1px}
+/* 줄무늬를 다크에서 아주 미세하게 (과하면 지저분) */
+.player-row:nth-child(even){background:color-mix(in srgb, var(--raised) 94%, #93a4c4 3%)}
+/* 스텟 라벨은 숫자보다 확실히 물러나게 */
+.stat-line .stat-item small{opacity:.5}
+/* 시리즈 부가줄 줄바꿈 방지 + 말줄임 */
+.series-cell small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+
+/* ====== 좁은 화면 재정의 — 새 행 구조(스피리츠·탄도/구속·스텟스택)용 ======
+   옛 모바일 규칙은 예전 셀 순서를 가정해 셀이 세로로 쏟아졌다(배치 붕괴).
+   여기서 전부 다시 깐다: 카드형 2~3줄. */
+@media(max-width:700px){
+  .player-table .table-head{display:none}
+  .player-table .player-row{
+    grid-template-columns:1fr auto auto 24px;
+    grid-auto-rows:auto;row-gap:8px;min-width:0;padding:12px 14px}
+  .player-identity{grid-column:1/-1;padding-right:0}
+  .series-cell{grid-column:1/2;grid-row:2;flex-direction:row;align-items:center;gap:8px;
+    border:0;padding:0;max-width:100%}
+  .score.spirits{grid-column:2/3;grid-row:2;position:static;justify-content:flex-end}
+  .lead-cell{grid-column:3/4;grid-row:2;justify-content:flex-end}
+  .row-arrow{grid-column:4/5;grid-row:2;position:static;top:auto;right:auto}
+  .stat-stack{grid-column:1/-1;grid-row:3}
+  .stat-line{flex-wrap:wrap;gap:10px 14px}
+  .skill-line{flex-wrap:wrap}
+  .score.spirits em.pos-badge{min-width:22px;height:22px;font-size:12px}
+  .score:before{content:none}
+}
+
+/* ====== 정렬·간격 정리 (사용자 요청) ====== */
+/* 열 사이 공통 숨통 — 붙어 보이던 칸 분리. 마지막 유동 칸이 폭을 흡수한다 */
+.player-table .table-head,.player-table .player-row{column-gap:12px}
+/* 스피리츠·탄도/구속은 좁은 고정 칸 — 내용물 가운데 정렬이 안정적 */
+.score.spirits{justify-content:center}
+.lead-cell{justify-content:center}
+.lead-cell .traj-cell{align-items:center}
+/* 헤더 라벨도 해당 칸만 가운데 */
+.table-head span:nth-child(3),.table-head span:nth-child(4){text-align:center}
+/* 스텟 숫자+등급을 한 덩어리로 붙이고, 항목 사이만 띄운다 */
+.stat-line .stat-item{gap:3px}
+.stat-line{gap:15px}
+/* 좁은 화면 2번째 줄 — 세로 중심 통일 */
+@media(max-width:700px){
+  .series-cell,.score.spirits,.lead-cell,.row-arrow{align-self:center}
+  .series-cell{gap:6px}
+  .player-row{row-gap:10px}
+}
+
+/* 구단 배지 — 팀 컬러 원형 + 약호 */
+/* 구단 로고 배지 — 게임 원본 마크. 어두운 배경에서 검은 로고(日/ロ)가 묻히지
+   않도록 옅은 판을 깔고 살짝 여백을 준다. */
+.team-badge{display:inline-grid;place-items:center;font-style:normal;
+  width:22px;height:22px;margin-right:7px;border-radius:5px;vertical-align:middle;
+  background:rgba(255,255,255,.92);padding:1px;flex:0 0 22px}
+.team-badge img{width:100%;height:100%;object-fit:contain;display:block}
+.player-identity small{display:inline-flex;align-items:center}
+.player-table .table-head,.player-table .player-row{
+  grid-template-columns:minmax(280px,1.15fr) 150px 126px 108px minmax(300px,1.4fr) 24px}
+.player-table .player-row{min-height:86px;padding-block:10px}
+.player-identity{gap:14px}
+.player-identity>span:last-child{gap:5px}
+.player-identity strong{font-size:16px;font-weight:850;line-height:1.15;color:var(--ink)}
+.player-meta{display:flex!important;align-items:center;gap:6px;margin-top:0!important;min-width:0}
+.player-meta .team-badge{width:24px;height:24px;flex-basis:24px;margin-right:0;border-radius:6px}
+.player-meta .team-name{color:var(--ink);font:800 11px/1 system-ui,sans-serif;white-space:nowrap}
+.player-meta .player-id{padding-left:6px;border-left:1px solid var(--line);color:var(--muted);
+  font:650 9px/1 ui-monospace,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.score.spirits{justify-content:flex-start;gap:8px;padding:4px 12px 4px 0;border-radius:0;
+  background:none;border:0;border-right:1px solid var(--line)}
+.score.spirits .sp-value{display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.score.spirits .sp-value small{font:800 7.5px/1 ui-monospace,monospace;letter-spacing:.13em;color:var(--muted)}
+.score.spirits .sp-value b{font:900 17px/1 ui-monospace,monospace;color:#e0a020;letter-spacing:-.03em}
+.lead-cell{min-height:48px;padding:5px 12px 5px 0;border:0;border-right:1px solid var(--line)}
+.lead-cell.speed{flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.lead-cell.speed>span{display:flex;align-items:baseline}
+.lead-cell.speed b{font-size:17px}
+.lead-cell.speed>em{font:750 8.5px/1 system-ui,sans-serif;font-style:normal;color:var(--muted)}
+.batter-lead .traj-cell{gap:4px}
+.batter-lead .traj-cell b{font-size:11px}
+.series-cell{opacity:1}
+.series-cell b{color:var(--ink);font-weight:850}
+.series-cell small{color:var(--muted);opacity:1}
+.stat-line{gap:clamp(14px,2vw,28px)}
+.stat-line .stat-item{display:grid;grid-template-columns:max-content max-content;grid-template-rows:auto auto;column-gap:0;align-items:center;justify-content:start;
+  min-width:72px;padding:3px 13px;border-radius:0;background:none;border:0;border-left:1px solid var(--line)}
+.stat-line .stat-item:first-child{border-left:0;padding-left:0}
+.stat-line .stat-item small{grid-column:1/-1;font-size:8.5px;letter-spacing:.08em}
+.stat-line .stat-item b{grid-column:1;font-size:15px}
+.stat-line .stat-item .grade{grid-column:2}
+.stat-line .stat-item>b,.stat-line .stat-item>.grade,.stat-line .stat-item>.grade img{
+  margin:0;padding:0;border:0}
+.stat-line .stat-item.same-value{position:relative;background:none;box-shadow:none}
+.stat-line .stat-item.same-value::after{content:"";position:absolute;left:13px;right:13px;bottom:-3px;height:2px;background:#e0a020}
+.stat-line .stat-item.same-value:first-child::after{left:0}
+.stat-line .stat-item.same-value small{color:#d9ae55;opacity:1}
+.stat-line .stat-item.same-value b{color:#ffd36b}
+.skill-line{margin-top:1px}
+@media(max-width:700px){
+  .player-table .player-row{grid-template-columns:1fr auto auto 24px}
+  .player-meta .player-id{display:none}
+  .score.spirits{justify-content:flex-end}
+  .score.spirits .sp-value{align-items:flex-end}
+  .score.spirits .sp-value small{display:none}
+}

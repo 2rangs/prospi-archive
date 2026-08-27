@@ -176,6 +176,9 @@ export type Cell = {
   sw?: number; sh?: number;
   /** 시트 안의 셀 사각형 */
   rx?: number; ry?: number; rw?: number; rh?: number;
+  /** 스크롤 창일 때 원본 이미지의 상단/높이 (시트 픽셀). docs §34 */
+  uy?: number;
+  uh?: number;
 };
 
 export type Part = {
@@ -222,7 +225,13 @@ export type Part = {
     sx?: Track; sy?: Track;
     a?: Track; prio?: Track; hide?: Track;
     fh?: Track; fv?: Track; ifh?: Track; ifv?: Track;
-    pvx?: Track; pvy?: Track;
+    pvx?: Track;
+
+    /** SIZE_X / SIZE_Y — 셀의 자연 크기를 덮어쓰는 표시 크기(px) */
+
+    szx?: Track;
+
+    szy?: Track; pvy?: Track;
     uvx?: Track; uvy?: Track; uvrot?: Track; uvsx?: Track; uvsy?: Track;
   };
   /** cell list plus a cell-change track, or a single fixed cell. */

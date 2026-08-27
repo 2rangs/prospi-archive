@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fetchGzipJson } from "./anss/fetchGzip";
+import { loadAnss } from "./anss/useAnss";
 
 /**
  * Plays the app's own AnimSS animation data. (v2)
@@ -60,20 +60,6 @@ function loadAlpha() {
       .then((a: Record<string, number>) => { alphaIndex = a; return a; });
   }
   return alphaRequest;
-}
-
-const docCache = new Map<number, AnimDoc | null>();
-const inflight = new Map<number, Promise<AnimDoc | null>>();
-
-function loadDoc(effectId: number) {
-  if (docCache.has(effectId)) return Promise.resolve(docCache.get(effectId)!);
-  let p = inflight.get(effectId);
-  if (!p) {
-    p = fetchGzipJson<AnimDoc>(`/effects/anim-gz/${effectId}.json.gz`)
-      .then((doc: AnimDoc | null) => { docCache.set(effectId, doc); inflight.delete(effectId); return doc; });
-    inflight.set(effectId, p);
-  }
-  return p;
 }
 
 /**
@@ -244,7 +230,7 @@ function tintStyle(part: Part, cell: Cell): React.CSSProperties | null {
 export default function AnimSSPlayer({
   effectId, layer = "back", paused = false,
 }: { effectId: number; layer?: "back" | "front"; paused?: boolean }) {
-  const [doc, setDoc] = useState<AnimDoc | null>(docCache.get(effectId) ?? null);
+  const [doc, setDoc] = useState<AnimDoc | null>(null);
   const [frame, setFrame] = useState(0);
   const raf = useRef<number | null>(null);
 
@@ -252,7 +238,8 @@ export default function AnimSSPlayer({
   useEffect(() => {
     let alive = true;
     loadAlpha().then(() => { if (alive) setAlphaReady(true); });
-    loadDoc(effectId).then(d => { if (alive) setDoc(d); });
+    setDoc(null);
+    loadAnss(effectId).then(d => { if (alive) setDoc(d as AnimDoc | null); });
     return () => { alive = false; };
   }, [effectId]);
 

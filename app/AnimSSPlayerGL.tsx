@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Application, Container, Sprite, Texture, Matrix, Assets } from "pixi.js";
-import { fetchGzipJson } from "./anss/fetchGzip";
+import { loadAnss } from "./anss/useAnss";
 
 /**
  * WebGL(PixiJS) 재현. AnimSSPlayer(DOM)와 같은 키프레임 모델을 쓰되,
@@ -30,13 +30,6 @@ const CANVAS_FILL = 0.84;
 const ORIGIN_Y = 0.58;
 
 type AnimDoc = { effectId: number; canvasW: number; canvasH: number; stageW?: number; stageH?: number; frames: number; fps: number; parts: Part[] };
-
-const docCache = new Map<number, AnimDoc | null>();
-function loadDoc(effectId: number) {
-  if (docCache.has(effectId)) return Promise.resolve(docCache.get(effectId)!);
-  return fetchGzipJson<AnimDoc>(`/effects/anim-gz/${effectId}.json.gz`)
-    .then((d: AnimDoc | null) => { docCache.set(effectId, d); return d; });
-}
 
 /**
  * The six curve modes AnimssInterpolation dispatches on, from the table in
@@ -188,6 +181,12 @@ function cornerGradientTexture(cell: Cell, v: NonNullable<Part["v"]>) {
 
   const tex = Texture.from(cv);
   gradientCache.set(key, tex);
+  // This legacy preview path used to retain every cell/colour combination
+  // visited during the session. Dropping old references lets Pixi's texture GC
+  // reclaim their GPU sources once no live sprite uses them.
+  while (gradientCache.size > 128) {
+    gradientCache.delete(gradientCache.keys().next().value as string);
+  }
   return tex;
 }
 
@@ -205,7 +204,7 @@ export default function AnimSSPlayerGL({
     let raf = 0;
 
     (async () => {
-      const doc = await loadDoc(effectId);
+      const doc = await loadAnss(effectId) as AnimDoc | null;
       if (disposed || !doc || !hostRef.current) return;
 
       app = new Application();

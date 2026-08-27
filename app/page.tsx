@@ -4,18 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import AnssStage from "./anss/AnssStage";
 import { useAnss } from "./anss/useAnss";
 import { useEffectPool, useKnownMap } from "./anss/useEffectPool";
-import { type EffectKey, MATCH_LABEL, resolveEffect } from "./anss/resolve";
-import { fxCanvasFor, fxScaleFor } from "./anss/types";
+import { type EffectKey, resolveEffect } from "./anss/resolve";
 import { type Card, type PlayerGroup, type PlayerType, type StatKey,
-  BATTER_STATS, DEFENSE_STATS, PITCHER_STATS, parseSeries, searchPlayers, teamLabel, typeCounts } from "./search";
+  BATTER_STATS, DEFENSE_STATS, PITCHER_STATS, searchPlayers, teamLabel, typeCounts } from "./search";
 import { GRADES } from "./grade";
 import { LangSwitch, ThemeSwitch, useT } from "./i18n";
 import { HeroStage } from "./heroStage";
 import { TRAJECTORY_ORDER, TrajArrow, Trajectory, trajColor } from "./trajectory";
 import { useScrollRestore, useUrlState } from "./useUrlState";
 import { type RefStats, useRefStats } from "./refStats";
-import { useEffectTile } from "./anss/thumb";
-import { useNameInk } from "./anss/nameStrip";
+import { useEffectFrontTile, useEffectTile } from "./anss/thumb";
 
 /**
  * 메인 미리보기 카드. 실측 매핑이 있는 카드를 써서, 보여주는 이펙트가
@@ -23,7 +21,6 @@ import { useNameInk } from "./anss/nameStrip";
  *   1139455100 (大谷 翔平 · 2025 · variant 5100) → ANSS_EF_1152055_L.CHK
  */
 /** 메인 쇼케이스 카드와 그 배경. 사용자가 지정한 조합. */
-const SHOWCASE_ID = "1160013200";
 const SHOWCASE_EFFECT = "1182205";
 /** 배너 이펙트 캔버스. 스테이지 720x1136 을 가로로 눕혀 배너를 덮는다. */
 const HERO_SCALE = 0.84;
@@ -34,11 +31,8 @@ const HERO_SCALE = 0.84;
  * scale 0.66 이면 522x481 이라 아래 박스(560x800) 안에 들어온다.
  */
 const HERO_FX = { w: 620, h: 640 };
-/** 캔버스 = 기준 화면 640×1136 을 카드 배율로 옮긴 크기 (상세 페이지와 동일) */
-const FX_SCALE = fxScaleFor(541);
-const FX_W = fxCanvasFor(FX_SCALE).w;
-const FX_H = fxCanvasFor(FX_SCALE).h;
 import { Grade } from "./grade";
+import { teamOf } from "./teams";
 
 /** URL 에 콤마로 실린 다중 선택 값을 배열로. */
 const list = (v: unknown) => String(v ?? "").split(",").filter(Boolean);
@@ -46,10 +40,30 @@ const list = (v: unknown) => String(v ?? "").split(",").filter(Boolean);
 const imageUrl = (card: Card, large = false) => `/api/card-image?group=${card.group}&file=${encodeURIComponent(large ? card.largeFile : card.file)}`;
 const meet = (card: Card) => card.base ? Math.round((card.base.meetR + card.base.meetL) / 2) : undefined;
 const maxPitchPower = (card: Card) => card.pitching?.pitches.reduce((best, pitch) => Math.max(best, pitch.power), 0);
-const maxPitchLevel = (card: Card) => card.pitching?.pitches.reduce((best, pitch) => Math.max(best, pitch.level), 0);
+
+/** 구단 배지 — 게임 원본 로고(SELECT2220 스프라이트에서 추출). */
+function TeamBadge({ code }: { code?: string | null }) {
+  const t = teamOf(code);
+  if (!t) return null;
+  return <em className={`team-badge ${t.league}`} title={t.name}>
+    {/* 12종 176KB 뿐이고 행마다 재사용 — lazy 는 팝인만 만든다 */}
+    <img src={t.icon} alt={t.name} width={96} height={96} decoding="async"/>
+  </em>;
+}
+
+/** 행의 1순위 소속 정보. 팀명은 ID보다 먼저 읽히게 하고 ID는 보조로 내린다. */
+function PlayerMeta({ team, fallback }: { team?: string | null; fallback: string }) {
+  const { t, tv } = useT();
+  return <small className="player-meta">
+    <TeamBadge code={team}/>
+    <span className="team-name">{team ? tv(teamLabel(team)) : t("teamUnknown")}</span>
+    <span className="player-id">{fallback}</span>
+  </small>;
+}
 
 function Score({ label, value, suffix = "" }: { label: string; value?: number; suffix?: string }) {
-  return <span className="score" data-label={label}>{value == null ? "—" : <><b>{value}{suffix}</b>{!suffix && <Grade value={value}/>}</>}</span>;
+  // 없는 값은 굵은 대시 대신 흐린 점 — 빈칸이 눈에 덜 밟히게.
+  return <span className="score" data-label={label}>{value == null ? <i className="score-none">·</i> : <><b>{value}{suffix}</b>{!suffix && <Grade value={value}/>}</>}</span>;
 }
 
 /** 카드 → 이펙트 id (훅 아님 — 목록에서 map 안에서도 안전하게 쓴다) */
@@ -59,39 +73,10 @@ function rowEffectId(card: Card, pool: EffectKey[], known: Record<string, string
   return m && m.level !== "none" ? Number(m.effectId) : null;
 }
 
-/**
- * 이름 띠. 카드마다 잰 잉크 상자를 기준으로 크롭해 **가운데 정렬**한다.
- * 아직 못 쟀으면 아무것도 그리지 않는다(치우친 채 잠깐 보이는 것보다 낫다).
- */
 function NameStrip({ card }: { card: Card }) {
-  const url = imageUrl(card, true);
-  const ink = useNameInk(card.id, url);
-  if (!ink) return null;
-  /**
-   * 인게임 목록은 성만 보여주지만 여기서는 **이름 전체**를 보여준다.
-   * (성만 자르는 규칙은 useNameInk 의 sx1 로 언제든 되살릴 수 있다.)
-   */
-  const inkW = ink.x1 - ink.x0;
-  const pad = 8;
-  const bx = Math.max(0, ink.x0 - pad);
-  const bw = Math.min(512 - bx, inkW + pad * 2);
-  const by = Math.max(0, ink.y0 - 4);
-  const bh = ink.y1 - ink.y0 + 8;
-  /**
-   * 밴드 크기. 아이콘이 정사각이라 폭 % 와 높이 % 를 그대로 비교할 수 있다.
-   * 기준 높이 18% · 폭 상한 82%. 이름판 높이(27/128 = 21%)에 딱 맞추면 글자가
-   * 판을 꽉 채워 답답해서 한 단계 줄였다. 이름이 길면 그 높이로 잡은 폭이
-   * 아이콘을 넘으므로 폭에서 막고 높이를 함께 줄인다.
-   */
-  const ar = bw / bh;
-  const wPct = Math.min(82, 18 * ar);
-  const hPct = wPct / ar;
-  // 컨테이너 폭 = bw 로 보고 배율을 잡는다. margin 의 % 는 컨테이너 폭 기준.
-  const pc = (v: number) => `${(v / bw) * 100}%`;
-  return <i className="rp-name" aria-hidden style={{ width: `${wPct}%`, height: `${hPct}%` }}>
-    <img decoding="async" src={url} alt=""
-      style={{ width: pc(512), marginLeft: pc(-bx), marginTop: pc(-by) }}/>
-  </i>;
+  const name = card.iconName || card.name.split(/[\s\u3000]/)[0] || card.name;
+  const length = Array.from(name).length;
+  return <i className={`rp-name${length === 2 ? " two-glyph" : ""}${length === 3 ? " three-glyph" : ""}${length >= 6 ? " long" : ""}`} aria-hidden>{name}</i>;
 }
 
 /**
@@ -103,9 +88,35 @@ function NameStrip({ card }: { card: Card }) {
  */
 function RowIcon({ card, effectId }: { card: Card; effectId: number | null }) {
   const fxRef = useEffectTile(effectId);
+  const fxFrontRef = useEffectFrontTile(effectId);
   return <span className="row-photo">
     {effectId != null && <canvas className="rp-fx" ref={fxRef} aria-hidden/>}
-    <img className="rp-art" loading="lazy" decoding="async" src={imageUrl(card)} alt=""/>
+    {/*
+      선수 사진은 **즉시** 싣는다.
+      [문제] 이 이미지는 lazy 였는데, 같은 행의 이름 띠(CL 아틀라스 512x1024,
+        약 131KB)는 eager 였다. 순서가 거꾸로라 스크롤 중에 배경 이펙트와 이름만
+        뜨고 선수가 비는 구간이 생긴다 — "에셋이 적용 안 되고 배경만 날것으로
+        노출"되는 것처럼 보인다.
+      [근거] 목록은 한 번에 25행만 그린다(페이지 단위). CS 사진은 20~30KB 이라
+        25장 다 실어도 600KB 남짓이고, 이미 eager 인 이름 띠(3.3MB)보다 훨씬 가볍다.
+      [처리] eager + fetchPriority high 로 사진이 먼저 오게 한다.
+    */}
+    {/*
+      [문제] 사용자 보고 "선수가 no image 로 들어간다".
+        스켈레톤(게임 기본 마스코트)을 **이펙트 캔버스**의 data-ready 로만
+        걷었는데, 카드 아트는 배경이 투명한 컷아웃이라 뒤에 깔린 마스코트가
+        그대로 비친다. 게다가 화면 밖 행은 이펙트를 그리지 않으므로(r68 가시
+        영역 렌더링) data-ready 가 영영 안 붙어 25/25 행에서 마스코트가 남았다.
+      [처리] 사진이 뜨는 순간 행에 data-loaded 를 달아 스켈레톤을 없앤다.
+        캐시로 이미 로드된 경우( load 이벤트가 안 오는 경우 )도 ref 에서 처리.
+    */}
+    <img className="rp-art" loading="eager" fetchPriority="high" decoding="async"
+      ref={el => { if (el?.complete && el.naturalWidth > 0) el.closest(".row-photo")?.setAttribute("data-loaded", "1"); }}
+      onLoad={e => e.currentTarget.closest(".row-photo")?.setAttribute("data-loaded", "1")}
+      onError={e => e.currentTarget.closest(".row-photo")?.setAttribute("data-loaded", "1")}
+      src={imageUrl(card)} alt=""/>
+    {/* 사인·로고 등 front 파츠는 인게임처럼 사진 **위**에 얹는다 */}
+    {effectId != null && <canvas className="rp-fx rp-fx-front" ref={fxFrontRef} aria-hidden/>}
     <NameStrip card={card}/>
   </span>;
 }
@@ -113,8 +124,9 @@ function RowIcon({ card, effectId }: { card: Card; effectId: number | null }) {
 
 function PlayerRow({ card, nested = false, ref: refStats, effectId }: { card: Card; nested?: boolean; ref?: RefStats | null; effectId?: number | null }) {
   return <a className={`player-row${nested ? " card-row" : ""}`} href={`/player/${card.id}`}>
-    <span className="player-identity"><RowIcon card={card} effectId={effectId ?? null}/><span><strong>{card.name}</strong><small>{card.roman || `ID ${card.playerId || card.id}`}</small></span></span>
-    <span className="series-cell"><b>{card.year}</b><small>VAR {card.variant}</small></span>
+    <span className="player-identity"><RowIcon card={card} effectId={effectId ?? null}/><span><strong>{card.name}</strong><PlayerMeta team={refStats?.team} fallback={card.roman || `ID ${card.playerId || card.id}`}/></span></span>
+    {/* 카드 시즌 종류 — rakda3 표기(2026S1 · 2015SP(侍) · OB 등). 없으면 연도. */}
+    <span className="series-cell"><b>{refStats?.series ?? card.year}</b><small>VAR {card.variant}</small></span>
     <StatCells card={card} ref={refStats}/>
     <span className="row-arrow">›</span>
   </a>;
@@ -124,16 +136,51 @@ function PlayerRow({ card, nested = false, ref: refStats, effectId }: { card: Ca
  * 능력 셀. 카드별 표기값(ref, prospi-a.rakda3.net)이 있으면 그것을 쓴다 —
  * 선수워드 기본값은 카드 능력이 아니라는 게 검증됐기 때문(docs/DATA-VERIFY.md).
  */
+/**
+ * 능력 칸 — 모든 탭 공통 배치 (사용자 지정):
+ *   [탄도(타자) | 구속(투수)] · [윗줄 = 스텟 / 아랫줄 = 특수능력] 한 칸.
+ * 없는 값은 나열하지 않고 생략한다. 스피리츠는 시리즈 옆 고정.
+ */
 function StatCells({ card, ref }: { card: Card; ref?: RefStats | null }) {
   const { t } = useT();
-  if (card.playerType === "batter") {
-    const m = ref?.max;
-    // 표기값이 있으면 그것을 쓴다 — 원장에 없는 グラウンダー가 여기에만 있다.
-    return <><Trajectory value={ref?.trajectory ?? card.trajectory}/>
-      <Score label={t("colMeet")} value={m?.meet ?? meet(card)}/><Score label={t("colPower")} value={m?.power ?? card.base?.power}/><Score label={t("colSpeed")} value={m?.speed ?? card.base?.run}/><Score label={t("colCatch")} value={card.defense?.catching}/><Score label={t("colThrow")} value={card.defense?.throwing}/><Score label={t("colArm")} value={card.defense?.shoulder}/></>;
+  const isBatter = card.playerType === "batter";
+  const bm = ref?.kind === "batter" ? ref.max : undefined;
+  const pm = ref?.kind === "pitcher" ? ref.max : undefined;
+  // 수비 포지션은 스피리츠 옆 배지로 — 이름 밑 작은 칩은 안 보인다는 지적 반영
+  const spirits = <span className="score spirits" data-label={t("colSpirits")}>
+    {ref?.pos && <em className="pos-badge">{ref.pos}</em>}
+    <span className="sp-value"><small>{t("spiritsInline")}</small>{ref?.spirits != null ? <b>{ref.spirits.toLocaleString()}</b> : <i className="score-none">·</i>}</span></span>;
+  const lead = isBatter
+    ? <span className="lead-cell batter-lead"><Trajectory value={ref?.trajectory ?? card.trajectory}/></span>
+    : <span className="lead-cell speed" data-label={t("colSpeedKmh")}>
+        <span>{card.pitching?.maxSpeed != null ? <><b>{card.pitching.maxSpeed}</b><small>km/h</small></> : <i className="score-none">·</i>}</span>
+        {card.pitching?.pitches.length ? <em>{card.pitching.pitches.length} {t("pitchCount")}</em> : null}
+      </span>;
+  const pairs: [string, number][] = (isBatter
+    ? [[t("colMeet"), bm?.meet ?? meet(card)], [t("colPower"), bm?.power ?? card.base?.power], [t("colSpeed"), bm?.speed ?? card.base?.run]]
+    : [[t("colVelocity"), pm?.velocity ?? maxPitchPower(card)], [t("colControl"), pm?.control], [t("colStamina"), pm?.stamina ?? card.pitching?.stamina],
+       ]
+  ).filter((pair): pair is [string, number] => pair[1] != null);
+  const repeated = new Set<number>();
+  for (const [, value] of pairs) {
+    if (pairs.filter(([, other]) => other === value).length >= 2) repeated.add(value);
   }
-  const m = ref?.kind === "pitcher" ? ref.max : undefined;
-  return <><Score label={t("colSpeedKmh")} value={card.pitching?.maxSpeed} suffix=" km/h"/><Score label={t("colVelocity")} value={m?.velocity ?? maxPitchPower(card)}/><Score label={t("colControl")} value={m?.control}/><Score label={t("colStamina")} value={m?.stamina ?? card.pitching?.stamina}/><span className="pitch-count" data-label={t("colPitches")}>{card.pitching?.pitches.length || 0}</span></>;
+  const skills = (ref?.abilities ?? []).slice(0, 3);
+  return <>{spirits}{lead}
+    <span className="stat-stack" data-label={t("colStats")}>
+      <span className="stat-line">
+        {pairs.length
+          ? pairs.map(([k, v]) => <span key={String(k)} className={`stat-item${repeated.has(v) ? " same-value" : ""}`}>
+              <small>{k}</small><b>{v}</b>
+              {/* 인게임 등급 아이콘 — 능력치 스케일 값에만 (구종 개수엔 없음) */}
+              {k !== t("colPitches") && typeof v === "number" && <Grade value={v} size={15}/>}
+            </span>)
+          : <i className="stat-none">{t("noStats")}</i>}
+      </span>
+      {skills.length > 0 && <span className="skill-line">
+        {skills.map(a => <em key={a}>{a}</em>)}
+      </span>}
+    </span></>;
 }
 
 /**
@@ -143,34 +190,74 @@ function StatCells({ card, ref }: { card: Card; ref?: RefStats | null }) {
 function PlayerGroupRow({ group, open, onToggle, showType, refAll, pool, known }:
     { group: PlayerGroup; open: boolean; onToggle: () => void; showType: boolean;
       refAll: Record<string, RefStats> | null; pool: EffectKey[]; known: Record<string, string> }) {
-  // 표기값(ref)이 있는 카드를 대표로 우선한다 — cards 는 연도 내림차순
-  const top = group.cards.find(c => refAll?.[c.id]) ?? group.rep;
-  const topRef = refAll?.[top.id] ?? null;
+  const { t, tv } = useT();
+  // 대표 카드 = 그 선수의 **최고 스피리츠 카드** (없으면 ref 있는 최신 카드)
+  const top = (() => {
+    let best: Card | null = null; let bestS = -1;
+    for (const c of group.cards) {
+      const sp = refAll?.[c.id]?.spirits;
+      if (sp != null && sp > bestS) { best = c; bestS = sp; }
+    }
+    return best ?? group.cards.find(c => refAll?.[c.id]) ?? group.rep;
+  })();
+  /**
+   * 그룹 요약은 대표 카드 하나가 아니라 **그룹 전체에서 값을 모아** 채운다.
+   * 대표 카드에 스피리츠·제구 같은 필드가 비어 있어도 다른 카드에 있으면
+   * 그 값을 쓴다(스피리츠는 최대값 = 그 선수의 최고 카드). 빈칸 지적 반영.
+   */
+  const topRef = (() => {
+    const base = refAll?.[top.id] ? { ...refAll[top.id] } : null;
+    if (!refAll) return base;
+    let merged = base;
+    for (const c of group.cards) {
+      const r = refAll[c.id];
+      if (!r) continue;
+      if (!merged) { merged = { ...r }; continue; }
+      if (r.spirits != null && (merged.spirits == null || r.spirits > merged.spirits)) merged.spirits = r.spirits;
+      if (!merged.series && r.series) merged.series = r.series;
+      if (!merged.trajectory && r.trajectory) merged.trajectory = r.trajectory;
+      if ((!merged.abilities || !merged.abilities.length) && r.abilities?.length) merged.abilities = r.abilities;
+      if (!merged.pos && r.pos) merged.pos = r.pos;
+      if (!merged.team && r.team) merged.team = r.team;
+      if (r.max && merged.max) {
+        for (const k of Object.keys(r.max) as (keyof typeof r.max)[]) {
+          if (merged.max[k] == null && r.max[k] != null) merged.max[k] = r.max[k];
+        }
+      } else if (r.max && !merged.max) merged.max = { ...r.max };
+    }
+    return merged;
+  })();
   const topEffect = rowEffectId(top, pool, known);
   const many = group.cards.length > 1;
   const span = group.minYear === group.maxYear ? `${group.maxYear}` : `${group.minYear}–${group.maxYear}`;
   return <>
     <div className={`player-row group-row${open ? " open" : ""}`}
-         role="button" tabIndex={0}
-         onClick={many ? onToggle : undefined}
-         onKeyDown={e => { if (many && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onToggle(); } }}>
+         role={many ? "button" : "link"} tabIndex={0}
+         onClick={many ? onToggle : () => window.location.assign(`/player/${top.id}`)}
+         onKeyDown={e => {
+           if (e.key !== "Enter" && e.key !== " ") return;
+           e.preventDefault();
+           if (many) onToggle(); else window.location.assign(`/player/${top.id}`);
+         }}>
       <span className="player-identity">
         <RowIcon card={top} effectId={topEffect}/>
         <span>
           <strong>{group.name}</strong>
-          <small>
-            {showType && <em className={`type-chip ${group.playerType}`}>{group.playerType === "pitcher" ? "투수" : "타자"}</em>}
-            {group.roman || `ID ${group.playerId || top.id}`}
+          <small className="player-meta">
+            {showType && <em className={`type-chip ${group.playerType}`}>{t(group.playerType === "pitcher" ? "tabPitcher" : "tabBatter")}</em>}
+            <TeamBadge code={topRef?.team}/>
+            <span className="team-name">{topRef?.team ? tv(teamLabel(topRef.team)) : t("teamUnknown")}</span>
+            <span className="player-id">{group.roman || `ID ${group.playerId || top.id}`}</span>
           </small>
         </span>
       </span>
-      <span className="series-cell"><b>{span}</b><small>{group.cards.length}장 · 변형 {group.variants}</small></span>
+      <span className="series-cell"><b>{span}</b><small>{topRef?.series ? `${topRef.series} ${t("other")} ` : ""}{group.cards.length}{t("cardsUnit")} · {group.variants}{t("variantsUnit")}</small></span>
       <StatCells card={top} ref={topRef}/>
       <span className="row-arrow">{many ? (open ? "▾" : "▸") : <a href={`/player/${top.id}`} onClick={e => e.stopPropagation()}>›</a>}</span>
     </div>
     {open && <div className="group-cards">
       <div className="group-cards-head">
-        <span><b>{group.name}</b> {group.playerType === "pitcher" ? "투수" : "타자"} 카드 {group.cards.length}장</span>
+        <span><b>{group.name}</b> · {t(group.playerType === "pitcher" ? "tabPitcher" : "tabBatter")} · {group.cards.length}{t("cardsUnit")}</span>
         <span className="gch-span">{span} · 변형 {group.variants}종</span>
       </div>
       {group.cards.map(card => <PlayerRow card={card} nested ref={refAll?.[card.id] ?? null} effectId={rowEffectId(card, pool, known)} key={`${card.group}-${card.file}`}/>)}
@@ -184,15 +271,14 @@ export default function Home() {
     && new URLSearchParams(location.search).get("layout") === "1";
   const [cards, setCards] = useState<Card[]>([]);
   const [ui, setUi] = useUrlState({ q: "", type: "all", year: "전체", var: "전체",
-    team: "", half: "전체", sp: "전체", spirits: 0, traj: "", st: "", page: 1, size: 25, open: "" });
+    team: "", half: "전체", sp: "전체", spirits: 0, traj: "", st: "", eq: "", page: 1, size: 25, open: "" });
   const query = ui.q, year = ui.year, variant = ui.var, page = ui.page, pageSize = ui.size;
   const playerType = ui.type as PlayerType | "all";
   const openKey = ui.open;
-  useEffect(() => { fetch("/data/cards.json").then(response => response.json()).then(setCards); }, []);
+  useEffect(() => { fetch("/data/cards.json?v=gamename-1").then(response => response.json()).then(setCards); }, []);
   useScrollRestore("home", cards.length > 0);
   const refAll = useRefStats();
   const years = useMemo(() => ["전체", ...Array.from(new Set(cards.map(card => String(card.year))))], [cards]);
-  const variants = useMemo(() => ["전체", ...Array.from(new Set(cards.map(card => card.variant))).sort()], [cards]);
   /** URL 에는 "meet80,power70" 한 줄로 싣는다. */
   const stats = useMemo(() => {
     const out: Partial<Record<StatKey, number>> = {};
@@ -210,8 +296,8 @@ export default function Home() {
   const f = useMemo(() => ({
     query, playerType, year, variant,
     team: list(ui.team), half: ui.half, special: ui.sp,
-    spiritsMin: Number(ui.spirits) || 0, trajectory: list(ui.traj), stats,
-  }), [query, playerType, year, variant, ui.team, ui.half, ui.sp, ui.spirits, ui.traj, stats]);
+    spiritsMin: Number(ui.spirits) || 0, trajectory: list(ui.traj), stats, equalStats: ui.eq === "1",
+  }), [query, playerType, year, variant, ui.team, ui.half, ui.sp, ui.spirits, ui.traj, ui.eq, stats]);
   const groups = useMemo(() => searchPlayers(cards, f, refAll), [cards, f, refAll]);
   const counts = useMemo(() => typeCounts(cards, f, refAll), [cards, f, refAll]);
   const teams = useMemo(() => {
@@ -222,7 +308,7 @@ export default function Home() {
   }, [refAll]);
   const activeCount = (year !== "전체" ? 1 : 0) + (variant !== "전체" ? 1 : 0)
     + list(ui.team).length + (ui.half !== "전체" ? 1 : 0) + (ui.sp !== "전체" ? 1 : 0)
-    + (Number(ui.spirits) > 0 ? 1 : 0) + list(ui.traj).length + Object.keys(stats).length;
+    + (Number(ui.spirits) > 0 ? 1 : 0) + list(ui.traj).length + Object.keys(stats).length + (ui.eq === "1" ? 1 : 0);
   /** 칩 토글 — 이미 켜져 있으면 끈다. */
   const toggle = (field: "team" | "traj", v: string) => {
     const cur = list(ui[field]);
@@ -233,27 +319,15 @@ export default function Home() {
   const pages = Math.max(1, Math.ceil(groups.length / pageSize));
   const safePage = Math.min(page, pages);
   const visible = groups.slice((safePage - 1) * pageSize, safePage * pageSize);
-  const showcase = cards.find(card => card.id === SHOWCASE_ID)
-    || cards.find(card => card.group === 12 && card.playerType === "batter")
-    || cards[0];
   const pool = useEffectPool();
   /** 배너 배경 이펙트 — 사용자가 지정한 1182205. */
   const heroDoc = useAnss(Number(SHOWCASE_EFFECT));
   const known = useKnownMap();
-  // 쇼케이스는 배경을 고정한다 — 추정 규칙과 무관하게 지정한 것을 쓴다.
-  const showMatch = showcase && pool.length
-    ? (pool.some(e => e.effectId === SHOWCASE_EFFECT)
-        ? { effectId: SHOWCASE_EFFECT, level: "known" as const,
-            rank: pool.find(e => e.effectId === SHOWCASE_EFFECT)?.rank ?? 5 }
-        : resolveEffect(showcase.group, showcase.variant, pool, known, showcase.id))
-    : null;
-  const showDoc = useAnss(
-    showMatch && showMatch.level !== "none" ? Number(showMatch.effectId) : null);
-  const columns = playerType === "pitcher"
-    ? [t("colPlayer"), t("colSeries"), t("colSpeedKmh"), t("colVelocity"), t("colControl"), t("colStamina"), t("colPitches"), ""]
-    : [t("colPlayer"), t("colSeries"), t("colTraj"), t("colMeet"), t("colPower"), t("colSpeed"), t("colCatch"), t("colThrow"), t("colArm"), ""];
-  // 전체 탭은 타자/투수가 섞이므로 능력 칸 폭을 타자 기준으로 맞춘다
-  const tableKind = playerType === "pitcher" ? "pitcher" : "batter";
+  // 모든 탭 공통 열 (사용자 지정 배치): 선수 · 시리즈 · 스피리츠 · 탄도/구속 · 능력+스킬
+  const leadCol = playerType === "pitcher" ? t("colSpeedKmh")
+    : playerType === "batter" ? t("colTraj") : t("colTrajSpeed");
+  const columns = [t("colPlayer"), t("colSeries"), t("colSpirits"), leadCol, t("colStats"), ""];
+  const tableKind = playerType;
   return <main><header className="topbar"><a className="brand" href="#top"><span className="brand-glyph">P</span><span>PROSPI<br/><b>{t("brandSub")}</b></span></a><nav><a className="active" href="#players">{t("navPlayers")}</a><a href="/effects">{t("navEffects")}</a><a href="#about">{t("navAbout")}</a></nav><div className="live"><span/> APP DATA · 2026</div><LangSwitch/><ThemeSwitch/></header>
     <section className="hero" id="top">
       {/* 배너 배경 = 카드 배경 이펙트. 원래 있던 거대한 "A" 글자를 대신한다. */}
@@ -316,14 +390,19 @@ export default function Home() {
           {activeCount > 0 && <em>{activeCount}</em>}
           {activeCount > 0 && <button className="fb-reset" onClick={e => { e.preventDefault(); setUi({
             q: "", year: "전체", var: "전체", team: "", half: "전체", sp: "전체",
-            spirits: 0, traj: "", st: "", page: 1, open: "" }); }}>전체 해제</button>}
+            spirits: 0, traj: "", st: "", eq: "", page: 1, open: "" }); }}>{t("filterReset")}</button>}
         </summary>
 
         {teams.length > 0 && <div className="frow">
           <b>{t("fTeam")}</b>
           <div className="chips">
-            {teams.map(t => <button key={t} className={list(ui.team).includes(t) ? "on" : ""}
-              onClick={() => toggle("team", t)} title={t}>{tv(teamLabel(t))}</button>)}
+            {teams.map(t => {
+              const on = list(ui.team).includes(t);
+              return <button key={t} className={`team-filter${on ? " on" : ""}`}
+                onClick={() => toggle("team", t)} title={teamOf(t)?.name ?? t} aria-pressed={on}>
+                <TeamBadge code={t}/><span>{tv(teamLabel(t))}</span>
+              </button>;
+            })}
           </div>
         </div>}
 
@@ -370,6 +449,17 @@ export default function Home() {
           </div>
         </div>
 
+        <div className="frow equal-filter-row">
+          <b>{t("fStats")}</b>
+          <div className="chips">
+            <button className={`equal-filter${ui.eq === "1" ? " on" : ""}`}
+              aria-pressed={ui.eq === "1"}
+              onClick={() => setUi({ eq: ui.eq === "1" ? "" : "1", page: 1, open: "" })}>
+              <span>{t("equalStatsOn")}</span>
+            </button>
+          </div>
+        </div>
+
         <div className="frow">
           <b>{t("fStats")}</b>
           <div className="stat-filter">
@@ -388,9 +478,7 @@ export default function Home() {
         </div>
 
         <p className="filter-note">
-          팀 · 시리즈 · 스피리츠 · 능력치는 <b>카드 표기값</b>으로 거른다
-          (있는 카드 {refAll ? Object.keys(refAll).length.toLocaleString() : "…"}장).
-          탄도는 원장 값으로도 걸러 표기값 없는 카드도 남는다.
+          <span>{t("noteRefFilter").replace("{n}", refAll ? Object.keys(refAll).length.toLocaleString() : "…")}</span>
           <label className="pagesize">{t("perPage")}
             <select value={pageSize} onChange={e => setUi({ size: Number(e.target.value), page: 1 })}>
               <option>25</option><option>50</option><option>100</option></select></label>
@@ -403,8 +491,9 @@ export default function Home() {
         <span className="count">{groups.length.toLocaleString()}</span>
       </div>
       <p>{cards.length
-        ? `${groups.length.toLocaleString()}명 · 카드 ${cardTotal.toLocaleString()}장 중 ${groups.length ? (safePage - 1) * pageSize + 1 : 0}–${Math.min(safePage * pageSize, groups.length)}번째 선수 표시`
-        : "데이터 불러오는 중"}</p>
+        ? t("resultSummary").replace("{p}", groups.length.toLocaleString()).replace("{c}", cardTotal.toLocaleString())
+            .replace("{a}", String(groups.length ? (safePage - 1) * pageSize + 1 : 0)).replace("{b}", String(Math.min(safePage * pageSize, groups.length)))
+        : t("loading")}</p>
     </section>
     <section className={`player-table ${tableKind}`}>
       <div className="table-head">{columns.map((column, index) => <span key={`${column}-${index}`}>{column}</span>)}</div>

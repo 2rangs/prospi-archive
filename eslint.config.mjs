@@ -19,7 +19,10 @@ const eslintConfig = defineConfig([
   ...tseslint.configs.recommended,
   react.configs.flat.recommended,
   react.configs.flat["jsx-runtime"],
-  reactHooks.configs.flat["recommended-latest"],
+  // eslint-plugin-react-hooks 6.x 부터 `.flat` 네임스페이스가 없어지고
+  // 평면 설정이 configs 최상위로 올라왔다. 예전 경로는 undefined 라 린트가
+  // 설정 로드 단계에서 통째로 죽었다.
+  reactHooks.configs["recommended-latest"],
   jsxA11y.flatConfigs.recommended,
   next.configs["core-web-vitals"],
   {

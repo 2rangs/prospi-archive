@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Preload } from "./preload";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,8 +19,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const image = `${protocol}://${host}/og.png`;
-  const title = "PROSPI ARCHIVE — 프로스피A 선수 도감";
-  const description = "앱에서 직접 추출하고 검증한 프로스피A 선수 이미지와 데이터 아카이브";
+  const title = "PROSPI ARCHIVE — プロスピA 選手図鑑";
+  const description = "アプリから直接抽出・検証したプロスピA の選手画像とデータのアーカイブ";
   return {
     title,
     description,
@@ -35,11 +36,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
+    <html lang="ja" data-theme="dark">
+      <head>
+        {/*
+          저장된 테마를 **첫 페인트 전에** 적용한다. useEffect 로만 적용하면
+          하이드레이션 전까지 기본값 화면이 한 번 번쩍인다. 기본값은 다크다.
+        */}
+        <script dangerouslySetInnerHTML={{ __html:
+          `try{var t=localStorage.getItem('prospi.theme')||'dark';`
+          + `document.documentElement.dataset.theme=t}catch(e){}` }}/>
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <Preload>{children}</Preload>
       </body>
     </html>
   );
