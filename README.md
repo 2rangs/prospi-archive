@@ -87,6 +87,25 @@ or enforce explicit server-side membership or allowlist checks.
 Use SIWC for account pages, user-specific dashboards, saved records, and write
 actions tied to the current ChatGPT user. Leave public content anonymous.
 
+## 데이터 파일 파이프라인
+
+`public/data/*.json` 이 완전판(원장)이고, 화면이 받는 것은 그 옆의 `.gz` 와
+샤드다. **목록용 gz 는 상세 화면 전용 값을 뺀 축약판**이므로, 원장을 다시
+만들면 아래 순서를 그대로 다시 돌려야 한다.
+
+```bash
+python3 tools/shard_detail_data.py   # 상세용 샤드 (완전판에서 만든다)
+python3 tools/slim_cards.py          # 목록용 cards.json.gz     (1.61 → 0.78MB)
+python3 tools/slim_ref_stats.py      # 목록용 ref-stats.json.gz (1.05 → 0.36MB)
+python3 tools/known_map_meta.py      # known-map.json 의 종류·리그 메타
+```
+
+- 목록용 `cards.json.gz` — `md5·size·verified·defenseSource·aptitude` 없음,
+  구종은 `power` 만. 목록이 읽는 값은 전부 남아 있다.
+- 목록용 `ref-stats.json.gz` — `growth·lv0·refAptitude` 없음.
+- **샤드(`card-shards`/`ref-shards`)는 완전판**이라 상세 화면은 아무것도 잃지 않는다.
+- `cards.json.gz` 내용이 바뀌면 `app/dataUrls.ts` 의 `?v=` 토큰을 올린다.
+
 ## Useful Commands
 
 - `npm run dev`: start local development

@@ -1,5 +1,7 @@
 @import "tailwindcss";
-:root{--ink:#15171a;--muted:#70747b;--line:#e1e3e6;--red:#e62935;--green:#00a66a}
+:root{--ink:#15171a;--muted:#70747b;--line:#e1e3e6;--red:#e62935;--green:#00a66a;
+  --grade-s:#ffe1f5;--grade-a:#ff9be1;--grade-b:#f56464;--grade-c:#eb7824;
+  --grade-d:#f5af1a;--grade-e:#91b445;--grade-f:#5573a5;--grade-g:#5f5a73}
 *{box-sizing:border-box}
 button,input,select{font:inherit}
 button,a{color:inherit}
@@ -256,8 +258,22 @@ footer>span{margin-left:auto}
 @media(max-width:640px){.fx-source-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.fx-source-stats span:last-child{grid-column:1/-1}}
 /* 이펙트가 카드 틀 밖으로 나가도 잘리지 않게: 틀은 클리핑을 풀고 카드 이미지만 자른다 */
 .detail-page .detail-art{overflow:hidden;padding:30px 8px 34px}
-.detail-page .detail-art .card-frame{overflow:visible;background:transparent;box-shadow:none}
-.detail-page .detail-art .card-frame:before{content:"";position:absolute;inset:0;background:#0b0c0f;box-shadow:0 22px 44px rgba(0,0,0,.3);z-index:0}
+/* 원본 구도를 자르지 않는다.
+   [근거] 배경 BG001 은 1024x1616(0.6337). 폭 720 에 맞추면 높이 1136.25 로
+   저작 스테이지 720x1136(0.6338)과 오차 0.02% 로 일치한다 — 배경이 곧
+   저작 화면이다. 종전 틀은 **카드 사진 비율 512/660(0.776)** 이라 그
+   화면의 좌우를 잘라 냈고, 그래서 배경과 이펙트가 어긋나 보였다. */
+.detail-page .detail-art .card-frame{overflow:visible;background:transparent;box-shadow:none;aspect-ratio:720/1136}
+/* 선수 무대 배경 = ALBUM1630.CHK / BG001 원본 PNG (1024x1616).
+   [주의] 원본에서 이 배경은 저작 스테이지 720x1136 을 통째로 채운다(비율 0.634).
+   지금 카드틀은 0.776 이라 cover 로 깔면 좌우가 잘린다 — 이펙트와 정확히
+   맞추려면 카드틀 비율을 0.634 로 바꿔야 한다(사용자 확인 대기). */
+/* 무대 뒤에는 아무 것도 깔지 않는다 (사용자 요청).
+   원본 배경 BG001 은 public/img/player-bg/album-stadium-dark.png 에 그대로
+   보관돼 있고, 다시 쓰려면 여기서 background 만 되살리면 된다.
+   [참고] 틀 비율 720/1136(0.6338) 은 BG001(1024x1616 = 0.6337)과 같아서
+   되살릴 때 cover 가 한 픽셀도 자르지 않는다. */
+.detail-page .detail-art .card-frame:before{content:"";position:absolute;inset:0;background:none;box-shadow:0 22px 44px rgba(0,0,0,.3);z-index:0}
 .card-art-clip{position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden;z-index:2;display:block}
 /* 캔버스 표시 크기는 인라인 style(논리 크기)이 정한다.
    [문제] width:auto 로 두면 백킹 크기가 표시 크기가 된다. 내부 해상을 340px 로
@@ -474,7 +490,8 @@ nav a:hover{color:#d8dce4}
 .ref-apt b{font:700 9px/1 monospace;color:#8b93a3}
 .ref-apt i{font:800 10px/1 monospace;font-style:normal;color:#e6eaf2}
 /* 인게임식 구종 팬 차트 */
-.pitch-fan{margin:6px 0 14px;padding:14px 10px 8px;background:radial-gradient(560px 240px at 50% 24%,#1a1f2b,#10131b 75%);border:1px solid #232837;border-radius:14px}
+/* 구종 차트는 판·구속띠가 이미 어두워서 뒤에 판을 깔지 않는다. */
+.pitch-fan{margin:6px 0 14px;padding:10px 6px 6px;background:none;border:0;border-radius:0}
 .pitch-fan .pf-title{margin:0 0 4px;font:800 10px/1 monospace;letter-spacing:.14em;color:#8b93a3;text-align:center}
 .pitch-fan svg{display:block;width:100%;height:auto}
 /* ── 목록 아이콘 ─────────────────────────────────────────────────────
@@ -500,14 +517,24 @@ nav a:hover{color:#d8dce4}
    같은 선택자가 세 벌 있었고 뒤엣것이 앞엣것을 전부 덮어써서, 앞 두 벌은
    aspect-ratio 와 background 만 흘려보내는 죽은 코드였다. 실제 크기·크롭은
    NameStrip 이 카드마다 인라인 style 로 지정한다(app/page.tsx). */
-.row-photo .rp-name{position:absolute;z-index:3;left:7%;right:7%;bottom:3.125%;height:18.75%;
+/* [크기] 원본 아이콘은 이름 글자가 타일 대비 훨씬 크다. 밴드 18.75%->23%,
+   글자 12.9cqw->18cqw 로 맞춘다. 긴 이름은 밴드 폭(86%) 안에 들어가도록
+   6글자 기준 13.5cqw(=81%) 로 둔다. */
+/* [실측 — 인게임 스크린샷 15타일]
+   띠: **전폭**(좌우 0) · 하단 밀착(bottom 0) · 높이 약 20.3%(40/197px),
+       상단에 옅은 청회색 하이라이트 1px, 어두운 남색 그라데이션.
+   글자: 흰 900, 2자는 전각 간격(大 谷), 3자 중간, 4~5자 좁게,
+        6자(ダルビッシュ)는 자간 0 + 살짝 압축으로 띠 폭 91% 를 채운다. */
+.row-photo .rp-name{position:absolute;z-index:3;left:0;right:0;bottom:0;height:20.5%;
   display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;
   color:#fff;font-style:normal;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
-  box-sizing:border-box;font-size:12.9cqw;font-weight:900;line-height:1;letter-spacing:-.04em;
-  text-shadow:-1px -1px 0 #111,1px -1px 0 #111,-1px 1px 0 #111,1px 1px 0 #111,0 2px 2px #000}
-.row-photo .rp-name.two-glyph{justify-content:center;letter-spacing:.55em;padding-left:.55em}
-.row-photo .rp-name.three-glyph{justify-content:center;letter-spacing:.3em;padding-left:.3em}
-.row-photo .rp-name.long{font-size:10.2cqw;letter-spacing:-.08em}
+  box-sizing:border-box;font-size:18.5cqw;font-weight:900;line-height:1;letter-spacing:-.02em;
+  background:linear-gradient(180deg,rgba(14,20,32,.94),rgba(6,9,16,.96));
+  border-top:1px solid rgba(130,165,220,.4);
+  text-shadow:0 1px 0 #000,0 2px 3px rgba(0,0,0,.8)}
+.row-photo .rp-name.two-glyph{letter-spacing:.9em;padding-left:.9em;font-size:18.5cqw}
+.row-photo .rp-name.three-glyph{letter-spacing:.35em;padding-left:.35em;font-size:18.5cqw}
+.row-photo .rp-name.long{font-size:15.5cqw;letter-spacing:-.05em}
 .player-row.card-row .row-photo{width:62px;height:62px;flex-basis:62px}
 @media(max-width:640px){.row-photo{flex-basis:65px;width:65px;height:65px}}
 /* ============================================================
@@ -659,6 +686,10 @@ nav a:hover{color:#d8dce4}
 .frow:last-of-type{border-bottom:0}
 .chips{display:flex;flex-wrap:wrap;gap:5px;flex:1;min-width:0}
 .chips button:hover{color:var(--ink);border-color:#39415a}
+/* 종류 칩 — 코드 옆에 장수. 게임 라벨 아틀라스의 종류 축(TS·OB·WS…). */
+.kind-chips button{gap:5px}
+.kind-chips button i{font-style:normal;font-size:10px;opacity:.55;font-variant-numeric:tabular-nums}
+.kind-chips button.on i{opacity:.8}
 .traj-chips button{padding-left:8px}
 .traj-chips button span{font-size:10px}
 /* 세그먼트 (단일 선택) */
@@ -1041,6 +1072,7 @@ main,.player-detail-page{background:var(--bg);color:var(--ink);box-shadow:none}
 .detail-page{width:min(1280px,calc(100% - 64px));margin:42px auto 70px;display:grid;grid-template-columns:minmax(360px,40%) 1fr;background:var(--surface);box-shadow:0 26px 80px rgba(0,0,0,.5);border-radius:18px;overflow:hidden;border:1px solid var(--line);align-items:start}
 .detail-art{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px 30px 38px;background:var(--well-2);overflow:hidden}
 .card-frame{position:relative;width:min(100%,420px);aspect-ratio:512/660;overflow:hidden;background:var(--well-2);box-shadow:none}
+.detail-page .detail-art .card-frame{background:none}
 .searchbox{height:56px;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center;padding:0 18px;max-width:780px;position:relative;border-radius:10px}
 .searchbox input{border:0;outline:0;background:transparent;flex:1;font-size:14px;color:var(--ink)}
 .fb-field select,.pagesize select,.chips button,.segs,.stat-filter label,
@@ -1692,3 +1724,467 @@ footer,footer span,footer p{color:var(--muted)}
   .score.spirits .sp-value{align-items:flex-end}
   .score.spirits .sp-value small{display:none}
 }
+
+/* ===== r107: unified table + readable detail =====
+   The old batter-only table still declared ten columns.  Because that selector
+   is more specific than the shared six-column rule it returned whenever the
+   hitter tab was selected.  All three tabs now use one structural grid. */
+.player-table.all .table-head,.player-table.all .player-row,
+.player-table.batter .table-head,.player-table.batter .player-row,
+.player-table.pitcher .table-head,.player-table.pitcher .player-row{
+  grid-template-columns:minmax(280px,1.15fr) 150px 126px 108px minmax(300px,1.4fr) 24px;
+}
+.player-table .player-row{
+  content-visibility:auto;
+  contain-intrinsic-block-size:86px;
+  contain:layout paint style;
+}
+.player-table .group-cards{contain:layout paint style}
+
+/* Detail: same quiet surfaces and thin dividers as the archive table. */
+.detail-page{grid-template-columns:minmax(390px,42%) minmax(0,1fr);align-items:stretch}
+.detail-art{justify-content:flex-start;min-height:720px;border-right:1px solid var(--line)}
+.detail-art .card-frame{position:sticky;top:76px}
+.detail-info{padding:34px 38px 42px;min-width:0}
+.detail-info>.eyebrow{margin:0 0 5px;color:var(--red)}
+.detail-info>.reading{margin:0 0 5px;color:var(--muted);letter-spacing:.16em}
+.detail-info>h1{font-size:clamp(32px,3.2vw,48px);margin-bottom:14px}
+.detail-tags{gap:0;margin:0 0 24px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.detail-tags span{min-height:34px;display:inline-flex;align-items:center;padding:0 11px;border:0;border-right:1px solid var(--line);background:transparent}
+.detail-info h3{margin:24px 0 10px;padding:0 0 8px;border-bottom:1px solid var(--line)}
+.detail-info h3::after{display:none}
+.detail-info .stat-grid{gap:1px;margin:0;background:var(--line);border:1px solid var(--line)}
+.detail-info .sgcol{gap:1px;background:var(--line)}
+.detail-info .stat-row{min-height:58px;padding:9px 12px;border-radius:0;background:var(--surface)!important}
+.detail-info .stat-value{font-size:22px}
+/* 2x2 배치에서 이 칩은 절반 폭 칸에 들어간다. 5등분 고정이면 한 칸이
+   64px 이 되어 라벨이 세로로 쪼개졌다. 칸 폭에 맞춰 자동으로 접는다. */
+.detail-info .ref-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:1px;margin:1px 0 0;background:var(--line);border:1px solid var(--line)}
+/* b(라벨) 는 display:block 으로 위, i(값) 가 아래인 설계다. 그런데 span 이
+   inline-flex 의 기본 row 라 둘이 나란히 놓여 라벨 폭이 눌리고 글자가
+   세로로 쪼개졌다(スピリッツ 2줄, 球種ランク 3줄). 방향을 세로로 세운다. */
+.detail-info .ref-chips span{min-width:0;border:0;border-radius:0;background:var(--surface);padding:10px 11px;flex-direction:column;align-items:flex-start;gap:0}
+.detail-info .ref-chips b{display:block;margin-bottom:5px;color:var(--muted);font:750 8px/1 ui-monospace,monospace;letter-spacing:.1em}
+.detail-info .ref-chips i{display:block;color:var(--ink);font:850 13px/1 system-ui,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detail-info .skill-list{border-top:1px solid var(--line)}
+.detail-info .skill-item{border-bottom:1px solid var(--line);border-radius:0;background:transparent}
+.detail-info .pitch-fan{border-radius:0;background:none}
+.detail-info .proof{border-radius:0;background:transparent;border-left:3px solid var(--line)}
+.detail-info .res-fold{margin-top:28px;border-top:1px solid var(--line)}
+
+@media(max-width:900px){
+  .detail-page{grid-template-columns:1fr;width:min(760px,calc(100% - 28px))}
+  .detail-art{min-height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .detail-art .card-frame{position:relative;top:auto}
+}
+@media(max-width:700px){
+  .player-table.all .player-row,.player-table.batter .player-row,.player-table.pitcher .player-row{
+    grid-template-columns:1fr auto auto 24px}
+  .detail-info{padding:28px 18px 34px}
+  .detail-info .ref-chips{grid-template-columns:repeat(auto-fit,minmax(88px,1fr))}
+  .detail-info .stat-grid{grid-template-columns:1fr 1fr}
+}
+
+/* 제1·제2구종을 같은 눈높이에서 비교한다. */
+
+/* 선수 상세 2x2 배치 — 윗줄 스텟|스킬, 아랫줄 구종|제2구종.
+   .pitch-fans 와 열 수·간격을 맞춰야 세로선이 이어져 보인다. */
+/* 스텟 표는 좁아도 읽히지만 특수능력 설명은 길다. 반반으로 나누면 설명이
+   382px 에서 접혀 읽기 나쁘다. 스텟을 고정 폭으로 두고 남는 폭을 전부
+   설명에 준다. */
+.detail-quad{display:grid;grid-template-columns:minmax(280px,340px) minmax(0,1fr);gap:0 18px;align-items:start}
+.detail-quad .quad-cell{min-width:0}
+.detail-quad .quad-cell>h3:first-child{margin-top:0}
+@media(max-width:900px){.detail-quad{grid-template-columns:1fr;gap:0}}
+.pitch-fans{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px;align-items:start}
+.pitch-fans .pitch-fan{min-width:0;margin:0;padding:10px 4px 4px}
+.pitch-fans .pitch-fan svg{width:100%;overflow:visible}
+.quick-stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;
+  margin:0;background:var(--line);border:1px solid var(--line)}
+.quick-stat-grid .scell{min-height:62px;border:0;border-radius:0;background:var(--surface);padding:10px 14px}
+.quick-stat-grid .scell>b{font-size:22px}
+@media(max-width:760px){
+  .pitch-fans{grid-template-columns:1fr}
+}
+
+/* Public detail view: player/card information only.  Extraction and renderer
+   diagnostics stay in the code but do not compete with the actual card. */
+.detail-art>.card-caption,
+.detail-art>.fx-dev,
+.detail-page .effect-id-label,
+.detail-page .detail-series,
+.detail-info>.res-fold,
+.detail-info>.proof{display:none}
+.detail-info>.reading{font-size:10px;color:var(--muted)}
+.detail-info>h1{color:var(--ink);font-weight:760;letter-spacing:-.035em}
+.detail-tags{color:var(--muted)}
+.detail-tags span{color:var(--muted);font-weight:650}
+.detail-info h3{color:var(--muted);font-weight:750}
+.detail-info .stat-grid,.detail-info .ref-chips,.quick-stat-grid{background:var(--line)}
+/* 두 열의 행 수가 달라 짧은 쪽 아래에 --line 이 통째로 드러나던 것 메움 */
+.detail-info .stat-grid .sgcol{background:var(--surface)}
+.detail-info .scell,.detail-info .ref-chips span,.quick-stat-grid .scell{background:var(--surface)}
+.detail-info .skill>summary{color:var(--ink);background:transparent}
+
+/* 특수능력은 접지 않고 이름·설명·효과를 한 번에 읽는다. */
+.detail-info .skill-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:none;grid-auto-flow:row;grid-auto-columns:auto;gap:0;border-top:1px solid var(--line)}
+.detail-info .skill{padding:13px 15px 14px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.detail-info .skill:last-child{border-right:0}
+.detail-info .skill h4{margin:0 0 9px;color:var(--ink);font:800 13px/1.25 system-ui,sans-serif}
+.detail-info .skill-body{padding:0}
+.detail-info .skill-body p{margin:0 0 7px;color:var(--muted);font-size:11px;line-height:1.55}
+.detail-info .skill-body ul{margin:0;padding:0;list-style:none}
+.detail-info .skill-body li{padding-left:10px;color:var(--muted);font-size:10.5px;line-height:1.55}
+@media(max-width:700px){
+  .detail-info .skill-grid{grid-template-columns:1fr}
+  .detail-info .skill{border-right:0}
+}
+
+/* r108 detail readability: give information more room and make every skill a
+   readable row instead of three narrow newspaper columns. */
+/* 2x2 배치라 정보 영역이 넓어야 한다 — 아트를 줄이고 폭 상한을 올린다. */
+.detail-page{width:min(1720px,calc(100% - 40px));grid-template-columns:minmax(300px,28%) minmax(0,72%)}
+.detail-info{padding:42px 46px 52px}
+.detail-info>.reading{font-size:11px;letter-spacing:.14em;margin-bottom:7px}
+.detail-info>h1{font-size:clamp(38px,3.3vw,52px);margin-bottom:18px}
+.detail-tags{margin-bottom:30px}
+.detail-tags span{min-height:38px;padding-inline:13px;font-size:11px}
+.detail-info h3{margin-top:30px;font-size:12px;letter-spacing:.07em}
+.detail-info h3 small{font-size:10px}
+.detail-info .scell{min-height:48px;padding:11px 13px}
+.detail-info .scell>span{font-size:12px;color:color-mix(in srgb,var(--ink) 64%,transparent)}
+.detail-info .scell>b{font-size:22px}
+.detail-info .ref-chips span{padding:12px 13px}
+.detail-info .ref-chips b{font-size:9px}
+.detail-info .ref-chips i{font-size:14px}
+.detail-info .skill-grid{grid-template-columns:1fr;border-top:1px solid var(--line)}
+.detail-info .skill{display:grid;grid-template-columns:150px minmax(0,1fr);gap:22px;
+  padding:17px 12px;border-right:0;align-items:start}
+.detail-info .skill h4{font-size:14px;margin:1px 0 0}
+.detail-info .skill-body p{font-size:12.5px;line-height:1.65;margin-bottom:8px;color:color-mix(in srgb,var(--ink) 72%,transparent)}
+.detail-info .skill-body li{font-size:12px;line-height:1.65;color:var(--muted)}
+.pitch-fans{gap:0 14px}
+.pitch-fans .pitch-fan{padding:14px 8px 8px}
+.pitch-fans .pf-title{font-size:11px;margin-bottom:8px;color:var(--ink)}
+.pitch-fan .pf-name{font:800 19px/1 sans-serif;fill:#fff;paint-order:stroke;stroke:#111;stroke-width:1px;letter-spacing:.03em}
+.pitch-fan .pf-speed{font:900 19px/1 "Arial Narrow",sans-serif;fill:#fff;paint-order:stroke;stroke:#050505;stroke-width:1.5px}
+.pitch-fan .pf-rank{font:900 17px/1 Arial,sans-serif;fill:#171719;paint-order:stroke;stroke:rgba(255,255,255,.28);stroke-width:.7px}
+.growth-table-wrap{width:100%;overflow-x:auto;border:1px solid var(--line)}
+.growth-table{width:100%;min-width:650px;border-collapse:collapse;background:var(--surface);font-variant-numeric:tabular-nums}
+.growth-table th,.growth-table td{height:34px;padding:0 8px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center;font-size:11px}
+.growth-table tr:last-child th,.growth-table tr:last-child td{border-bottom:0}
+.growth-table th:last-child,.growth-table td:last-child{border-right:0}
+.growth-table thead th{height:28px;color:var(--muted);background:var(--well-2);font:750 8px/1 ui-monospace,monospace}
+.growth-table tbody th{position:sticky;left:0;z-index:1;min-width:76px;color:var(--muted);background:var(--surface);text-align:left;font-weight:750}
+.growth-table td{font-weight:850;color:var(--ink)}
+@media(max-width:1000px){
+  .detail-page{grid-template-columns:1fr;width:min(780px,calc(100% - 28px))}
+  .detail-info{padding:34px 28px 44px}
+}
+@media(max-width:600px){
+  .detail-info .skill{grid-template-columns:1fr;gap:8px;padding-inline:4px}
+  .detail-info .ref-chips{grid-template-columns:repeat(auto-fit,minmax(84px,1fr))}
+}
+
+/* Columns size to their own content.  Previously the card panel stretched to
+   the taller information column and left a large black void below the art. */
+.detail-page{align-items:start;background:transparent;border:0;box-shadow:none;overflow:visible;gap:12px}
+.detail-art{align-self:start;min-height:0;height:auto;padding:28px 24px 24px;
+  border:1px solid var(--line);background:var(--well-2)}
+.detail-info{align-self:start;background:var(--surface);border:1px solid var(--line)}
+@media(max-width:1000px){
+  .detail-page{gap:0}
+  .detail-art{width:100%;border-bottom:0}
+  .detail-info{width:100%}
+}
+
+/* 특수능력 = 한 줄에 하나, **스킬명 위 / 설명 아래**.
+   종전에는 3열 격자라 절반 폭 칸(382px)에서 한 칸이 127px 이 되어
+   이름과 설명이 좌우로 갈라져 읽기 어려웠다. */
+.detail-info .skill-grid{display:block;border-top:1px solid var(--line)}
+.detail-info .skill{display:block;padding:11px 0 12px;border-right:0;
+  border-bottom:1px solid var(--line)}
+.detail-info .skill h4{margin:0 0 5px;font:800 13px/1.3 system-ui,sans-serif}
+.detail-info .skill-body p{margin:0 0 4px}
+
+/* 스텟 열이 좁아지면서 두 글자 라벨(最速 등)이 세로로 접혔다. */
+.detail-info .scell>span,.detail-info .stat-label{white-space:nowrap}
+
+/* 카드 무대 영역에서 검은 판을 전부 뺀다 — 원본 배경 이미지만 남긴다.
+   .detail-art 는 var(--well-2) / #0b0d12 를 깔고 있어서 배경 이미지 위아래로
+   검은 띠가 보였다. 패딩도 줄여 이미지가 열을 꽉 채우게 한다. */
+.detail-page .detail-art{background:none;border-right:0;padding:0}
+.detail-page .detail-art .card-frame{box-shadow:none}
+.detail-page .detail-art .card-frame:before{box-shadow:none}
+
+/* 카드 이미지 열과 상세정보 열의 높이를 맞춘다.
+   종전에는 .detail-page 가 align-items:start, .detail-art 가 align-self:start 라
+   왼쪽 열이 카드 높이에서 끝나고 오른쪽만 길게 남았다.
+   틀은 720/1136 비율을 유지하므로 높이를 채우면 폭이 따라오고,
+   폭이 열을 넘으면 max-width 가 잡아 다시 높이가 줄어든다. */
+.detail-page{align-items:stretch}
+.detail-page .detail-art{align-self:stretch;height:100%;justify-content:center}
+/* [주의] width:auto + height:100% + max-width 를 같이 주면 aspect-ratio 가
+   무시된다(실측: 343x1016 = 0.338, 원래 0.634). 폭으로만 크기를 정하고
+   높이는 비율에 맡긴다. 열 높이는 위 stretch 가 맞춘다. */
+.detail-page .detail-art .card-frame{width:100%;max-width:none;height:auto;max-height:none;margin:0}
+
+/* 목록 에셋 프리로드 중 표시 — 행이 하나씩 튀어나오지 않게 준비될 때까지 대기 */
+.table-loading{margin:0;padding:48px 16px;text-align:center;color:var(--muted);
+  font:700 12px/1 ui-monospace,monospace;letter-spacing:.12em}
+.table-loading::after{content:"";display:inline-block;width:8px;height:8px;margin-left:10px;
+  border-radius:50%;background:currentColor;animation:tload 1s ease-in-out infinite}
+@keyframes tload{0%,100%{opacity:.25}50%{opacity:1}}
+.empty-data {
+  margin: 0;
+  padding: 12px 0;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+/* 특능 기본형 고지 — rakda3 는 각성 전 표기만 수록 (player 상세) */
+.skill-tier-note{display:block;margin-top:8px;font-size:10px;line-height:1.5;opacity:.55;letter-spacing:.02em}
+
+/* ============ 상세 배치 개편 — [위] 선수 이미지(전폭 히어로) / [아래] 스텟 ============
+   [배경] 이펙트를 원본 1:1 너비로 되돌리자(사용자 지시) 좌측 40% 열이 좁아
+   이펙트가 잘렸다. 사용자 제안 배치: "선수 이미지 위, 스텟 아래".
+   마지막 선언이라 기존 2열 그리드 규칙들을 전부 덮는다. */
+.detail-page{grid-template-columns:1fr !important;width:min(1280px,calc(100% - 40px))}
+.detail-page .detail-art{width:100%;min-height:640px;overflow:hidden;
+  padding:38px 0 44px;border-radius:18px 18px 0 0}
+/* 카드 틀을 키운다 — 이펙트 오버스캔(1.5x)이 좌우로 숨쉴 공간 */
+.fx-stage-col .card-frame{width:min(100%,560px)}
+@media(max-width:700px){.detail-page .detail-art{min-height:480px}}
+/* 스텟 영역: 아래 전폭, 내용은 읽기 폭으로 */
+.detail-page .detail-info{max-width:1080px;margin:0 auto;width:100%}
+
+/* ===== 상세 5구역 그리드 (사용자 지정) =====
+   [상단] 이름·시리즈·스피리츠 / [좌] 버전 선택 / [중앙] 선수+이펙트 /
+   [우] 핵심 데이터(스텟·스킬) / [하단] 기타(성장표·구종·원본) */
+/* 사용자 지정 구조 —
+   [좌] 선수 이미지 / 그 아래 버전 변경  |  [우] 데이터
+   상단 식별부 · 하단 기타는 전폭 */
+.detail-page{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+  grid-template-areas:"head head" "art side" "misc misc"}
+.detail-side .detail-growth{padding:14px 0 0;border-top:1px solid var(--line);margin-top:14px}
+.detail-growth h3{margin:0 0 10px;font-size:12px}
+.detail-growth .growth-table-wrap{overflow-x:auto}
+.detail-page .detail-head{grid-area:head;display:flex;align-items:center;gap:22px;
+  flex-wrap:wrap;padding:20px 26px;border-bottom:1px solid var(--line);background:var(--surface)}
+.detail-head .dh-id .reading{margin:0 0 4px}
+.detail-head h1{margin:0;font-size:34px;letter-spacing:-.04em}
+.detail-head .detail-tags{margin:0}
+.detail-head .dh-chips{margin:0 0 0 auto}
+.detail-head .dh-chips .spirit i{color:#e0a020;font-weight:800}
+.detail-page .detail-art{grid-area:art;min-height:560px}
+.detail-page .detail-side{grid-area:side;padding:22px 20px;border-left:1px solid var(--line);
+  background:var(--surface);position:sticky;top:70px;align-self:start;
+  max-height:calc(100vh - 90px);overflow-y:auto;scrollbar-width:thin}
+/* 우측 한 열이므로 quad 를 세로로 푼다 */
+.detail-side .detail-quad{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.detail-page .detail-info{grid-area:misc;max-width:none;margin:0}
+.version-rail{display:flex;flex-direction:column;gap:6px;
+  position:absolute;left:14px;top:12px;bottom:12px;width:96px;
+  overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;padding:2px;
+  background:rgba(10,13,20,.5);border:1px solid rgba(255,255,255,.08);border-radius:12px;z-index:5}
+.version-rail a{flex:0 0 auto;flex-direction:column;gap:3px;padding:5px;opacity:.85}
+.version-rail img{width:64px;height:64px;flex:0 0 auto}
+.version-rail span{align-items:center}
+.version-rail span small{display:none}
+.version-rail span b{font-size:10.5px}
+.vr-title{margin:0 0 6px;font:800 10px/1 monospace;letter-spacing:.08em;color:var(--muted)}
+.vr-title b{color:#e0a020}
+.version-rail a{display:flex;align-items:center;gap:10px;padding:6px;border-radius:10px;
+  border:2px solid transparent;opacity:.82;transition:opacity .15s,border-color .15s,background .15s;
+  text-decoration:none;color:var(--ink);background:color-mix(in srgb, var(--raised) 70%, transparent)}
+.version-rail a:hover{opacity:1;background:var(--raised)}
+.version-rail a.on{border-color:#e0a020;opacity:1;background:var(--raised)}
+.version-rail img{width:46px;height:46px;border-radius:8px;object-fit:cover;flex:0 0 46px;display:block;background:#151a24}
+.version-rail span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.version-rail span b{font:800 13px/1 monospace}
+.version-rail span small{font:700 9px/1 monospace;color:var(--muted);letter-spacing:.04em}
+@media(max-width:900px){
+  .detail-page{grid-template-columns:1fr !important;grid-template-areas:"head" "art" "rail" "side" "misc"}
+  .detail-page .detail-side{position:static;max-height:none;border-left:0;border-top:1px solid var(--line)}
+  .version-rail{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .version-rail a{flex:0 0 auto}
+  .vr-title{display:none}
+}
+
+/* ===== 상세 한눈 배치 + 반응형 고도화 ===== */
+/* 히어로 높이를 화면에 맞춰 캡 — 상단부(헤더+탑바 약 320px)를 빼고 카드 비율(512:660)로 역산 */
+/* [갱신2] 사용자: "선수+이펙트 줄이고 아래 버전 선택 — 스크롤 없이 한눈에".
+   히어로 높이를 화면(100vh)에서 역산해 캡: 카드비 660/512=1.289.
+   상단(탑바+식별부+레일+여백 약 430px)을 빼고 남는 높이만 쓴다.
+   캔버스는 --fx-fit(ResizeObserver)이 같은 비율로 따라간다. */
+.fx-stage-col .card-frame{width:min(100%, calc((100vh - 430px) * 0.776));max-width:none}
+.detail-page .detail-art{min-height:0;padding:26px 0 30px}
+/* 우측 패널 압축 — 제목 여백 축소, 스텟 2열 유지, 구종 부채꼴 1열 */
+.detail-side h3{margin:14px 0 8px;font-size:12px}
+.detail-side .pitch-fans{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.detail-side .quick-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.detail-side .apt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.detail-side .apt-grid span{display:flex;align-items:center;gap:6px;background:var(--raised);
+  padding:8px 9px;border-radius:8px;font-size:11px}
+/* 반응형 4단 */
+@media(max-width:1240px){
+  .detail-page{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important}
+}
+@media(max-width:1024px){
+  .detail-page{grid-template-columns:minmax(0,1fr) 360px !important;
+    grid-template-areas:"head head" "art side" "rail rail" "misc misc"}
+  .version-rail{position:static;flex-direction:row;overflow-x:auto;max-height:none;
+    border-right:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .version-rail a{flex:0 0 auto}
+  .vr-title{display:none}
+}
+@media(max-width:760px){
+  .detail-page{grid-template-columns:1fr !important;
+    grid-template-areas:"head" "art" "side" "rail" "misc"}
+  .detail-page .detail-side{position:static;max-height:none;border-left:0;border-top:1px solid var(--line)}
+  .detail-side .detail-quad{display:grid;grid-template-columns:1fr;gap:14px}
+  .detail-head{padding:16px 18px}
+  .detail-head h1{font-size:26px}
+  .detail-head .dh-chips{margin-left:0}
+}
+/* 하단 성장표 — 전폭에서 가로 스크롤 자체 처리 */
+.detail-page .detail-info .growth-table-wrap{overflow-x:auto}
+
+/* 버전 레일 — 항목 전폭, 잘림 방지, 높이 제한 후 자체 스크롤 */
+.version-rail a{box-sizing:border-box}
+.version-rail span{flex:1;min-width:0}
+.version-rail span b,.version-rail span small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+
+/* ===== 우측 데이터 열 정돈 (사용자 지시: 스텟 3열 x 최대 3행) ===== */
+/* sgcol 래퍼를 투명화해 셀 7개(투수)/6개(타자)가 3열 그리드로 흐른다 */
+.detail-side .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:none;border:0}
+.detail-side .sgcol{display:contents}
+.detail-side .scell{display:flex;flex-direction:column;align-items:flex-start;gap:4px;
+  background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.detail-side .scell span{font:700 9.5px/1 monospace;letter-spacing:.06em;color:var(--muted)}
+.detail-side .scell b{font:800 19px/1 monospace;font-variant-numeric:tabular-nums}
+.detail-side .scell .grade{width:18px;height:18px;position:absolute;right:10px;top:10px}
+.detail-side .scell{position:relative}
+/* quad: 스텟(윗줄 전폭) + 스킬(아랫줄 전폭) — 좁은 열에서 세로 균형 */
+.detail-side .detail-quad{display:flex;flex-direction:column;gap:16px}
+/* 구종 부채꼴 두 개 나란히, 좁으면 한 열 */
+.detail-side .pitch-fans{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+/* 히어로 여백 — 카드가 박스 세로 중앙에 */
+.detail-page .detail-art{align-items:center;justify-content:center;padding:20px 0}
+
+/* ===== 상세 히어로 오버플로 수정 + 스텟 미니멀 표 ===== */
+/* [원인] 옛 레이아웃의 sticky(top:76px)가 카드 틀을 아래로 밀어
+   art 박스를 55px 넘치고 버전 레일을 침범했다 — "선수선택이 사진 중간부터 시작". */
+.detail-page .detail-art .card-frame{position:static !important;top:auto !important}
+/* 히어로는 위 정렬 + 최소 여백 — 캔버스 상하 여백 제거 */
+/* [구조] 레일은 absolute 오버레이 — flex 순환(레일 내용 3,082px 가 컨테이너를
+   늘리고, 늘어난 높이가 aspect-ratio 로 프레임 폭 1,953px 을 만들던 것)을 끊는다.
+   프레임이 유일한 흐름 자식이라 art 높이 = 프레임 높이. 이미지 축소 없음. */
+.detail-page .detail-art{display:block;position:relative;padding:12px 14px 12px 118px}
+
+/* 스텟 = 미니멀 표 (3열). 박스 대신 헤어라인 구분 */
+.detail-side .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.detail-side .scell{position:relative;display:flex;align-items:center;gap:8px;
+  background:none;border:0;border-radius:0;padding:11px 10px;min-width:0;
+  border-bottom:1px solid color-mix(in srgb, var(--line) 55%, transparent)}
+.detail-side .scell:nth-last-child(-n+3){border-bottom:0}
+.detail-side .scell span{flex:1;font:700 10px/1 monospace;letter-spacing:.05em;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detail-side .scell b{font:800 16px/1 monospace;font-variant-numeric:tabular-nums}
+.detail-side .scell .grade{position:static;width:16px;height:16px;flex:0 0 16px}
+
+/* 이펙트 캔버스가 틀 폭을 따라가게 — 고정 픽셀 캔버스를 CSS 배율로 맞춤 */
+.detail-page .card-frame .fx-layer{transform:translate(-50%,-50%) scale(var(--fx-fit,1))}
+
+/* 스텟 표 마감 — 라벨 좌 · 값 우 · 등급 코인 우측 한 줄 (세로 쌓임 잔재 제거) */
+.detail-side .scell{flex-direction:row;align-items:center;justify-content:flex-start;gap:8px}
+.detail-side .scell span{flex:1 1 auto}
+.detail-side .scell b{margin-left:auto}
+.detail-side .scell .grade{margin-left:2px}
+/* 표 좌우 하이라인 정렬: 3열 사이 세로 헤어라인 */
+.detail-side .scell:nth-child(3n+2),.detail-side .scell:nth-child(3n){border-left:1px solid color-mix(in srgb, var(--line) 55%, transparent)}
+
+/* 스킬 한 줄 컷 (사용자 지시) — 이름 + 효과 요약을 한 행에, 상세는 title 툴팁 */
+.detail-side .skill-grid{display:flex;flex-direction:column;gap:0;margin:0}
+.detail-side .skill{display:flex;align-items:baseline;gap:10px;padding:8px 2px;
+  border-bottom:1px solid color-mix(in srgb, var(--line) 55%, transparent)}
+.detail-side .skill:last-child{border-bottom:0}
+.detail-side .skill h4{margin:0;font:800 12px/1.2 system-ui;white-space:nowrap;flex:0 0 auto}
+.detail-side .skill .skill-body{padding:0;min-width:0;flex:1;display:flex;align-items:baseline;gap:8px;overflow:hidden}
+.detail-side .skill .skill-body p{margin:0;font:400 10.5px/1.4 system-ui;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
+.detail-side .skill .skill-body ul{margin:0;padding:0;list-style:none;display:flex;gap:10px;
+  min-width:0;overflow:hidden;flex:1}
+.detail-side .skill .skill-body li{font:400 10.5px/1.4 system-ui;color:#8f97a8;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* 성장표 — 스크롤 없이 부모 폭에 핏 (사용자 지시).
+   min-width 650 을 걷고 고정 레이아웃으로, 첫 열(STAT)만 내용 폭으로 좁게. */
+.detail-side .growth-table-wrap{overflow-x:visible;border:1px solid var(--line)}
+.detail-side .growth-table{min-width:0;table-layout:fixed}
+.detail-side .growth-table col.stat{width:56px}
+.detail-side .growth-table thead th:first-child,
+.detail-side .growth-table tbody th{width:56px;min-width:0;padding:0 6px;position:static;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:9.5px}
+.detail-side .growth-table th,.detail-side .growth-table td{height:28px;padding:0 2px;font-size:10px}
+.detail-side .growth-table thead th{font-size:7.5px;height:22px}
+
+/* ============================================================
+   FINAL 상세 레이아웃 — 이 블록이 최종 권위다.
+   위쪽의 실험 블록들(3구역/5구역/한눈/부모추종)이 서로 충돌해
+   패딩·폭·레일 위치가 회귀를 반복했다. 전부 여기서 확정한다.
+   구조: [상단 head] / [좌 art(이미지 + 좌측 세로 버전 레일 오버레이)] |
+        [우 side 데이터] / [하단 misc]
+   ============================================================ */
+.detail-page{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;
+  grid-template-areas:"head head" "art side" "misc misc" !important}
+.detail-page .detail-art{display:block !important;position:relative !important;
+  min-height:0 !important;padding:12px 14px 12px 122px !important;overflow:hidden}
+.detail-page .detail-art .card-frame{width:100% !important;max-width:none !important;
+  height:auto !important;max-height:none !important;margin:0 !important;position:static !important}
+/* 레일 = 좌측 고정 레인 (오버레이 아님) — 이미지 영역과 경계선으로 분리 */
+.detail-page .version-rail{position:absolute !important;inset:0 auto 0 0 !important;
+  margin:0 !important;width:108px !important;max-height:none !important;
+  display:flex !important;flex-direction:column !important;gap:6px;padding:10px 8px;
+  overflow-y:auto !important;overflow-x:hidden !important;scrollbar-width:thin;
+  background:var(--surface);border:0;border-right:1px solid var(--line);border-radius:0;z-index:5}
+.detail-page .version-rail a{flex:0 0 auto;flex-direction:column;gap:3px;padding:5px;width:auto}
+.detail-page .version-rail img{width:70px;height:70px}
+@media(max-width:900px){
+  .detail-page{grid-template-columns:1fr !important;
+    grid-template-areas:"head" "art" "side" "misc" !important}
+  .detail-page .detail-art{padding:12px 14px !important}
+  .detail-page .version-rail{position:static !important;flex-direction:row !important;width:auto !important;
+    overflow-x:auto !important;overflow-y:hidden !important;margin-bottom:10px}
+}
+
+/* 스킬 아코디언 — 접힘: 이름 + 흐린 요약 한 줄 / 펼침: 설명+효과 */
+.detail-side .skill{display:block;padding:0;border-bottom:1px solid color-mix(in srgb, var(--line) 55%, transparent)}
+.detail-side .skill>summary{display:flex;align-items:baseline;gap:10px;list-style:none;cursor:pointer;
+  padding:9px 2px}
+.detail-side .skill>summary::-webkit-details-marker{display:none}
+.detail-side .skill>summary::before{content:"+";color:#5d6577;font:700 12px/1 monospace}
+.detail-side .skill[open]>summary::before{content:"−"}
+.detail-side .skill h4{margin:0;font:800 12px/1.2 system-ui;white-space:nowrap}
+.detail-side .skill .skill-hint{font:400 10.5px/1.3 system-ui;font-style:normal;color:var(--muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.detail-side .skill[open] .skill-hint{display:none}
+.detail-side .skill .skill-body{display:block;padding:0 2px 10px 18px}
+.detail-side .skill .skill-body p{white-space:normal;margin:0 0 4px}
+.detail-side .skill .skill-body ul{display:block;margin:0;padding:0;list-style:none}
+.detail-side .skill .skill-body li{white-space:normal;font:400 10.5px/1.5 system-ui;color:#8f97a8}
+
+/* 하단 원본/매칭 패널 제거 (사용자 지시 — 상세는 위 두 열로 완결) */
+.detail-page .detail-info{display:none !important}
+
+/* 상세 페이지 폭 확대 (사용자: 더 넓어도 됨) */
+.detail-page{width:min(1600px,calc(100% - 48px)) !important}
+
+/* 구종 차트 1.2배 (사용자 지시) — SVG 는 width:100% 라 셀 폭을 키우면 같이 큰다 */
+.detail-side .pitch-fans{grid-template-columns:repeat(auto-fit,minmax(300px,1fr)) !important;gap:18px}
+.detail-side .pitch-fan{margin:8px 0 16px;padding:12px 8px 8px}
+

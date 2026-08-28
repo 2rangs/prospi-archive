@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AnssDocument } from "./types";
 import { fetchGzipJson } from "./fetchGzip";
+import { applyForceSwaps } from "./forceSwap";
 
 /**
  * Loads one exported ANSS document. Nothing here is effect specific: the same
@@ -19,19 +20,34 @@ export type AnssSize = "L" | "S";
 
 const cache = new Map<string, AnssDocument | null>();
 const inflight = new Map<string, Promise<AnssDocument | null>>();
-// Decompressed ANSS JSON is much larger than its .gz file.  Keeping every
-// visited _S and _L document retained hundreds of large part/track graphs.
-// Active players keep their own reference, so evicting an old cache entry is
-// safe and only means it will be fetched again if revisited much later.
-const DOC_CACHE_CAP = 40;
+/**
+ * 문서 캐시 상한을 **크기 등급별로** 나눈다.
+ *
+ * [문제] 한 벌로 40개를 쥐고 있었다. 그런데 두 등급의 덩치가 30배 차이난다.
+ * [측정] 해제된 JSON 텍스트 기준:
+ *     _L(무대) 682개 — 중앙값 163KB · 평균 231KB · 최대 1,416KB
+ *                     40개면 평균 9.0MB, 최악(상위 40개) **33.4MB**
+ *     _S(아이콘) 663개 — 중앙값 8KB · 평균 12KB · 최대 156KB
+ *                     40개면 0.5MB
+ *   파싱된 JS 객체는 보통 텍스트의 3~6배라, _L 40개는 실제로 수십~수백 MB다.
+ * [해석] _L 은 한 번에 한두 개만 화면에 있고(상세 1개, 이펙트 페이지 1개),
+ *   _S 는 목록 행 수만큼 동시에 필요하다. 같은 상한을 쓸 이유가 없다.
+ * [처리] _L 은 6개(앞뒤 이동에 재요청 안 나는 최소), _S 는 160개.
+ *   텍스트 기준 각각 약 1.4MB / 1.9MB 로, 종전 최악 33MB 대비 크게 준다.
+ * [비용] 밀려난 문서는 다시 받는다 — gz 로 수십 KB라 체감이 없다.
+ */
+const DOC_CACHE_CAP: Record<AnssSize, number> = { L: 6, S: 160 };
 
 function remember(key: string, doc: AnssDocument | null) {
   cache.delete(key);
   cache.set(key, doc);
-  while (cache.size > DOC_CACHE_CAP) {
-    const oldest = cache.keys().next().value as string | undefined;
-    if (oldest === undefined) break;
-    cache.delete(oldest);
+  const size = key.startsWith("S:") ? "S" : "L";
+  let over = 0;
+  for (const k of cache.keys()) if (k.startsWith(`${size}:`)) over += 1;
+  if (over <= DOC_CACHE_CAP[size]) return;
+  for (const k of cache.keys()) {
+    if (over <= DOC_CACHE_CAP[size]) break;
+    if (k.startsWith(`${size}:`)) { cache.delete(k); over -= 1; }
   }
 }
 
@@ -46,6 +62,7 @@ export function loadAnss(effectId: number, size: AnssSize = "L") {
   if (!p) {
     p = fetchGzipJson<AnssDocument>(
       `/effects/anim${size === "S" ? "-s" : ""}-gz/${effectId}.json.gz`)
+      .then(applyForceSwaps)
       .then((doc: AnssDocument | null) => {
         remember(key, doc);
         inflight.delete(key);

@@ -674,6 +674,40 @@ if (typeof window !== "undefined") {
   });
 }
 
+/**
+ * 저작본에서 **전 구간 숨김**인데 게임에서는 보이는 파츠 표.
+ *
+ * [확인된 사실] 1214105(2026 SELECTION)의 `ribbon_base` 는
+ *   hide=[[0,1,0]] · alpha=[[0,0]] 로 처음부터 끝까지 꺼져 있다. 그런데 그 위
+ *   광택 `ribbon_eff01_*`/`ribbon_eff02_*` 는 87~131프레임에 정상 재생된다.
+ *   판이 없으면 광택만 허공에서 번쩍이므로, 원본은 그 자리에 **외부 파츠를
+ *   얹는다**(콜라보 로고와 같은 방식). 1114105(2025)도 트랙이 동일하다.
+ * [처리] 저작본 안에 자리표시자 텍스처(빈 은색 리본)가 들어 있으므로 그것을
+ *   켜서 대신한다. 표는 public/effects/force-show.json — 근거를 항목마다 적는다.
+ * [한계] 리본 위 문구(MEMORIAL)는 이 텍스처에 없다. 아직 못 찾았다.
+ * [되돌리기] `window.__anssForceShow = 0`
+ */
+type ForceShow = { parts: string[]; alpha?: number };
+let forceTable: Record<string, ForceShow> | null = null;
+let forceOn = true;
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "__anssForceShow", {
+    get: () => (forceOn ? 1 : 0),
+    set: (v: number) => { forceOn = !!Number(v); },
+    configurable: true,
+  });
+  void fetch("/effects/force-show.json")
+    .then(r => (r.ok ? r.json() : null))
+    .then(j => { forceTable = (j && j.map) || {}; })
+    .catch(() => { forceTable = {}; });
+}
+function forcedFor(effectId: number | undefined, name: string): ForceShow | null {
+  if (!forceOn || !forceTable || effectId == null) return null;
+  const entry = forceTable[String(effectId)];
+  if (!entry) return null;
+  return entry.parts.includes(name) ? entry : null;
+}
+
 export function evaluate(doc: AnssDocument, frame: number, role?: "back" | "front"): Draw[] {
   // The clip's own frame count is a constant 30 in every effect and is not a
   // duration; each animation record carries its real length at +0x4c, and an
@@ -832,6 +866,9 @@ export function evaluate(doc: AnssDocument, frame: number, role?: "back" | "fron
 
     if (part.k !== PartType.Cell) continue;
     if (role && part.role !== role) continue;
+    // 외부에서 얹히는 자리표시자는 저작본이 꺼 둔 것이므로 켠다 (위 주석 참조)
+    const forced = forcedFor(doc.effectId, part.n);
+    if (forced) { w.hidden = false; w.alpha = forced.alpha ?? 1; }
     if (w.hidden || w.alpha <= 0.004) continue;
 
     const cell = part.cells?.length

@@ -1,0 +1,10 @@
+{
+  "399": {
+    "reason": "rakda3 HTML has an empty `km/h` cell; local game master has 138km/h for direction 11",
+    "directions": {"11": {"speed": 138}}
+  },
+  "541": {
+    "reason": "rakda3 HTML has corrupted `Ckm/h`; local game master has 142km/h for direction 4",
+    "directions": {"4": {"speed": 142}}
+  }
+}

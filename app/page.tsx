@@ -1,19 +1,20 @@
 "use client";
+import { loadCards } from "./cardsData";
 
 import { useEffect, useMemo, useState } from "react";
 import AnssStage from "./anss/AnssStage";
 import { useAnss } from "./anss/useAnss";
-import { useEffectPool, useKnownMap } from "./anss/useEffectPool";
-import { type EffectKey, resolveEffect } from "./anss/resolve";
+import { type KnownMeta, useEffectPool, useKnownMap, useKnownMeta } from "./anss/useEffectPool";
+import { type EffectKey, type ResolveOpts, cardKind, resolveEffect } from "./anss/resolve";
 import { type Card, type PlayerGroup, type PlayerType, type StatKey,
-  BATTER_STATS, DEFENSE_STATS, PITCHER_STATS, searchPlayers, teamLabel, typeCounts } from "./search";
+  BATTER_STATS, DEFENSE_STATS, PITCHER_STATS, searchPlayers, seriesKind, teamLabel, typeCounts } from "./search";
 import { GRADES } from "./grade";
 import { LangSwitch, ThemeSwitch, useT } from "./i18n";
 import { HeroStage } from "./heroStage";
 import { TRAJECTORY_ORDER, TrajArrow, Trajectory, trajColor } from "./trajectory";
 import { useScrollRestore, useUrlState } from "./useUrlState";
 import { type RefStats, useRefStats } from "./refStats";
-import { useEffectFrontTile, useEffectTile } from "./anss/thumb";
+import { preloadTiles, useEffectFrontTile, useEffectTile } from "./anss/thumb";
 
 /**
  * 메인 미리보기 카드. 실측 매핑이 있는 카드를 써서, 보여주는 이펙트가
@@ -39,7 +40,7 @@ const list = (v: unknown) => String(v ?? "").split(",").filter(Boolean);
 
 const imageUrl = (card: Card, large = false) => `/api/card-image?group=${card.group}&file=${encodeURIComponent(large ? card.largeFile : card.file)}`;
 const meet = (card: Card) => card.base ? Math.round((card.base.meetR + card.base.meetL) / 2) : undefined;
-const maxPitchPower = (card: Card) => card.pitching?.pitches.reduce((best, pitch) => Math.max(best, pitch.power), 0);
+const maxPitchPower = (card: Card) => card.pitching?.pitches.reduce((best, pitch) => Math.max(best, pitch.power ?? 0), 0);
 
 /** 구단 배지 — 게임 원본 로고(SELECT2220 스프라이트에서 추출). */
 function TeamBadge({ code }: { code?: string | null }) {
@@ -66,10 +67,21 @@ function Score({ label, value, suffix = "" }: { label: string; value?: number; s
   return <span className="score" data-label={label}>{value == null ? <i className="score-none">·</i> : <><b>{value}{suffix}</b>{!suffix && <Grade value={value}/>}</>}</span>;
 }
 
+/**
+ * 매칭 문맥 — 종류 코드와 소속 리그. 둘 다 표기값(ref)에서 온다.
+ * (group, variant) 만으로는 SL1/SL2/SL3 가 안 갈리고, BEST NINE·TITLE HOLDER 의
+ * sub 는 리그로 갈린다.
+ */
+function ctxOf(card: Card, ref: { series?: string; team?: string } | null | undefined,
+               meta: KnownMeta): ResolveOpts {
+  return { kind: cardKind(ref?.series), league: teamOf(ref?.team ?? "")?.league ?? null, meta };
+}
+
 /** 카드 → 이펙트 id (훅 아님 — 목록에서 map 안에서도 안전하게 쓴다) */
-function rowEffectId(card: Card, pool: EffectKey[], known: Record<string, string>) {
+function rowEffectId(card: Card, pool: EffectKey[], known: Record<string, string>,
+                     opts?: ResolveOpts) {
   if (!pool.length) return null;
-  const m = resolveEffect(card.group, card.variant, pool, known, card.id);
+  const m = resolveEffect(card.group, card.variant, pool, known, card.id, opts);
   return m && m.level !== "none" ? Number(m.effectId) : null;
 }
 
@@ -187,19 +199,30 @@ function StatCells({ card, ref }: { card: Card; ref?: RefStats | null }) {
  * 선수 한 명(한 유형)을 한 줄로. 대표는 가장 최신 카드다.
  * "ohtani" 50건이 이 방식으로 4줄이 된다.
  */
-function PlayerGroupRow({ group, open, onToggle, showType, refAll, pool, known }:
+/**
+ * 그룹의 대표 카드 = 그 선수의 **최고 스피리츠 카드**.
+ *
+ * [문제] 행은 이 카드를 그리는데 프리로드는 `group.cards[0]`(=최신 카드)를
+ *   받고 있었다. 둘이 다른 카드라 이미지가 두 장씩 요청되고(실측 25행에서
+ *   44건), 정작 화면에 나올 이미지는 게이트가 열린 뒤에 도착했다 — "에셋을
+ *   다 받고 열어 달라"던 요구가 반쯤만 지켜지던 원인.
+ * [처리] 행과 프리로드가 같은 함수를 쓴다.
+ */
+function repCard(group: PlayerGroup, refAll: Record<string, RefStats> | null): Card {
+  let best: Card | null = null; let bestS = -1;
+  for (const c of group.cards) {
+    const sp = refAll?.[c.id]?.spirits;
+    if (sp != null && sp > bestS) { best = c; bestS = sp; }
+  }
+  return best ?? group.cards.find(c => refAll?.[c.id]) ?? group.rep;
+}
+
+function PlayerGroupRow({ group, open, onToggle, showType, refAll, pool, known, knownMeta }:
     { group: PlayerGroup; open: boolean; onToggle: () => void; showType: boolean;
-      refAll: Record<string, RefStats> | null; pool: EffectKey[]; known: Record<string, string> }) {
+      refAll: Record<string, RefStats> | null; pool: EffectKey[];
+      known: Record<string, string>; knownMeta: KnownMeta }) {
   const { t, tv } = useT();
-  // 대표 카드 = 그 선수의 **최고 스피리츠 카드** (없으면 ref 있는 최신 카드)
-  const top = (() => {
-    let best: Card | null = null; let bestS = -1;
-    for (const c of group.cards) {
-      const sp = refAll?.[c.id]?.spirits;
-      if (sp != null && sp > bestS) { best = c; bestS = sp; }
-    }
-    return best ?? group.cards.find(c => refAll?.[c.id]) ?? group.rep;
-  })();
+  const top = repCard(group, refAll);
   /**
    * 그룹 요약은 대표 카드 하나가 아니라 **그룹 전체에서 값을 모아** 채운다.
    * 대표 카드에 스피리츠·제구 같은 필드가 비어 있어도 다른 카드에 있으면
@@ -227,7 +250,7 @@ function PlayerGroupRow({ group, open, onToggle, showType, refAll, pool, known }
     }
     return merged;
   })();
-  const topEffect = rowEffectId(top, pool, known);
+  const topEffect = rowEffectId(top, pool, known, ctxOf(top, refAll?.[top.id], knownMeta));
   const many = group.cards.length > 1;
   const span = group.minYear === group.maxYear ? `${group.maxYear}` : `${group.minYear}–${group.maxYear}`;
   return <>
@@ -260,7 +283,7 @@ function PlayerGroupRow({ group, open, onToggle, showType, refAll, pool, known }
         <span><b>{group.name}</b> · {t(group.playerType === "pitcher" ? "tabPitcher" : "tabBatter")} · {group.cards.length}{t("cardsUnit")}</span>
         <span className="gch-span">{span} · 변형 {group.variants}종</span>
       </div>
-      {group.cards.map(card => <PlayerRow card={card} nested ref={refAll?.[card.id] ?? null} effectId={rowEffectId(card, pool, known)} key={`${card.group}-${card.file}`}/>)}
+      {group.cards.map(card => <PlayerRow card={card} nested ref={refAll?.[card.id] ?? null} effectId={rowEffectId(card, pool, known, ctxOf(card, refAll?.[card.id], knownMeta))} key={`${card.group}-${card.file}`}/>)}
     </div>}
   </>;
 }
@@ -271,11 +294,11 @@ export default function Home() {
     && new URLSearchParams(location.search).get("layout") === "1";
   const [cards, setCards] = useState<Card[]>([]);
   const [ui, setUi] = useUrlState({ q: "", type: "all", year: "전체", var: "전체",
-    team: "", half: "전체", sp: "전체", spirits: 0, traj: "", st: "", eq: "", page: 1, size: 25, open: "" });
+    team: "", kind: "", half: "전체", sp: "전체", spirits: 0, traj: "", st: "", eq: "", page: 1, size: 25, open: "" });
   const query = ui.q, year = ui.year, variant = ui.var, page = ui.page, pageSize = ui.size;
   const playerType = ui.type as PlayerType | "all";
   const openKey = ui.open;
-  useEffect(() => { fetch("/data/cards.json?v=gamename-1").then(response => response.json()).then(setCards); }, []);
+  useEffect(() => { void loadCards().then(rows => { if (rows) setCards(rows); }); }, []);
   useScrollRestore("home", cards.length > 0);
   const refAll = useRefStats();
   const years = useMemo(() => ["전체", ...Array.from(new Set(cards.map(card => String(card.year))))], [cards]);
@@ -295,9 +318,9 @@ export default function Home() {
   };
   const f = useMemo(() => ({
     query, playerType, year, variant,
-    team: list(ui.team), half: ui.half, special: ui.sp,
+    team: list(ui.team), kind: list(ui.kind), half: ui.half, special: ui.sp,
     spiritsMin: Number(ui.spirits) || 0, trajectory: list(ui.traj), stats, equalStats: ui.eq === "1",
-  }), [query, playerType, year, variant, ui.team, ui.half, ui.sp, ui.spirits, ui.traj, ui.eq, stats]);
+  }), [query, playerType, year, variant, ui.team, ui.kind, ui.half, ui.sp, ui.spirits, ui.traj, ui.eq, stats]);
   const groups = useMemo(() => searchPlayers(cards, f, refAll), [cards, f, refAll]);
   const counts = useMemo(() => typeCounts(cards, f, refAll), [cards, f, refAll]);
   const teams = useMemo(() => {
@@ -306,11 +329,24 @@ export default function Home() {
     for (const r of Object.values(refAll)) if (r.team) c.set(r.team, (c.get(r.team) ?? 0) + 1);
     return [...c.keys()].sort((a, b) => (c.get(b) ?? 0) - (c.get(a) ?? 0));
   }, [refAll]);
+  /**
+   * 종류 칩 목록. 원장에 실제로 있는 계열만, 장수 많은 순.
+   * 게임 라벨 아틀라스(연도 · Series · 종류)의 세 번째 축이다.
+   */
+  const kinds = useMemo(() => {
+    if (!refAll) return [] as [string, number][];
+    const c = new Map<string, number>();
+    for (const r of Object.values(refAll)) {
+      const k = seriesKind(r.series);
+      if (k) c.set(k, (c.get(k) ?? 0) + 1);
+    }
+    return [...c.entries()].sort((a, b) => b[1] - a[1]);
+  }, [refAll]);
   const activeCount = (year !== "전체" ? 1 : 0) + (variant !== "전체" ? 1 : 0)
-    + list(ui.team).length + (ui.half !== "전체" ? 1 : 0) + (ui.sp !== "전체" ? 1 : 0)
+    + list(ui.team).length + list(ui.kind).length + (ui.half !== "전체" ? 1 : 0) + (ui.sp !== "전체" ? 1 : 0)
     + (Number(ui.spirits) > 0 ? 1 : 0) + list(ui.traj).length + Object.keys(stats).length + (ui.eq === "1" ? 1 : 0);
   /** 칩 토글 — 이미 켜져 있으면 끈다. */
-  const toggle = (field: "team" | "traj", v: string) => {
+  const toggle = (field: "team" | "traj" | "kind", v: string) => {
     const cur = list(ui[field]);
     const next = cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v];
     setUi({ [field]: next.join(","), page: 1, open: "" });
@@ -323,6 +359,54 @@ export default function Home() {
   /** 배너 배경 이펙트 — 사용자가 지정한 1182205. */
   const heroDoc = useAnss(Number(SHOWCASE_EFFECT));
   const known = useKnownMap();
+  const knownMeta = useKnownMeta();
+
+  /**
+   * 검색·페이지 이동 결과를 **에셋이 다 준비된 뒤에** 보여 준다.
+   *
+   * [문제] 행이 먼저 그려지고 아이콘이 하나씩 뒤늦게 튀어나왔다.
+   *   목록이 완성된 화면으로 보이지 않는다는 지적.
+   * [처리] 이번 페이지에 필요한 것을 먼저 다 받아 두고 그동안 로딩 표시를 낸다:
+   *   (1) 선수 아이콘 이미지(카드 아트) (2) 아이콘에 쓰이는 이펙트 문서·텍스처.
+   *   [_L 배경 이펙트는 제외] 그건 상세 화면에서만 쓰고 한 장이 평균 231KB·
+   *   최대 1.4MB 라, 25행치를 미리 받으면 목록이 오히려 한참 멈춘다.
+   *   문서 캐시 상한도 _L 은 6개다.
+   * [안전] 카드 목록 자체가 아직 없거나(pool 미도착) 프리로드가 실패해도
+   *   화면이 막히지 않도록, 실패·빈 목록이면 즉시 통과시킨다.
+   */
+  const wantKey = useMemo(
+    () => visible.map(g => {
+      const c = repCard(g, refAll);
+      return `${c.id}:${rowEffectId(c, pool, known, ctxOf(c, refAll?.[c.id], knownMeta)) ?? 0}`;
+    }).join(","),
+    [visible, pool, known, refAll, knownMeta]);
+  const [tilesFor, setTilesFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!visible.length) { setTilesFor(wantKey); return; }
+    let alive = true;
+    const entries = wantKey.split(",").filter(Boolean).map(t => t.split(":"));
+    const ids = entries.map(e => Number(e[1])).filter(n => n > 0);
+    /**
+     * 선수 아이콘 이미지도 같이 받는다 — 이것도 늦게 도착해 하나씩 튀어나온다.
+     *
+     * [문제] 여기서 받던 것은 **CL(대형)** 인데 행이 그리는 것은 `imageUrl(card)`
+     *   = **CS(소형)** 이다. 그래서 한 행이 이미지를 두 장 받았고, 그중 큰 쪽은
+     *   화면에 한 번도 쓰이지 않았다. 실측: CL 평균 185KB · CS 평균 25KB —
+     *   25행 한 페이지에서 4.6MB 가 버려지고, 로딩 게이트도 그만큼 늦게 열렸다.
+     * [처리] 행이 그리는 것과 **같은 URL** 을 예열한다. 카드 id 가 곧 파일명이라
+     *   `CS{id}.CHK` 로 만들 수 있다(전 15,222장 형식 동일).
+     */
+    const arts = entries.map(e => e[0]).filter(Boolean).map(id => new Promise<void>(done => {
+      const im = new Image();
+      im.onload = () => done(); im.onerror = () => done();
+      im.src = `/api/card-image?group=${Number(id.length === 9 ? id.slice(0, 1) : id.slice(0, 2))}&file=${encodeURIComponent(`CS${id}.CHK`)}`;
+    }));
+    if (!ids.length && !arts.length) { setTilesFor(wantKey); return; }
+    Promise.all([preloadTiles(ids).catch(() => undefined), ...arts])
+      .then(() => { if (alive) setTilesFor(wantKey); });
+    return () => { alive = false; };
+  }, [wantKey, visible.length]);
+  const tilesReady = tilesFor === wantKey;
   // 모든 탭 공통 열 (사용자 지정 배치): 선수 · 시리즈 · 스피리츠 · 탄도/구속 · 능력+스킬
   const leadCol = playerType === "pitcher" ? t("colSpeedKmh")
     : playerType === "batter" ? t("colTraj") : t("colTrajSpeed");
@@ -389,7 +473,7 @@ export default function Home() {
           <span>{t("filters")}</span>
           {activeCount > 0 && <em>{activeCount}</em>}
           {activeCount > 0 && <button className="fb-reset" onClick={e => { e.preventDefault(); setUi({
-            q: "", year: "전체", var: "전체", team: "", half: "전체", sp: "전체",
+            q: "", year: "전체", var: "전체", team: "", kind: "", half: "전체", sp: "전체",
             spirits: 0, traj: "", st: "", eq: "", page: 1, open: "" }); }}>{t("filterReset")}</button>}
         </summary>
 
@@ -425,6 +509,17 @@ export default function Home() {
               onClick={() => setUi({ year: y, page: 1, open: "" })}>{y === "전체" ? t("fAll") : y}</button>)}
           </div>
         </div>
+
+        {kinds.length > 0 && <div className="frow">
+          <b>{t("fKind")}</b>
+          <div className="chips kind-chips">
+            {kinds.map(([k, n]) => {
+              const on = list(ui.kind).includes(k);
+              return <button key={k} className={on ? "on" : ""} aria-pressed={on}
+                onClick={() => toggle("kind", k)}><span>{k === "覚" ? t("fAwaken") : k}</span><i>{n}</i></button>;
+            })}
+          </div>
+        </div>}
 
         <div className="frow">
           <b>{t("fSeries")}</b>
@@ -497,7 +592,9 @@ export default function Home() {
     </section>
     <section className={`player-table ${tableKind}`}>
       <div className="table-head">{columns.map((column, index) => <span key={`${column}-${index}`}>{column}</span>)}</div>
-      {visible.map(group => <PlayerGroupRow key={group.key} group={group} refAll={refAll} pool={pool} known={known}
+      {!tilesReady && visible.length > 0 &&
+        <p className="table-loading" role="status">{t("loading")}</p>}
+      {tilesReady && visible.map(group => <PlayerGroupRow key={group.key} group={group} refAll={refAll} pool={pool} known={known} knownMeta={knownMeta}
         open={openKey === group.key}
         onToggle={() => setUi({ open: openKey === group.key ? "" : group.key })}
         showType={playerType === "all"}/>)}

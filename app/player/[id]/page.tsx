@@ -1,16 +1,19 @@
 "use client";
+import { fetchGzipJson } from "../../anss/fetchGzip";
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import AnssStage from "../../anss/AnssStage";
 import { useAnss } from "../../anss/useAnss";
-import { useEffectPool, useKnownMap } from "../../anss/useEffectPool";
-import { MATCH_LABEL, effectCandidates, resolveEffect } from "../../anss/resolve";
+import { useEffectPool, useKnownMap, useKnownMeta } from "../../anss/useEffectPool";
+import { MATCH_LABEL, cardKind, effectCandidates, resolveEffect } from "../../anss/resolve";
+import { teamOf } from "../../teams";
 import { FX_CARD_FILL, fxCanvasFor, fxScaleFor } from "../../anss/types";
-import { APTITUDE_LABEL, type Card, type Pitch } from "../../search";
+import { APTITUDE_LABEL, type Card, type Pitch, teamLabel } from "../../search";
 import { PLAYER_NOTE, PLAYER_REV } from "../../anss/version";
 import { useRefStatsForId } from "../../refStats";
-import { Grade, GradeMark, grade } from "../../grade";
+import { Grade, grade } from "../../grade";
+import { PITCH_NAME_JA } from "../../pitchNames";
 import { Skills } from "../../skills";
 import { Trajectory } from "../../trajectory";
 import { LangSwitch, ThemeSwitch, useT } from "../../i18n";
@@ -34,7 +37,9 @@ const FX_FILL_SCALE = FX_SCALE * FX_CARD_FILL;
 
 
 const meet = (card: Card) => card.base ? Math.round((card.base.meetR + card.base.meetL) / 2) : undefined;
-const maxPitchPower = (card: Card) => card.pitching?.pitches.reduce((best, pitch) => Math.max(best, pitch.power), 0);
+// 레퍼런스로 채운 카드는 power 가 없다(등급 문자만) — 그런 값은 건너뛴다.
+const maxPitchPower = (card: Card) =>
+  card.pitching?.pitches.reduce((best, pitch) => Math.max(best, pitch.power ?? 0), 0);
 const imageUrl = (card: Card) => `/api/card-image?group=${card.group}&file=${encodeURIComponent(card.largeFile)}`;
 
 /**
@@ -65,81 +70,225 @@ function StatRow({ label, value, suffix, floor = 0, ceil = 100 }:
 
 
 /**
- * 인게임식 구종 차트 (game8 카드 페이지의 캡처와 같은 표현).
- * 공에서 변화 방향으로 세그먼트 바(변화량 = 칠해진 칸 수)가 뻗고,
- * 끝에 구종 라벨 + 랭크 메달 + 구속을 단다. ● 는 스트레이트로 공 위에 단다.
- * 방향 0~5 = 제1구종 세트, 6~11 = 제2구종 세트 (12방향 원장).
+ * 인게임 구종 차트 — **원본 좌표계를 그대로 쓴다.**
+ *
+ * [프레임] 사용자가 준 원본 캡처와 동일한 632x311, 공 중심 (311,133) r=27.
+ *   공은 그 캡처에서 잘라 온 원본 파츠다. 그래서 막대/라벨도 캡처에서 잰
+ *   값을 1:1 로 쓴다 — 비율을 새로 잡을 이유가 없다.
+ * [라벨 위치] 캡처에서 판 5개의 경계상자를 실측했다(모두 136x47):
+ *     위      중심( 308, 35)  공기준 (  -2,  -98)
+ *     왼쪽    중심( 136,129)  공기준 (-174,   -4)
+ *     왼아래  중심( 158,222)  공기준 (-154,  +89)
+ *     오른아래중심( 462,222)  공기준 (+152,  +89)
+ *     아래    중심( 308,250)  공기준 (  -2, +117)
+ *   반지름이 일정하지 않다 — 방향별 고정 오프셋이므로 그대로 표에 넣는다.
+ *   오른쪽(→)은 캡처에 없어 왼쪽을 좌우 대칭한 값을 쓴다.
+ * [손] 저장된 direction 은 **우완 기준 정본**이다. 카드 5,190장 실측 결과
+ *   좌완/우완의 kind별 방향 분포가 같다(예: 슬라이더 kind 4 는 양쪽 다 0).
+ *   원본은 `VarietyPitches::GetVarietyPitchesForHander` /
+ *   `ReverseVarietyPitchesDirection` 로 표시할 때 뒤집는다. 그래서 좌완이면
+ *   0<->4, 1<->3 으로 좌우 반전한다(2 아래·5 직구는 그대로).
  */
 const FAN_DIR: Record<number, [number, number]> = {
   0: [-1, 0], 1: [-0.72, 0.72], 2: [0, 1], 3: [0.72, 0.72], 4: [1, 0],
 };
+/** 방향별 라벨 판 중심 오프셋 (원본 실측). */
+const FAN_LABEL: Record<number, [number, number]> = {
+  0: [-174, -4], 1: [-154, 89], 2: [-2, 117], 3: [152, 89], 4: [174, -4],
+};
+/** 좌완 좌우 반전 (5=직구는 그대로). */
+const MIRROR_DIR: Record<number, number> = { 0: 4, 1: 3, 2: 2, 3: 1, 4: 0, 5: 5 };
 
-function PitchFan({ pitches, title }: { pitches: Pitch[]; title: string }) {
-  const W = 480, H = 348, BX = 240, BY = 96, R0 = 40, SEG = 15, GAP = 3, SLOTS = 7;
-  const breaks = pitches.filter(x => (x.direction % 6) !== 5);
-  const straights = pitches.filter(x => (x.direction % 6) === 5);
-  const maxLv = Math.max(0, ...breaks.map(x => x.level));
+function PitchFan({ pitches, title, lefty, ja }:
+  { pitches: Pitch[]; title: string; lefty: boolean; ja: boolean }) {
+  /**
+   * 변화량 막대 치수 — 원본 캡처 화소 실측.
+   *   트랙 시작 R=24 · 칸 피치 7.5 · 칸 길이 5.5 · 칸 폭 15 · 칸 7개
+   *   칸 색 켜짐 #d26688(등급색으로 채움) / 꺼짐 #8f9092, 칸 사이는 거의 검정,
+   *   각 칸 위 약 40% 가 밝다. 7번째 칸은 바깥으로 뾰족한 화살촉이다.
+   */
+  // R0 는 **칸이 시작하는 반지름**이다. 24 는 어두운 캡슐 트랙이 시작하는
+  // 자리고(공 뒤로 들어간다), 원본에서 첫 칸의 잉크는 y=163 = 반지름 30
+  // 부터다. 24 로 두면 첫 칸이 공(r=27)에 가려 안 보인다.
+  const W = 632, H = 311, BX = 311, BY = 133, R0 = 30, TRACK0 = 24, SLOTS = 7;
+  const PITCH = 7.5, CELL = 5.5, CW = 15;
+  const dirOf = (p: Pitch) => (lefty ? MIRROR_DIR[p.direction % 6] : p.direction % 6);
+  const nameOf = (p: Pitch) => (ja ? (PITCH_NAME_JA[p.kind] ?? p.name) : p.name);
+  const breaks = pitches.filter(x => dirOf(x) !== 5);
+  const straights = pitches.filter(x => dirOf(x) === 5);
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const movementGrade = (level: number) => ["G", "F", "E", "D", "C", "B", "A", "S"][clamp(level, 0, 7)];
+  const movementColors: Record<string, string> = {
+    S: "#ffe1f5", A: "#ff9be1", B: "#f56464", C: "#eb7824",
+    D: "#f5af1a", E: "#91b445", F: "#5573a5", G: "#5f5a73",
+  };
 
-  const label = (cx: number, cy: number, pitch: Pitch, key: string) => {
-    const w = Math.max(96, pitch.name.length * 13 + 34);
-    const x = clamp(cx - w / 2, 6, W - w - 6);
-    return <g key={key}>
-      <rect x={x} y={cy} width={w} height={27} rx={7} fill="#14181f" stroke="#434b5e" strokeWidth={1.4}/>
-      <text x={x + w / 2} y={cy + 18} textAnchor="middle" fontSize={13} fontWeight={800} fill="#f2f4f8">{pitch.name}</text>
-      <GradeMark value={pitch.power} x={x + w - 3} y={cy + 2} size={24}/>
-      <rect x={x + w / 2 - 44} y={cy + 31} width={88} height={20} rx={5} fill="#0d1015"/>
-      <text x={x + w / 2} y={cy + 45} textAnchor="middle" fontSize={12} fontWeight={800} fill="#ffd977">{pitch.speed} km/h</text>
+  /**
+   * 구종 등급 코인 — 글자가 파인 원형 배지.
+   *
+   * [원본 확인] 사용자가 준 캡처를 10배로 확대해 보면 `public/grade/*.png`
+   *   (글자만 있는 스탯 등급 아이콘)와 **다른 물건**이다. 원형 판에 글자가
+   *   어둡게 파여 있고 위쪽에 광택이 있다.
+   * [실측 색] 캡처에 있는 두 등급만 잴 수 있었다:
+   *     B  밝은부분 #de628c · 중앙 #c4587a   (분홍)
+   *     C  밝은부분 #f1a15a · 중앙 #de9148   (주황)
+   * [미확인] S·A·D·E·F·G 코인은 이 캡처에 없다. 원본 스프라이트도 지금
+   *   확보한 컨테이너(로컬 65개 + 새로 받은 ARSHOWALL1500/ARSPSKILL1820/
+   *   GA_UI1850/ALBUM1630, 이미지 647장)에서 찾지 못했다. 색 검색
+   *   (#de628c/#f1a15a)으로도 나오지 않았다. 그래서 나머지는 사용자가 준
+   *   변화량 팔레트를 임시로 쓴다 — **확정값이 아니다.**
+   * [다음 검증] 다른 등급 배지가 보이는 화면 캡처 1장이면 전부 확정된다.
+   */
+  const COIN: Record<string, string> = {
+    B: "#de628c", C: "#f1a15a",                       // 원본 실측
+    S: "#ffe1f5", A: "#ff9be1", D: "#f5af1a",         // 미확인 (임시)
+    E: "#91b445", F: "#5573a5", G: "#5f5a73",
+  };
+  const rankCoin = (rank: string | null, cx: number, cy: number) => {
+    const r = rank ?? "G";
+    return <g>
+      <circle cx={cx} cy={cy} r={16} fill="#0a0b0c"/>
+      <circle cx={cx} cy={cy} r={14} fill={COIN[r] ?? "#888"} stroke="#08090a" strokeWidth={1.5}/>
+      <path d={`M${cx - 11} ${cy - 4} a 11 11 0 0 1 22 0 z`} fill="#fff" opacity={0.22}/>
+      <text className="pf-rank" x={cx} y={cy + 6} textAnchor="middle">{r}</text>
     </g>;
   };
 
+  /**
+   * 라벨 판 — 원본 실측 136x47, 아래 구속띠 136x27, 등급 코인 r 14.
+   *
+   * [글자 맞춤] 원본은 판을 넓히지 않는다. **가로로 눌러서** 맞춘다.
+   *   캡처 실측(잉크 경계상자):
+   *     ストレート(5자)      폭 92  높이 16  → 글자당 18.4
+   *     ナックルカーブ(7자)   폭 102 높이 16  → 글자당 14.6
+   *     サークルチェンジ(8자) 폭 102 높이 16  → 글자당 12.8
+   *   길이가 늘어도 **폭은 102 에서 멈추고 높이는 16 그대로**다. 즉 세로는
+   *   두고 가로만 압축한다. SVG 의 textLength + lengthAdjust=spacingAndGlyphs
+   *   가 정확히 같은 동작이라 그대로 쓴다. 짧은 이름은 자연폭이라 안 눌린다.
+   */
+  const PW = 136, PH = 47, SH = 27, TXT_MAX = 102, FS = 18;
+  /** 전각(가나·한자·전각영숫자)은 1em, 그 외는 약 0.55em 로 자연폭을 추정. */
+  const textW = (t: string) => {
+    let u = 0;
+    for (const ch of t) u += /[\u3000-\u30ff\u3400-\u9fff\uff00-\uff60]/.test(ch) ? 1 : 0.55;
+    return u * FS;
+  };
+  const label = (cx: number, cy: number, pitch: Pitch, key: string) => {
+    const nm = nameOf(pitch);
+    const nat = textW(nm);
+    const tl = nat > TXT_MAX ? TXT_MAX : undefined;
+    const x = clamp(cx - PW / 2, 3, W - PW - 3), y = clamp(cy - PH / 2, 3, H - PH - SH - 3);
+    return <g key={key}>
+      <rect x={x - 2} y={y - 2} width={PW + 4} height={PH + 4} rx={6} fill="#07090b" stroke="#050607" strokeWidth={2}/>
+      <rect x={x} y={y} width={PW} height={PH} rx={5} fill="url(#pitchPlate)" stroke="#d5d7d8" strokeWidth={1.5}/>
+      <rect x={x + 3} y={y + 3} width={PW - 6} height={PH - 6} rx={3} fill="none" stroke="#5e6265" strokeWidth={1}/>
+      <text className="pf-name" x={x + PW / 2} y={y + PH / 2 + 6} textAnchor="middle"
+        style={{ fontSize: FS }} textLength={tl} lengthAdjust={tl ? "spacingAndGlyphs" : undefined}>{nm}</text>
+      {rankCoin(pitch.rank ?? (pitch.power != null ? grade(pitch.power) : null), x + PW - 2, y + 2)}
+      <rect x={x} y={y + PH + 2} width={PW} height={SH} rx={2} fill="url(#speedPlate)"/>
+      <text className="pf-speed" x={x + PW / 2} y={y + PH + 21} textAnchor="middle">{pitch.speed}<tspan style={{ fontSize: 13 }}> km/h</tspan></text>
+    </g>;
+  };
+
+  // 직구 캡 — 원본은 공 위에 뾰족한 마무리 캡만 둔다.
+  // 실측: 공 바깥 R 31, 길이 7, 밑변 14, 윗변 9, 색 (137,130,153)=#898299.
+  const CAP_R = 31, CAP_L = 7, CAP_WB = 14, CAP_WT = 9;
+  const straightCap = <g transform={`translate(${BX},${BY}) rotate(-90)`}>
+    <rect x={CAP_R - 2.5} y={-CAP_WB / 2 - 2.5} width={CAP_L + 5} height={CAP_WB + 5} rx={4} fill="#0b0c0d"/>
+    <polygon points={`${CAP_R},${-CAP_WB / 2} ${CAP_R + CAP_L},${-CAP_WT / 2} ${CAP_R + CAP_L},${CAP_WT / 2} ${CAP_R},${CAP_WB / 2}`} fill="#898299"/>
+    <rect x={CAP_R} y={-CAP_WB / 2} width={CAP_L * 0.55} height={CAP_WB * 0.4} fill="#fff" opacity={0.2}/>
+  </g>;
+
   return <div className="pitch-fan">
     <p className="pf-title">{title}</p>
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={title}>
-      {/* 변화 방향 바 */}
+    {/* 좌표는 원본 632x311 그대로 두고, **빈 여백만 잘라** 보이는 크기를 키운다.
+        내용 최대 범위: x 67..555 (좌우 라벨판), y 9.5..302.5 (직구판~아래 구속띠).
+        기하는 하나도 안 바꾸고 뷰박스만 좁히므로 원본 실측값이 그대로 유지된다. */}
+    <svg viewBox="63 5 496 302" role="img" aria-label={title}>
+      <defs>
+        <linearGradient id="pitchPlate" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#5a5d60"/><stop offset=".18" stopColor="#282b2e"/><stop offset=".72" stopColor="#1b1e20"/><stop offset="1" stopColor="#3f4244"/>
+        </linearGradient>
+        <linearGradient id="speedPlate" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#050505"/><stop offset="1" stopColor="#111"/>
+        </linearGradient>
+        <clipPath id="originalBall"><circle cx={BX} cy={BY} r="27"/></clipPath>
+      </defs>
+      {/* 변화 방향 바 — 어두운 캡슐 트랙 + 칸 + 끝 화살촉 */}
       {breaks.map((x, i) => {
-        const [dx, dy] = FAN_DIR[x.direction % 6] ?? [0, 1];
-        const hot = x.level === maxLv && maxLv > 0;
-        const segs = Array.from({ length: SLOTS }, (_, k) => {
-          const d = R0 + k * (SEG + GAP);
-          const cx = BX + dx * d, cy = BY + dy * d;
-          const ang = Math.atan2(dy, dx) * 180 / Math.PI;
-          const on = k < x.level;
-          return <rect key={k} x={-SEG / 2} y={-6} width={SEG} height={12} rx={3}
-            transform={`translate(${cx},${cy}) rotate(${ang})`}
-            fill={on ? (hot ? "#ff5f8a" : (k % 2 ? "#ffd977" : "#f5b52e")) : "#262c3a"}/>;
+        const d6 = dirOf(x);
+        const [dx, dy] = FAN_DIR[d6] ?? [0, 1];
+        const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+        const fill = movementColors[movementGrade(x.level)] ?? "#8f9092";
+        const track = SLOTS * PITCH;
+        const cells = Array.from({ length: SLOTS }, (_, k) => {
+          const d = R0 + k * PITCH;
+          const c = k < x.level ? fill : "#8f9092";
+          const tip = k === SLOTS - 1;
+          const shape = tip
+            ? <polygon points={`${d},${-CW / 2} ${d + CELL * 0.45},${-CW / 2} ${d + CELL},0 ${d + CELL * 0.45},${CW / 2} ${d},${CW / 2}`} fill={c}/>
+            : <rect x={d} y={-CW / 2} width={CELL} height={CW} rx={1} fill={c}/>;
+          return <g key={k}>
+            {shape}
+            <rect x={d} y={-CW / 2} width={tip ? CELL * 0.45 : CELL} height={CW * 0.4} rx={1} fill="#fff" opacity={0.26}/>
+          </g>;
         });
-        const end = R0 + SLOTS * (SEG + GAP) + 12;
-        const lx = BX + dx * end, ly = BY + dy * end;
-        return <g key={i}>{segs}{label(lx, dy > 0.2 ? ly : ly - 14, x, `l${i}`)}</g>;
+        const [ox, oy] = FAN_LABEL[d6] ?? [0, 117];
+        return <g key={i}>
+          <g transform={`translate(${BX},${BY}) rotate(${ang})`}>
+            <rect x={TRACK0} y={-CW / 2 - 2.5} width={R0 - TRACK0 + track + 4} height={CW + 5} rx={(CW + 5) / 2} fill="#0b0c0d"/>
+            {cells}
+          </g>
+          {label(BX + ox, BY + oy, x, `l${i}`)}
+        </g>;
       })}
-      {/* 공 */}
-      <circle cx={BX} cy={BY} r={24} fill="#f5f6f8" stroke="#c9cdd6" strokeWidth={1.5}/>
-      <path d={`M ${BX - 17} ${BY - 15} q 10 15 0 30`} fill="none" stroke="#d0483f" strokeWidth={2.2}/>
-      <path d={`M ${BX + 17} ${BY - 15} q -10 15 0 30`} fill="none" stroke="#d0483f" strokeWidth={2.2}/>
-      {/* 스트레이트 (공 위) */}
-      {straights.map((x, i) => label(BX, 8 + i * 58, x, `s${i}`))}
+      {straights.length > 0 && straightCap}
+      {/* 사용자가 제공한 원본 화면에서 그대로 가져온 야구공 파츠. */}
+      <image href="/img/pitch-ui/original-pitch-atlas.png" x={BX - 311} y={BY - 133} width="632" height="311" clipPath="url(#originalBall)"/>
+      {/* 직구는 공 위 (원본 실측 오프셋 -2,-98) */}
+      {straights.map((x, i) => label(BX - 2, BY - 98 + i * (PH + SH + 8), x, `s${i}`))}
     </svg>
   </div>;
 }
 
-export default
-
-function PlayerPage() {
+export default function PlayerPage() {
   const params = useParams<{ id: string }>();
   const [card, setCard] = useState<Card | null>(null);
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
-    fetch(`/data/card-shards/${params.id.slice(0, 2)}.json`).then(response => response.json()).then((cards: Card[]) => {
+    // 카드 데이터가 갱신되면 브라우저 캐시 때문에 옛 샤드가 그대로 쓰인다.
+    // cards.json 과 같은 방식으로 버전 꼬리표를 붙인다(구종 복구 48장, r111).
+    fetchGzipJson<Card[]>(`/data/card-shards/${params.id.slice(0, 2)}.json.gz?v=2138`).then((cards: Card[] | null) => {
+      if (!cards) { setMissing(true); return; }
       const found = cards.find(item => item.id === params.id);
       if (found) setCard(found); else setMissing(true);
     }).catch(() => setMissing(true));
   }, [params.id]);
 
+  /**
+   * 같은 선수의 다른 버전 — 히어로 옆 세로 레일에서 바로 갈아탄다 (사용자 요청).
+   * cards.json 은 홈에서 이미 받는 파일이라 HTTP 캐시로 재사용된다.
+   */
+  const [versions, setVersions] = useState<Card[]>([]);
+  useEffect(() => {
+    if (!card?.playerId) { setVersions([]); return; }
+    let alive = true;
+    fetch("/data/cards.json").then(r => r.json()).then((all: Card[]) => {
+      if (!alive) return;
+      const list = all.filter(c => c.playerId === card.playerId)
+        .sort((a, b) => b.year - a.year || a.variant.localeCompare(b.variant));
+      setVersions(list);
+    }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [card?.playerId]);
+
   // 카드 → 배경 이펙트. 훅 순서를 고정하려고 조기 return 앞에서 호출한다.
   const pool = useEffectPool();
   const known = useKnownMap();
+  const knownMeta = useKnownMeta();
+  // 매칭 문맥(종류·리그)이 표기값에서 오므로 매칭보다 먼저 읽는다.
+  const ref = useRefStatsForId(params?.id);
   const [picked, setPicked] = useState<string | null>(null);
   // 기본값은 카드 틀에 맞춰 눈으로 맞춘 값이다(원본 규칙이 아니라 표시 설정).
   const [fxScale, setFxScale] = useState(100);   // 카드 아트 기준 배율(541/660) 대비 %
@@ -150,10 +299,16 @@ function PlayerPage() {
   const [fxView, setFxView] = useState(150);         // 보이는 범위(캔버스/스테이지) %
   const [mute, setMute] = useState<Set<string>>(new Set());
   useEffect(() => { setPicked(null); }, [card?.id]);
+  /**
+   * 매칭 문맥 — 종류 코드(SL3 …)와 소속 리그. (group, variant) 만으로는
+   * SL1/SL2/SL3 가 안 갈리고, BEST NINE·TITLE HOLDER 의 sub 는 리그로 갈린다.
+   */
+  const fxCtx = { kind: cardKind(ref?.series), league: teamOf(ref?.team ?? "")?.league ?? null,
+                  meta: knownMeta };
   const match = card && pool.length
-    ? resolveEffect(card.group, card.variant, pool, known, card.id) : null;
+    ? resolveEffect(card.group, card.variant, pool, known, card.id, fxCtx) : null;
   const candidates = card && pool.length
-    ? effectCandidates(card.group, card.variant, pool, known) : [];
+    ? effectCandidates(card.group, card.variant, pool, known, fxCtx) : [];
   const effectId = picked ?? match?.effectId ?? null;
   const level = picked
     ? candidates.find(c => c.effectId === picked)?.level ?? "manual"
@@ -161,10 +316,32 @@ function PlayerPage() {
   useEffect(() => { setMute(new Set()); }, [effectId]);
   const noEffect = !picked && match?.level === "none";
   const doc = useAnss(!noEffect && effectId ? Number(effectId) : null);
-  const ref = useRefStatsForId(params?.id);
-  const { t, tv, ta } = useT();
+  const { t, tv, ta, lang } = useT();
+  const growthLabel = (label: string) => ({
+    "ミート": t("colMeet"),
+    "パワー": t("colPower"),
+    "走力": t("colSpeed"),
+    "球威": t("colVelocity"),
+    "制球": t("colControl"),
+    "スタミナ": t("colStamina"),
+  } satisfies Record<string, string>)[label] ?? label;
   // 캔버스는 이펙트마다 다르다. 640x1136 로 고정하면 85% 가 가로로,
   // 31% 가 세로로 잘린다(스테이지 분포 720x1136 350 · 720x1484 208 · 640x1136 102).
+  /**
+   * 캔버스는 고정 픽셀로 렌더되므로, 틀 폭이 바뀌면 CSS 배율(--fx-fit)로 따라간다.
+   * 기준 460px = 현재 렌더 배율(CARD_FRAME_H 541)에서 카드가 틀을 채우는 폭.
+   * (ref 콜백이 이 트리에서 실행되지 않아 effect + ResizeObserver 로 건다)
+   */
+  useEffect(() => {
+    const el = document.querySelector<HTMLElement>(".detail-page .card-frame");
+    if (!el) return;
+    const apply = () => el.style.setProperty("--fx-fit", String(el.clientWidth / 460));
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [card?.id]);
+
   const fxBox = useMemo(
     () => fxCanvasFor(FX_FILL_SCALE, doc?.stageW, doc?.stageH, fxView / 100 / FX_CARD_FILL),
     [doc?.stageW, doc?.stageH, fxView]);
@@ -203,14 +380,53 @@ function PlayerPage() {
       <LangSwitch/><ThemeSwitch/>
     </header>
     <section className="detail-page">
+      {/* [상단] 선수 이름 · 시리즈 · 스피리츠 (사용자 지정 5구역 배치) */}
+      <header className="detail-head">
+        <div className="dh-id">
+          <p className="reading">{card.roman || `IMAGE ${card.id}`}</p>
+          <h1>{card.name}</h1>
+        </div>
+        <div className="detail-tags">
+          <span>{ref?.series ?? card.year}</span>
+          {ref?.team && <span>{tv(teamLabel(ref.team))}</span>}
+          <span>{card.playerType === "pitcher" ? t("pitcherCard") : t("batterCard")}</span>
+          {(ref?.trajectory || card.trajectory) &&
+            <span className="traj"><Trajectory value={ref?.trajectory ?? card.trajectory}/></span>}
+        </div>
+        <div className="ref-chips dh-chips">
+          {ref?.spirits != null && <span className="spirit"><b>{t("spirits")}</b><i>{ref.spirits.toLocaleString()}</i></span>}
+          {ref?.cost != null && <span><b>{t("cost")}</b><i>{ref.cost}</i></span>}
+          {ref?.hand && <span><b>{ref.kind === "batter" ? t("bats") : t("throws")}</b><i>{tv(ref.hand)}</i></span>}
+          {ref?.pos && <span><b>{t("position")}</b><i>{tv(ref.pos)}</i></span>}
+        </div>
+      </header>
       <div className="detail-art">
+      {/* 선수 이미지 좌측 세로 버전 레일 (사용자 지시) */}
+      {versions.length > 1 && <nav className="version-rail" aria-label="다른 버전">
+        <p className="vr-title">다른 버전 <b>{versions.length}</b></p>
+        {versions.map(v => {
+          const on = v.id === card.id;
+          return <a key={v.id} href={`/player/${v.id}`} className={on ? "on" : ""}
+            title={`${v.year} · VAR ${v.variant}`}>
+            <img src={`/api/card-image?group=${v.group}&file=${encodeURIComponent(v.file)}`}
+              alt="" decoding="async"
+              onError={e => { e.currentTarget.style.visibility = "hidden"; }}/>
+            <span><b>{v.year}</b><small>VAR {v.variant}</small></span>
+          </a>;
+        })}
+      </nav>}
         <div className="card-frame">
           <span className="fx-layer whole">
             <AnssStage doc={doc} width={fxBox.w} height={fxBox.h}
               scale={FX_FILL_SCALE * (fxScale / 100)}
               cardArtScale={1 / FX_CARD_FILL}
               offsetX={fxX} offsetY={fxY} speed={fxSpeed / 100} intensity={fxLight / 100}
-              cardArt={imageUrl(card)} mute={mute}/>
+              cardArt={imageUrl(card)} mute={mute} renderScale={0.75}
+              /* 이펙트가 가진 **불투명 배경 레이어**(일반 블렌드 판)를 끈다.
+                 그 판을 그리면 우리가 뒤에 깐 구장 배경이 통째로 가려져
+                 이펙트가 검은 바탕처럼 보인다. /effects 의 "배경 레이어
+                 ON/OFF" 토글과 같은 스위치다. */
+              backdrop={false}/>
           </span>
           <span className="detail-series">{card.playerType === "pitcher" ? t("tabPitcher") : t("tabBatter")}</span>
           <span className="effect-id-label"><i/> EFFECT {effectId ?? "—"} · {PLAYER_REV}</span>
@@ -336,20 +552,12 @@ function PlayerPage() {
         </details>
       </div>
 
-      <div className="detail-info">
-        <p className="eyebrow">PLAYER DETAIL</p>
-        <p className="reading">{card.roman || `IMAGE ${card.id}`}</p>
-        <h1>{card.name}</h1>
-        <div className="detail-tags">
-          <span>{card.year}</span>
-          <span>{card.playerType === "pitcher" ? t("pitcherCard") : t("batterCard")}</span>
-          {(ref?.trajectory || card.trajectory) &&
-            <span className="traj"><Trajectory value={ref?.trajectory ?? card.trajectory}/></span>}
-          <span>VAR {card.variant}</span>
-          <span className={card.verified ? "ok" : "warn"}>{card.verified ? t("verified") : t("unverified")}</span>
-        </div>
-
-        {ref?.max && <>
+      {/* [우측] 핵심 데이터 — 스텟 + 스킬 */}
+      <aside className="detail-side">
+        {ref?.max && <div className="detail-quad">
+          {/* 윗줄 = 스텟 | 스킬, 아랫줄 = 구종 | 제2구종.
+              아래 .pitch-fans 와 같은 2열·같은 간격이라 열이 맞는다. */}
+          <div className="quad-cell">
           <h3>{t("secCardAbility")} <small>{t("secCardAbilitySub")} ({ref.series})</small></h3>
           {/* 좌 3 = 주능력, 우 3 = 수비. 한 덩어리로 본다. */}
           <div className="stat-grid">
@@ -362,6 +570,7 @@ function PlayerPage() {
                 <StatCell label={t("colVelocity")} value={ref.max.velocity}/>
                 <StatCell label={t("colControl")} value={ref.max.control}/>
                 <StatCell label={t("colStamina")} value={ref.max.stamina}/>
+                <StatCell label={t("colSpeedKmh")} value={card.pitching?.maxSpeed} suffix="km/h"/>
               </>}
             </div>
             <div className="sgcol">
@@ -370,40 +579,42 @@ function PlayerPage() {
               <StatCell label={t("colArm")} value={ref.defense?.arm ?? card.defense?.shoulder}/>
             </div>
           </div>
-          <div className="ref-chips">
-            <span><b>{t("spirits")}</b><i>{(ref.spirits ?? 0).toLocaleString()}</i></span>
-            <span><b>{t("cost")}</b><i>{ref.cost}</i></span>
-            {ref.hand && <span><b>{ref.kind === "batter" ? t("bats") : t("throws")}</b><i>{tv(ref.hand)}</i></span>}
-            {ref.pos && <span><b>{t("position")}</b><i>{tv(ref.pos)}</i></span>}
-            {ref.pitchRanks && <span><b>{t("pitchRanks")}</b><i>{ref.pitchRanks}</i></span>}
           </div>
-          {(ref.abilities?.length ?? 0) > 0 && <>
+          {(ref.abilities?.length ?? 0) > 0 && <div className="quad-cell">
             <h3>{t("secSkills")} <small>{ref.abilities!.length}{t("secSkillsSub")}</small></h3>
             <Skills names={ref.abilities!}/>
-          </>}
-        </>}
+            {/*
+              [확인된 사실] rakda3 는 각성 전 **기본형** 특능만 수록한다.
+                上沢 2026 SL3 실측: 인게임은 超キレ◎, rakda3 라이브/보관본 모두
+                キレ◎. 로컬 게임 데이터·libAll 에 스킬 문자열이 아예 없어
+                (서버 전송) 카드별 超 승급 여부를 확정할 원본이 없다.
+              [처리] 값을 지어내지 않고, 표가 기본형임을 고지한다.
+            */}
+            <small className="skill-tier-note">{t("skillTierNote")}</small>
+          </div>}
+        </div>}
         {card.playerType === "pitcher" && pitching ? <>
           {!ref && <>
             <h3>{t("secPlayerBase")} <small>{t("secPlayerBaseSub")}</small></h3>
-            <div className="stat-list scope-player">
-              <StatRow label={t("colSpeedKmh")} value={pitching.maxSpeed} suffix="km/h" floor={115} ceil={165}/>
-              <StatRow label={t("colStamina")} value={pitching.stamina}/>
+            <div className="quick-stat-grid scope-player">
+              <StatCell label={t("colSpeedKmh")} value={pitching.maxSpeed} suffix="km/h"/>
+              <StatCell label={t("colVelocity")} value={maxPitchPower(card)}/>
+              <StatCell label={t("colStamina")} value={pitching.stamina}/>
+              <StatCell label={t("colArm")} value={card.defense?.shoulder}/>
             </div>
           </>}
-          <h3>{t("secCardAbility")}</h3>
-          <div className="stat-list">
-            {ref && <StatRow label={t("colSpeedKmh")} value={pitching.maxSpeed} suffix="km/h" floor={115} ceil={165}/>}
-            {!ref && <StatRow label={t("colVelocity")} value={maxPitchPower(card)}/>}
-            <StatRow label={t("colArm")} value={card.defense?.shoulder}/>
-          </div>
           <h3>{t("secPitches")} <small>{pitching.pitches.length} · {t("secPitchesSub")}</small></h3>
+          {pitching.pitches.length === 0 && <p className="empty-data">{t("noPitchData")}</p>}
           {(() => {
             const s1 = pitching.pitches.filter(x => x.direction < 6);
             const s2 = pitching.pitches.filter(x => x.direction >= 6);
-            return <>
-              {s1.length > 0 && <PitchFan pitches={s1} title={t("pitch1")}/>}
-              {s2.length > 0 && <PitchFan pitches={s2} title={t("pitch2")}/>}
-            </>;
+            // 좌완이면 원본처럼 좌우 반전한다 (ref.hand 의 '左').
+            const lefty = ref?.hand === "左";
+            const ja = lang !== "ko";
+            return <div className="pitch-fans">
+              {s1.length > 0 && <PitchFan pitches={s1} title={t("pitch1")} lefty={lefty} ja={ja}/>}
+              {s2.length > 0 && <PitchFan pitches={s2} title={t("pitch2")} lefty={lefty} ja={ja}/>}
+            </div>;
           })()}
         </> : <>
           {/*
@@ -444,6 +655,22 @@ function PlayerPage() {
             </div>
           </>}
         </>}
+      {/* [우측 하단] 성장 데이터 — 구종 아래 (사용자 지시) */}
+      {ref?.growth && <div className="detail-growth">
+        <h3>{t("secGrowth")} <small>{t("secGrowthSub")}</small></h3>
+        <div className="growth-table-wrap">
+          <table className="growth-table">
+            <thead><tr><th>STAT</th>{ref.growth.rows.map(row => <th key={row.level}>Lv.{row.level}</th>)}</tr></thead>
+            <tbody>{ref.growth.labels.map((label, statIndex) => <tr key={label}>
+              <th>{growthLabel(label)}</th>
+              {ref.growth!.rows.map(row => <td key={row.level} data-grade={grade(row.values[statIndex])}>{row.values[statIndex]}</td>)}
+            </tr>)}</tbody>
+          </table>
+        </div>
+      </div>}
+      </aside>
+      {/* [하단] 기타 정보 — 원본/매칭 */}
+      <div className="detail-info">
 
         <details className="res-fold">
           <summary>{t("secResources")}</summary>

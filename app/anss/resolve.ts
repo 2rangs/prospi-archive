@@ -27,7 +27,9 @@
 
 export type MatchLevel =
   | "known"     // 실측 매핑
+  | "known-kind"// 같은 (group, variant, 종류) 의 실측을 전파 — 종류로 갈린 버킷
   | "family"    // 같은 (group, variant 접두) 의 실측을 전파 — 21건 실측에서 충돌 0
+  | "league"    // series 는 실측/규칙, sub 는 소속 리그로 결정 (BEST NINE·TITLE HOLDER)
   | "none"      // 실측 결과 전용 이펙트가 없음
   | "rule"      // variant -> series 규칙 예측 (실측 2건 일치)
   | "guess"     // 같은 group 안에서 고른 추정값 (검증 안 됨)
@@ -103,6 +105,39 @@ export function decodeEffectId(id: string): EffectKey | null {
  */
 export type LearnedKey = { series: string; sub: string; effectId?: string };
 
+export type League = "central" | "pacific";
+
+/**
+ * 매칭 문맥 — 카드 id·group·variant 만으로는 안 갈리는 축.
+ *
+ * [확인된 사실] group 12 · variant 0700 한 버킷에 이펙트가 둘 있다.
+ *   1214105 (SL3 12장) · 1214005 (SL1·SL2 2장). 실측 14건이 종류 코드로 완전히
+ *   갈린다. 즉 variant 는 SL 계열을 세분하지 않는다.
+ * [확인된 사실] series 31/32 는 sub 가 13·14 뿐이고 개수가 정확히 짝을 이룬다
+ *   (31: 11/11 · 32: 10/10). 682개 이펙트에서 sub 13/14 를 쓰는 series 는 이
+ *   둘뿐이다. 텍스처 문구가 sub 13 = "Central League" · sub 14 = "Pacific
+ *   League" 이고(2015·2017·2023·2024 네 쌍 전부 확인), 실측 2건도 일치한다
+ *   (佐藤 輝明 阪神→1131135 · レイエス 日本ハム→1131145).
+ * [해석] series 31 = BEST NINE · 32 = TITLE HOLDER · sub = 소속 리그.
+ * [신뢰도] CONFIRMED
+ */
+export type ResolveOpts = {
+  /** 이 카드의 종류 코드 (SL3 · TS1 · 覚 · "(기본)"). ref-stats 시리즈 문자열에서 뽑는다. */
+  kind?: string | null;
+  /** 이 카드 선수의 소속 리그. */
+  league?: League | null;
+  /** 실측 카드들의 종류·리그 — known-map.json 의 meta 블록. */
+  meta?: Record<string, { kind?: string; league?: string }> | null;
+};
+
+/** "2026S1SP(SL3)" -> "SL3" · "2025S2覚(若手)" -> "覚" · 통상 -> "(기본)" */
+export function cardKind(series?: string | null): string | null {
+  if (!series) return null;
+  const m = /(SP|覚)\(([^)]+)\)/.exec(series);
+  if (!m) return "(기본)";
+  return m[1] === "覚" ? "覚" : m[2];
+}
+
 /**
  * variant 앞 2자리는 **홀·짝이 한 쌍**이고, 쌍은 같은 이펙트를 쓴다.
  *
@@ -127,7 +162,10 @@ export type LearnedKey = { series: string; sub: string; effectId?: string };
  *   cardId 는 group + playerId(4) + variant(4) 이므로 group 은 앞자리에서
  *   바로 나온다.
  */
-export function learnSeries(known: Record<string, string>): Record<string, LearnedKey> {
+export function learnSeries(
+  known: Record<string, string>,
+  meta?: ResolveOpts["meta"],
+): Record<string, LearnedKey> {
   const out: Record<string, LearnedKey> = {};
   for (const [cardId, effectId] of Object.entries(known)) {
     if (!/^\d{9,10}$/.test(cardId)) continue;
@@ -157,6 +195,21 @@ export function learnSeries(known: Record<string, string>): Record<string, Learn
     const p = Number(variant);
     if (Number.isFinite(p) && p > 0) {
       put(String(p % 2 === 1 ? p + 1 : p - 1).padStart(2, "0"));
+    }
+    /**
+     * 종류 코드까지 넣은 더 좁은 키. (group, variant) 가 갈라지는 버킷을
+     * 이것이 가른다 — 실측 56건에서 (12,07) 충돌 14장이 SL1/SL2 vs SL3 로
+     * 완전히 분리된다. 좁은 키는 넓은 키를 덮어쓰지 않고 따로 쌓는다.
+     */
+    const kd = meta?.[cardId]?.kind;
+    if (kd) {
+      const kk = `${group}:${variant}:${kd}`;
+      const prev = out[kk];
+      if (!prev) out[kk] = { ...key };
+      else if (prev.effectId && prev.effectId !== effectId) {
+        prev.effectId = undefined;
+        if (prev.sub !== key.sub) prev.sub = "00";
+      }
     }
   }
   /**
@@ -244,6 +297,20 @@ export function predictSeries(
 }
 
 
+/**
+ * series 31/32 처럼 sub 가 리그로 갈리는 묶음에서 알맞은 sub 를 고른다.
+ * 규칙을 특정 series 에 박지 않고 **구조로 판정한다** — 그 group·series 의
+ * sub 집합이 정확히 {13,14} 일 때만 리그로 고른다.
+ */
+const LEAGUE_SUB: Record<League, string> = { central: "13", pacific: "14" };
+
+function leagueSub(cand: EffectKey[], league?: League | null): string | null {
+  if (!league) return null;
+  const subs = new Set(cand.map(e => e.sub));
+  if (subs.size !== 2 || !subs.has("13") || !subs.has("14")) return null;
+  return LEAGUE_SUB[league];
+}
+
 /** 랭크 높은 것 우선, 다음 series·sub 오름차순 — 재현 가능한 순서. */
 function pick(cand: EffectKey[]): EffectKey | null {
   if (!cand.length) return null;
@@ -267,9 +334,9 @@ function pick(cand: EffectKey[]): EffectKey | null {
  */
 export function resolveEffect(
   group: number, variant: string, pool: EffectKey[],
-  known?: Record<string, string>, cardId?: string,
+  known?: Record<string, string>, cardId?: string, opts?: ResolveOpts,
 ): EffectRef | null {
-  const learned = known ? learnSeries(known) : undefined;
+  const learned = known ? learnSeries(known, opts?.meta) : undefined;
   const fromKnown = cardId && known ? known[cardId] : undefined;
   if (fromKnown) {
     const k = pool.find(e => e.effectId === fromKnown);
@@ -279,19 +346,40 @@ export function resolveEffect(
   }
   const mine = pool.filter(e => e.group === group);
 
-  // 같은 (group, variant 접두) 의 실측이 있으면 그 이펙트를 그대로 쓴다
-  const fam = learned?.[`${group}:${variant.slice(0, 2)}`];
+  /**
+   * 같은 버킷의 실측을 전파한다. **좁은 키(종류 포함)를 먼저** 본다 —
+   * (12,07) 처럼 variant 만으로는 SL3(1214105)와 SL1/SL2(1214005)가 섞이는
+   * 버킷을 종류 코드가 가른다.
+   */
+  const pre = variant.slice(0, 2);
+  const famKind = opts?.kind ? learned?.[`${group}:${pre}:${opts.kind}`] : undefined;
+  const fam = famKind ?? learned?.[`${group}:${pre}`];
   if (fam?.effectId) {
     const k = pool.find(e => e.effectId === fam.effectId);
-    if (k) return { effectId: k.effectId, level: "family", rank: k.rank };
+    if (k) return { effectId: k.effectId, level: famKind ? "known-kind" : "family", rank: k.rank };
+  }
+  /**
+   * 정확한 id 는 못 배웠어도 series 는 배웠다면, 그 series 안에서 리그로 sub 를
+   * 고른다 (BEST NINE / TITLE HOLDER).
+   */
+  if (fam?.series) {
+    const same = mine.filter(e => e.series === fam.series);
+    const ls = leagueSub(same, opts?.league);
+    if (ls) {
+      const byLeague = pick(same.filter(e => e.sub === ls));
+      if (byLeague) return { effectId: byLeague.effectId, level: "league", rank: byLeague.rank };
+    }
   }
 
   // 규칙 예측이 그 연도에 실제로 있으면 그것을 쓴다
   const key = predictSeries(variant, pool, group, learned);
   if (key) {
-    const ruled = pick(mine.filter(e => e.series === key.series && e.sub === key.sub))
+    const same = mine.filter(e => e.series === key.series);
+    const ls = leagueSub(same, opts?.league);
+    const ruled = (ls ? pick(same.filter(e => e.sub === ls)) : null)
+      ?? pick(mine.filter(e => e.series === key.series && e.sub === key.sub))
       ?? pick(mine.filter(e => e.series === key.series && e.sub === "00"))
-      ?? pick(mine.filter(e => e.series === key.series));
+      ?? pick(same);
     if (ruled) return { effectId: ruled.effectId, level: "rule", rank: ruled.rank };
   }
 
@@ -305,9 +393,9 @@ export function resolveEffect(
 /** 같은 연도 그룹을 먼저, 그다음 나머지 — 전부 미검증 후보다. */
 export function effectCandidates(
   group: number, variant: string, pool: EffectKey[],
-  known?: Record<string, string>,
+  known?: Record<string, string>, opts?: ResolveOpts,
 ): EffectRef[] {
-  const learnedFor = known ? learnSeries(known) : undefined;
+  const learnedFor = known ? learnSeries(known, opts?.meta) : undefined;
   const seen = new Set<string>(); const out: EffectRef[] = [];
   const push = (e: EffectKey, level: MatchLevel) => {
     if (seen.has(e.effectId)) return;
@@ -330,6 +418,8 @@ export function effectCandidates(
 /** 기본 표기는 일본어. 한국어는 app/i18n.tsx 의 MATCH_LABEL_KO 가 덮는다. */
 export const MATCH_LABEL: Record<MatchLevel, string> = {
   known:  "実測マッピング",
+  "known-kind": "実測の伝播（同グループ・同variant・同種類）",
+  league: "リーグで sub 決定（BEST NINE / TITLE HOLDER）",
   family: "実測の伝播（同グループ・同variant）",
   none:   "専用エフェクトなし（実測）",
   rule:   "規則予測（variant→series）",

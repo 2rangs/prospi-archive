@@ -4,7 +4,7 @@ import { Application, Assets, Container, Matrix, Mesh, MeshGeometry, Sprite, Tex
 import { useEffect, useState } from "react";
 import { evaluate } from "./evaluate";
 import { cellTexture, cellUrls, cornerAlphas, cornerColors, isTileWrap,
-         cellTexturePlain, stripFor, makeVcolShader, pixiBlend,
+         cellTexturePlain, stripFor, registerTextureFallback, makeVcolShader, pixiBlend,
          prepare, sheetTexture } from "./AnssStage";
 import { AnssSize, loadAnssIcon } from "./useAnss";
 import { AnssDocument, CARD_ART_H } from "./types";
@@ -105,10 +105,68 @@ async function ensureApp() {
     (window as unknown as { __thumbs?: unknown }).__thumbs = {
       step: (f: number) => { draw(f); blit(); },
       slots, sinks, app: a,
+      /** 디버그: React 훅 없이 이펙트를 아이콘 타일로 강제 마운트 (원본 배치 검증용) */
+      /** 디버그: 패널이 숨겨져 IO 가 안 울릴 때 가시 판정을 강제한다 */
+      markVisible: (cv: HTMLCanvasElement) => visibleCanvases.add(cv),
+      mountDebug: (id: number, back: HTMLCanvasElement, front?: HTMLCanvasElement) => {
+        let bs = sinks.get(id); if (!bs) { bs = new Set(); sinks.set(id, bs); }
+        bs.add(back); io?.observe(back);
+        if (front) {
+          let fs = frontSinks.get(id); if (!fs) { fs = new Set(); frontSinks.set(id, fs); }
+          fs.add(front); io?.observe(front);
+        }
+        void mount(id);
+      },
+      get noShaderCache() { return !shaderCacheOn; },
+      set noShaderCache(v: boolean) { shaderCacheOn = !v; if (v) tileShaders.clear(); },
+      shaderCacheSize: () => tileShaders.size,
     };
     return a;
   });
   return appP;
+}
+
+/**
+ * 정점색 셰이더를 **텍스처별로 공유**한다.
+ *
+ * [문제] draw() 는 30fps 마다 이 칸의 메시를 전부 파괴하고 다시 만든다.
+ *   그때 메시마다 `makeVcolShader()` 로 셰이더를 새로 만들고 프레임 끝에
+ *   destroy 했다. 셰이더 생성은 유니폼 그룹·리소스 바인딩을 새로 잡는
+ *   작업이라 메시 수만큼 곱해진다.
+ * [근거] AnssStage 는 r78 에서 **똑같은 패턴**을 텍스처 소스별 공유로 바꿔
+ *   프레임 37ms -> 12.4ms (3배) 가 됐다. thumb 에는 그 수정이 오지 않았다.
+ * [키] AnssStage 는 소스 uid 로 묶지만 여기서는 **Texture uid** 로 묶는다.
+ *   한 소스의 서로 다른 하위 사각형(셀/스트립)은 textureMatrix 가 달라
+ *   소스로 묶으면 마지막 값이 다른 메시에도 적용된다. 셀 텍스처는 캐시되어
+ *   프레임 간 같은 객체가 오므로, 텍스처 uid 로도 재사용률은 그대로다.
+ * [수명] AnssStage 의 캐시는 문서 전환마다 destroy 하므로 **공유하지 않는다**
+ *   (r80: 공유 객체를 파괴해 이펙트 전환이 크래시했던 그 실수).
+ *   여기 셰이더는 파괴하지 않고, 상한을 넘으면 통째로 비운다.
+ * [되돌리기] `window.__thumbs.noShaderCache = true`
+ */
+const tileShaders = new Map<number, ReturnType<typeof makeVcolShader>>();
+let shaderCacheOn = true;
+function tileShaderFor(tex: Texture) {
+  const uid = (tex as unknown as { uid: number }).uid;
+  if (!shaderCacheOn) {
+    const fresh = makeVcolShader();
+    bindShader(fresh, tex);
+    return fresh;
+  }
+  let sh = tileShaders.get(uid);
+  if (!sh) {
+    if (tileShaders.size > 512) tileShaders.clear();
+    sh = makeVcolShader();
+    tileShaders.set(uid, sh);
+  }
+  bindShader(sh, tex);
+  return sh;
+}
+function bindShader(sh: ReturnType<typeof makeVcolShader>, tex: Texture) {
+  sh.resources.uTexture = tex.source;
+  sh.resources.uSampler = tex.source.style;
+  sh.resources.textureUniforms.uniforms.uTextureMatrix = tex.textureMatrix.mapCoord;
+  sh.texture = tex;
 }
 
 const m = new Matrix();
@@ -125,10 +183,10 @@ function draw(frame: number) {
   for (const cell of root.removeChildren()) {
     for (const ch of (cell as Container).children) {
       const mesh = ch as Mesh;
-      if (mesh.geometry) {
-        if (mesh.shader && (mesh.shader as { destroy?: () => void }).destroy) mesh.shader.destroy();
-        mesh.geometry.destroy();
-      }
+      // 지오메트리는 이 프레임 전용이라 부순다. 셰이더는 tileShaders 가
+      // 텍스처별로 재사용하므로 **부수지 않는다** (부수면 다음 프레임에
+      // 파괴된 셰이더를 다시 쓴다).
+      if (mesh.geometry) mesh.geometry.destroy();
     }
     cell.destroy({ children: true });
   }
@@ -237,15 +295,7 @@ function draw(frame: number) {
         }
         const tex2 = (altTex ?? sheetTex)!;
         const mesh = new Mesh({ geometry, texture: tex2 });
-        if (ca || cc) {
-          const tx = (altTex ?? sheetTex)!;
-          const sh = makeVcolShader();
-          sh.resources.uTexture = tx.source;
-          sh.resources.uSampler = tx.source.style;
-          sh.resources.textureUniforms.uniforms.uTextureMatrix = tx.textureMatrix.mapCoord;
-          sh.texture = tx;
-          mesh.shader = sh;
-        }
+        if (ca || cc) mesh.shader = tileShaderFor((altTex ?? sheetTex)!);
         sp = mesh;
       } else {
         const s2 = new Sprite(tex);
@@ -254,7 +304,21 @@ function draw(frame: number) {
       }
       sp.blendMode = bl;
       sp.alpha = dr.alpha;
-      m.set(dr.a, dr.b, dr.c, dr.d, dr.x, dr.y);
+      /**
+       * y 플립 — evaluate 는 y-up 좌표를 내놓는다 (AnssStage 와 같은 규약).
+       *
+       * [문제] 사용자 요청 "콜라보 로고를 인게임처럼 오른쪽 아래로".
+       *   아이콘 경로는 플립 없이 dr.y 를 그대로 써서 화면이 상하 반전됐다.
+       * [근거] 문서 좌표 실측 —
+       *   1184105 ULTRA 로고 누적 (31, -16): y-up 에서 -16 = 아래 -> 플립하면
+       *     화면 (오른쪽 31, 아래 16) = 인게임 위치(우하단)와 일치.
+       *   1082105 사인 띠 누적 (1, +24): 플립하면 화면 위 = 인게임 "사인은
+       *     맨 위"(사용자 확인)와 일치.
+       *   두 독립 사례가 같은 방향을 가리키므로 플립이 정답이다.
+       * [주의] 메시 정점은 자체 좌표(-hh 위)라 행렬 b/c/y 만 뒤집는다 —
+       *   AnssStage 의 scratch 행렬과 동일한 부호.
+       */
+      m.set(dr.a, -dr.b, -dr.c, dr.d, dr.x, -dr.y);
       sp.setFromMatrix(m);
       sp.zIndex = dr.prio;
       (dr.part.role === "front" ? cellFront : cell).addChild(sp);
@@ -294,11 +358,37 @@ async function mount(effectId: number) {
   const { doc } = got;
   slot.size = got.size;
   const urls = cellUrls(doc);
-  if (urls.length) await Assets.load(urls).catch(() => undefined);
+  // CDN 에 없는 시트를 로컬 사본으로 대신 받는다 (AnssStage 주석 참조)
+  if (urls.length) await Assets.load(registerTextureFallback(urls)).catch(() => undefined);
   if (slots.get(effectId) !== slot) return;
   await prepare(doc);
   if (slots.get(effectId) !== slot) return;
   slot.doc = doc; slot.ready = true;
+}
+
+/**
+ * 목록을 **보여주기 전에** 아이콘 에셋을 미리 받아 둔다.
+ *
+ * [문제] 검색·페이지 이동 직후 행이 먼저 그려지고 아이콘은 그 뒤에 하나씩
+ *   튀어나왔다. 슬롯을 잡는 mount() 는 화면에 붙은 뒤에야 돌기 때문이다.
+ * [처리] 슬롯을 잡지 않고 문서·텍스처·prepare 까지만 끝내 둔다. 실제 mount 는
+ *   그대로 두되, 그때는 전부 캐시에 있어 즉시 그려진다.
+ * [주의] 슬롯(free)을 쓰지 않으므로 표시 개수 제한과 무관하고, 실패해도
+ *   화면을 막지 않는다(개별 실패는 무시).
+ */
+export async function preloadTiles(effectIds: number[]): Promise<void> {
+  const ids = [...new Set(effectIds.filter(n => Number.isFinite(n)))];
+  if (!ids.length) return;
+  await ensureApp();
+  await Promise.all(ids.map(async id => {
+    try {
+      const got = await loadAnssIcon(id);
+      if (!got) return;
+      const urls = cellUrls(got.doc);
+      if (urls.length) await Assets.load(registerTextureFallback(urls)).catch(() => undefined);
+      await prepare(got.doc);
+    } catch { /* 개별 실패는 무시 — 로딩을 막지 않는다 */ }
+  }));
 }
 
 function releaseSlotIfUnused(effectId: number) {
@@ -361,9 +451,12 @@ function blit() {
       if (io && !visibleCanvases.has(cv)) continue;   // 화면 밖 캔버스 스킵
       const g = cv.getContext("2d");
       if (!g) continue;
-      if (cv.width !== tw || cv.height !== th) { cv.width = tw; cv.height = th; }
-      g.clearRect(0, 0, tw, th);
-      g.drawImage(src, sx, sy, tw, th, 0, 0, tw, th);
+      // 아틀라스 타일(tw x th)을 **이 캔버스가 실제로 보이는 크기**로 줄여 그린다.
+      // 58px 로 보이는 아이콘에 256x256 백킹을 잡으면 화소가 4.8배 낭비된다.
+      const t = tileTarget(cv, tw, th);
+      if (cv.width !== t.w || cv.height !== t.h) { cv.width = t.w; cv.height = t.h; }
+      g.clearRect(0, 0, t.w, t.h);
+      g.drawImage(src, sx, sy, tw, th, 0, 0, t.w, t.h);
       // 첫 프레임이 실제로 그려진 순간 스켈레톤을 걷는다 (globals.css 의 [data-ready])
       if (!cv.dataset.ready) cv.dataset.ready = "1";
     }
@@ -375,6 +468,31 @@ function blit() {
  * 행에서 쓰는 훅. 반환된 ref 를 <canvas> 에 걸면 그 캔버스에 이펙트가
  * 계속 재생된다.
  */
+/**
+ * 캔버스 기본 크기(300x150)를 즉시 실제 타일 크기로 줄인다.
+ *
+ * [문제] blit() 이 처음 그릴 때 width/height 를 정하는데, 슬롯이 준비되기
+ *   전이거나 화면 밖이면 blit 이 안 돌아 캔버스가 **HTML 기본값 300x150**
+ *   으로 남는다. 목록 한 페이지 50장이면 300*150*4B = 9MB 를 그냥 잡고 있다
+ *   (실측: 50장 전부 300x150 인데 표시 크기는 58x58).
+ * [처리] 붙는 즉시 타일 크기로 맞춘다. blit 이 같은 값을 다시 넣으면
+ *   조건문에 걸려 아무 일도 하지 않는다.
+ */
+function tileTarget(cv: HTMLCanvasElement, tw: number, th: number) {
+  // 표시 크기 x 화면 밀도가 실제로 필요한 화소다. 레이아웃 전이라 크기를
+  // 모르면 타일 크기로 두고, blit 때 다시 계산한다. 타일보다 크게는 안 만든다.
+  const r = cv.getBoundingClientRect();
+  if (!r.width || !r.height) return { w: tw, h: th };
+  const d = typeof devicePixelRatio === "number" ? devicePixelRatio : 1;
+  return { w: Math.min(tw, Math.round(r.width * d)), h: Math.min(th, Math.round(r.height * d)) };
+}
+
+function sizeTile(cv: HTMLCanvasElement) {
+  const r = app ? app.renderer.resolution : DPR;
+  const t = tileTarget(cv, Math.round(TW * r), Math.round(TH * r));
+  if (cv.width !== t.w || cv.height !== t.h) { cv.width = t.w; cv.height = t.h; }
+}
+
 export function useEffectTile(effectId: number | null | undefined) {
   const [el, setEl] = useState<HTMLCanvasElement | null>(null);
   useEffect(() => {
@@ -382,6 +500,7 @@ export function useEffectTile(effectId: number | null | undefined) {
     let set = sinks.get(effectId);
     if (!set) { set = new Set(); sinks.set(effectId, set); }
     set.add(el);
+    sizeTile(el);
     io?.observe(el);
     void mount(effectId);
     return () => {
@@ -405,6 +524,7 @@ export function useEffectFrontTile(effectId: number | null | undefined) {
     let set = frontSinks.get(effectId);
     if (!set) { set = new Set(); frontSinks.set(effectId, set); }
     set.add(el);
+    sizeTile(el);
     io?.observe(el);
     void mount(effectId);
     return () => {

@@ -3,13 +3,49 @@
 import { useEffect, useRef } from "react";
 import { Application, Assets, Container, Matrix, Mesh, MeshGeometry, Rectangle, Shader, Sprite, Texture,
   compileHighShaderGlProgram, localUniformBitGl, roundPixelsBitGl, textureBitGl, TextureSource } from "pixi.js";
-import { AnssDocument, CARD_ART_H, CARD_ART_REF_H, CARD_ART_W, BlendType, Cell, PartType } from "./types";
+import { AnssDocument, BASE_W, BASE_H, CARD_ART_H, CARD_ART_REF_H, CARD_ART_W, BlendType, Cell, PartType } from "./types";
 import { Draw, VCol, evaluate } from "./evaluate";
 
 /** Immutable effect textures live on the archive CDN, outside the Sites bundle. */
 const EFFECT_TEXTURE_ROOT =
-  "https://cdn.jsdelivr.net/gh/2rangs/prospi-archive@a725f43772fc22d597b5eb5e44ff25793cfae618/public/effects";
+  "https://cdn.jsdelivr.net/gh/2rangs/prospi-archive@36f90521ee5374248c82cc6fb6bd193bd58439de/public/effects";
+/** 원본 구장 배경 (ALBUM1630 / BG001, 1024x1616). */
+export const PLAYER_BG_URL = "/img/player-bg/album-stadium-dark.png";
 export const effectTextureUrl = (path: string) => `${EFFECT_TEXTURE_ROOT}/${path}`;
+
+/**
+ * CDN 에 없는 텍스처를 **같은 저장소의 로컬 사본**으로 대신 받는다.
+ *
+ * [확인된 사실] 위 CDN 은 아카이브 저장소의 **고정 커밋**을 가리키는데, 거기에
+ *   아이콘(_S) 문서가 쓰는 시트가 **1,087개 전부 없다.** 스프라이트는 0개 누락.
+ *   무대(_L) 는 시트 10 · 스프라이트 108 개만 빠져 있다.
+ * [근거] 아카이브 저장소 트리(991061d, 항목 18,477개)와 anim-gz/anim-s-gz 가
+ *   참조하는 해시를 전수 대조. 개별 확인: sheets-webp/099590cf28e70ba1.webp 는
+ *   고정 커밋·main·latest 모두 404, sprites-webp 두 건은 200.
+ * [증상] 그래서 목록의 이펙트 아이콘에서 UV/메시 파츠가 통째로 안 그려진다
+ *   (사용자 보고: 407903500 → 이펙트 417005 아이콘이 비어 있음).
+ * [처리] PixiJS 는 `Assets.add({alias, src:[a,b]})` 로 **앞의 소스가 실패하면
+ *   다음 소스**를 쓴다. alias 를 CDN URL 로 두면 기존 `Texture.from(cdnUrl)`
+ *   호출을 하나도 안 고치고 폴백이 붙는다.
+ * [해결] 사용자 승인을 받아 아카이브 저장소에 빠진 파일을 올렸다
+ *   (36f9052 — 시트 1,096 · 스프라이트 108, 53.6MB). 위 CDN 경로도 그
+ *   커밋으로 올렸고 099590cf28e70ba1.webp 가 200 으로 바뀐 것을 확인했다.
+ *   폴백은 다음에 또 빠지는 파일이 생겨도 화면이 비지 않도록 남겨 둔다.
+ */
+const aliased = new Set<string>();
+export function registerTextureFallback(urls: string[]): string[] {
+  for (const u of urls) {
+    if (aliased.has(u)) continue;
+    aliased.add(u);
+    const i = u.indexOf("/public/effects/");
+    const path = i >= 0 ? u.slice(i + "/public/effects/".length)
+                        : u.slice(EFFECT_TEXTURE_ROOT.length + 1);
+    if (!path) continue;
+    try { Assets.add({ alias: u, src: [u, `/effects/${path}`] }); }
+    catch { /* 이미 등록됨 */ }
+  }
+  return urls;
+}
 
 /**
  * Renders an evaluated ANSS frame.
@@ -187,7 +223,12 @@ if (typeof window !== "undefined") {
   });
 }
 
-let fxScaleAdjust = 0.72;
+/**
+ * [갱신] 사용자 지시 "이펙트와 선수 원본 사진 너비를 동일하게 — 굳이 좁힐
+ * 필요 없음". 스크린샷 역산으로 넣었던 0.72 축소를 걷고 원본 1:1 로 둔다.
+ * (논리단위 1 = 카드아트 픽셀 1)
+ */
+let fxScaleAdjust = 1;
 if (typeof window !== "undefined") {
   Object.defineProperty(window, "__anssFxScale", {
     get: () => fxScaleAdjust,
@@ -535,7 +576,20 @@ function intensityTexture(cell: Cell, additive = true): Texture | null {
   const url = spriteUrl(cell.file);
   const ikey = `${cell.file}|${additive ? "a" : "m"}`;
   if (intensityCache.has(ikey)) return intensityCache.get(ikey) ?? Texture.from(url);
-  return Texture.from(url);
+  /**
+   * 캐시에 없으면 **그 자리에서 변환한다** — 종전에는 원본을 그대로 돌려줬다.
+   *
+   * [문제] 사용자 보고 "울트라맨 로고 재생이 살짝 이상함". 아이콘 front 캔버스에
+   *   RGB(0,0,0)·알파 0.6~0.95 픽셀 722개 = **불투명 검정 판**. 1184105 의
+   *   광택 스트립(60x32)은 전면 불투명(알파=1)·어두운 회색의 가산용 라이트
+   *   시트라 prepare() 가 알파=max채널로 바꿔 두는데, 캐시 상한(600)이나
+   *   releaseUnused() 로 항목이 밀려난 뒤에는 이 폴백이 **변환 없는 원본**을
+   *   돌려줬다. 가산은 알파도 누적하므로 빈 캔버스 위에 알파 1 이 찍혀
+   *   검은 판이 된다 (§'가산 셀' 주석과 같은 병리, 재발 경로만 다름).
+   * [처리] computeIntensity 를 직접 부른다. 텍스처가 아직 안 실렸으면
+   *   computeIntensity 가 캐시 없이 원본을 돌려주므로 다음 프레임에 재시도된다.
+   */
+  return computeIntensity(cell, additive);
 }
 
 /**
@@ -758,7 +812,9 @@ export function cellTexture(cell: Cell, v?: VCol, additive = false): Texture | n
   // 정점색이 애니메이션되므로 캐시 키를 5비트로 양자화한다(색 32단계).
   // 알파도 키에 넣는다 — 종전에는 slice(0,3) 로 알파를 빼서, RGB 가 같고
   // 알파만 다른 그라데이션이 서로 같은 캐시 항목으로 뭉개졌다.
-  const key = `${cell.file}|${v.c.map(c =>
+  // additive 를 키에 넣는다 — 같은 셀·같은 코너라도 변환된 밑판(a)과 원본(m)은
+  // 다른 텍스처다. 종전에는 한 항목을 공유해 먼저 구운 쪽이 반대쪽을 오염시켰다.
+  const key = `${cell.file}|${additive ? "a" : "m"}|${v.c.map(c =>
     `${c[0] >> 3},${c[1] >> 3},${c[2] >> 3},${Math.round((c[3] ?? 1) * 31)}`).join("|")}`;
   const hit = cornerCache.get(key);
   if (hit) return hit;
@@ -1185,6 +1241,14 @@ export default function AnssStage({
       });
       app.canvas.style.width = `${width}px`;
       app.canvas.style.height = `${height}px`;
+      /**
+       * 자동 렌더를 끈다. 원본 애니메이션은 **30fps** 인데 Application 의
+       * 기본 티커는 화면 주사율(60/120Hz)마다 render() 를 부른다. 같은
+       * 원본 프레임을 2~4번 다시 그리는 셈이라 GPU 를 그만큼 헛돈다.
+       * 아래 body() 에서 원본 프레임이 바뀔 때만 직접 render() 한다.
+       * (thumb.ts 는 이미 같은 게이트를 쓰고 있었고 여기만 빠져 있었다.)
+       */
+      app.stop();
       inited = true;
       if (dead) { app.destroy(true); return; }
       host.current!.appendChild(app.canvas);
@@ -1223,7 +1287,7 @@ export default function AnssStage({
       // 디버그: 최종 픽셀을 재려면 렌더러가 필요하다 (window.__anss.app)
       const dbg = { app, stage, frames: 0, ready: () => readyRef.current,
                     docId: () => docRef.current?.effectId ?? null,
-                    draws: 0, noUv: false,
+                    draws: 0, noUv: false, noFrameGate: false,
                     dropMix: 0, dropMute: 0, dropTex: 0,
                     dropFiles: new Set<string>(),
                     // 디버그 A/B: true 로 두면 스크롤 창(§34)을 끄고 창 높이를
@@ -1233,6 +1297,7 @@ export default function AnssStage({
                     // 특정 레이어만 남기고 렌더해 원본과 대조할 때 쓴다.
                     byPart: new Map<string, unknown[]>() };
       (window as unknown as { __anss?: unknown }).__anss = dbg;
+      (window as unknown as { __anssAssets?: unknown }).__anssAssets = Assets;
 
       const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
       const sprites = spritesRef.current;
@@ -1298,6 +1363,7 @@ export default function AnssStage({
        * 수 있도록 본문을 함수로 분리하고 window.__anss.step(frame) 로 연다.
        */
       let forced: number | null = null;
+      let lastSrcFrame = -1, lastDocId: number | null = null;
 
       const body = () => {
         const d = docRef.current;
@@ -1317,7 +1383,9 @@ export default function AnssStage({
          */
         drawCard();
 
-        if (!d || readyRef.current !== d.effectId) return;
+        // 자동 렌더를 껐으므로 어느 경로로 빠져나가든 한 번은 그려야 한다.
+        // (여기서 그냥 return 하면 로딩 중 카드 사진이 통째로 안 나온다.)
+        if (!d || readyRef.current !== d.effectId) { app!.render(); return; }
         if (!reduce) clock += dt * speedRef.current;
         // no global wrap: each part wraps on its own animation length, and the
         // lengths (121, 361, 601, 31 ...) share no small common multiple
@@ -1326,6 +1394,22 @@ export default function AnssStage({
         // 현재 682개는 모두 30fps지만 JSON에 보존한 원본 값을 기준으로 삼는다.
         // 신규 팩에서 다른 fps가 들어와도 UI 배속과 실제 타임라인이 어긋나지 않는다.
         const frame = forced !== null ? forced : clock * (d.fps || APP_FPS);
+        /**
+         * 원본 프레임이 그대로면 아무 것도 다시 만들지 않는다.
+         *
+         * [근거] 원본은 30fps 다. 60Hz 화면에서는 같은 프레임을 2번, 120Hz 면
+         *   4번 재구성했다 — 파츠 수백 개의 변환·정점버퍼·업로드를 통째로.
+         * [주의] 문서가 바뀌면 프레임 번호가 같아도 다시 만들어야 한다.
+         * [되돌리기] `window.__anss.noFrameGate = true`
+         */
+        const srcFrame = Math.floor(frame);
+        const docChanged = lastDocId !== d.effectId;
+        if (forced === null && !dbg.noFrameGate && !docChanged && srcFrame === lastSrcFrame) {
+          // 원본 프레임이 그대로면 **재구성만** 건너뛴다. 그리기는 한다 —
+          // 카드 텍스처가 늦게 도착하는 등 무대 밖 변화가 있을 수 있다.
+          app!.render(); return;
+        }
+        lastSrcFrame = srcFrame; lastDocId = d.effectId;
         const draws: Draw[] = evaluate(d, frame, roleRef.current);
         dbg.draws = draws.length;
         dbg.dropMix = 0; dbg.dropMute = 0; dbg.dropTex = 0; dbg.dropFiles.clear();
@@ -1335,7 +1419,26 @@ export default function AnssStage({
         draws.forEach((dr, order) => {
           // 조상 그룹 블렌드까지 반영한 값 (evaluate 의 plan.blend)
           const blend = pixiBlend(dr.blend ?? dr.part.bl);
-          if (!backdropRef.current && blend === "normal") { dbg.dropMix++; return; }
+          /**
+           * 배경 레이어 끄기 = **화면을 통째로 덮는 판만** 버린다.
+           *
+           * [실패 이력] 처음엔 "일반 블렌드 전부", 다음엔 "back 층의 일반
+           *   블렌드 전부"를 버렸다. 둘 다 과했다.
+           *     1차 → 사인(front, 508x252)이 사라짐 (1039454800 / 1082105)
+           *     2차 → **SELECTION 로고·리본 문구**가 사라짐. 1214105 의 back 층
+           *           일반블렌드 셀 파츠 79개 안에 logo_base·logo_base_bloom 이
+           *           들어 있다 (1237950700 SL3 보고).
+           * [처리] 가리는 주범은 저작 화면을 꽉 채우는 불투명 판 하나뿐이다.
+           *   **그리는 크기가 스테이지의 90% 이상**일 때만 버린다.
+           *   로고(512x128)·리본(256x128)은 스테이지(720x1484)에 한참 못 미쳐 남는다.
+           * [되돌리기] backdrop 을 켜면(기본값) 아무 것도 버리지 않는다.
+           */
+          if (!backdropRef.current && blend === "normal") {
+            const sw = d.stageW || BASE_W, sh = d.stageH || BASE_H;
+            const dw = dr.cell.w * Math.hypot(dr.a, dr.b);
+            const dh = dr.cell.h * Math.hypot(dr.c, dr.d);
+            if (dw >= sw * 0.9 && dh >= sh * 0.9) { dbg.dropMix++; return; }
+          }
           if (muteRef.current?.has(dr.part.n)) { dbg.dropMute++; return; }
           const tex = cellTexture(dr.cell, dr.vcol, blend === "add");
           if (!tex) { dbg.dropTex++; dbg.dropFiles.add(dr.cell.file ?? "?"); return; }
@@ -1605,9 +1708,40 @@ export default function AnssStage({
           if (bucket) bucket.push(sp); else dbg.byPart.set(dr.part.n, [sp]);
         });
         for (const [i, sp] of sprites) if (!live.has(i)) sp.visible = false;
+        // 자동 렌더를 껐으므로 여기서 한 번만 그린다.
+        if (forced === null) app!.render();
       };
 
-      const tick = () => { raf = requestAnimationFrame(tick); body(); };
+      /**
+       * 화면 밖이면 아무 것도 하지 않는다.
+       *
+       * [문제] 카드가 스크롤로 밀려 나가도 파츠 수백 개를 계속 재구성하고 GPU 에
+       *   올렸다. 목록의 행 아이콘은 이미 가시성 게이트가 있는데 이 무대에는 없었다.
+       * [왜 IntersectionObserver 가 아닌가] 처음엔 IO 로 했는데 **화면이 통째로
+       *   비는 회귀**가 났다(/player/407903500 에서 frames=0). 이 프로젝트의
+       *   미리보기 창은 보이는데도 document.hidden=true 를 보고하고, 그런 문서에서
+       *   IO 는 isIntersecting=false 를 준다. document.hidden 게이트도 같은 이유로
+       *   뺐다. 그래서 **실제 좌표**로만 판정한다.
+       * [안전] 크기나 뷰포트를 모르면 "보인다"로 친다 — 모르면 그린다.
+       * [비용] 10프레임에 한 번만 getBoundingClientRect 한다.
+       */
+      let onScreen = true, checkIn = 0;
+      const isVisible = () => {
+        const el = host.current;
+        if (!el) return true;
+        const r = el.getBoundingClientRect();
+        if (!r.width && !r.height) return true;
+        const vw = window.innerWidth, vh = window.innerHeight;
+        if (!vw || !vh) return true;
+        const M = 160;
+        return r.bottom > -M && r.top < vh + M && r.right > -M && r.left < vw + M;
+      };
+      const tick = () => {
+        raf = requestAnimationFrame(tick);
+        if (--checkIn <= 0) { checkIn = 10; onScreen = isVisible(); }
+        if (!onScreen) { prev = performance.now(); return; }
+        body();
+      };
       (dbg as unknown as { step: (f: number) => void }).step = (f: number) => {
         forced = f; body(); forced = null; app!.render();
       };
@@ -1753,7 +1887,50 @@ function measureArtHeight(src: TextureSource, key: string): number {
     const urls = [...cellUrls(doc), ...stripUrls(doc)];
     // 이전 문서의 텍스처를 먼저 내려 GPU 를 비운다 (r72 — "서너 개 보면 사라짐" 수정)
     releaseUnused(doc)
-      .then(async () => { if (urls.length) await Assets.load(urls).catch(() => undefined); })
+      .then(async () => {
+        if (!urls.length) return;
+        /**
+         * [문제] 사용자 보고 "1237950700 배경이 안 뜸". 계측 결과 ready 가
+         *   0.6초 만에 세팅되는데 텍스처는 40초가 지나도 캐시에 없었다 —
+         *   페이지 초기화 직후의 Assets.load 배치가 **즉시 거부**되고
+         *   `.catch(() => undefined)` 가 삼켜서, prepare 와 ready 가 텍스처
+         *   없이 진행됐다. 같은 배치를 몇 초 뒤 수동 실행하면 54/54 성공 —
+         *   시작 타이밍 레이스다.
+         * [처리] 짧은 간격으로 재시도하고, 끝내 실패하면 이유를 콘솔에 남긴다.
+         *   부분 실패에도 성공분은 캐시에 남으므로 재시도가 나머지를 채운다.
+         */
+        /**
+         * 파일별 **독립 로드** — 배치는 한 장의 404 가 전체를 죽인다.
+         *
+         * [문제] 사용자 보고 "1237950700 배경이 안 뜸". 콘솔 계측으로 확정:
+         *   최근 내보낸 사인판 스프라이트(8765c7e6f68e3e26.webp)가 CDN 고정
+         *   커밋에 없어 404 → `Assets.load(54장 배치)` 전체가 거부되고 정상
+         *   53장까지 캐시에 안 실렸다. 게다가 PIXI 의 워커 로더는
+         *   Assets.add 의 src 배열 폴백을 태우지 않고 첫 소스 404 로 끝냈다.
+         * [처리] ① 장별로 로드해 실패를 그 장에 가둔다.
+         *   ② 404 난 장은 alias 를 로컬 사본(`/effects/...`)으로 다시 묶어
+         *   재시도한다 — 이 저장소에는 전 파일이 있으므로 dev 는 항상 성공,
+         *   prod 는 CDN 누락분만 로컬(사이트 번들 외 경로)로 넘어간다.
+         */
+        const list = registerTextureFallback(urls);
+        await Promise.all(list.map(async u => {
+          try { await Assets.load(u); return; }
+          catch { /* 아래 로컬 재시도 */ }
+          const i = u.indexOf("/public/effects/");
+          const path = i >= 0 ? u.slice(i + "/public/effects/".length)
+                              : u.slice(EFFECT_TEXTURE_ROOT.length + 1);
+          /**
+           * 같은 alias 로 Assets.add 를 다시 불러도 리졸버는 **첫 등록을
+           * 유지**해서(재별칭 무효) 재시도가 또 CDN 404 를 때렸다.
+           * 로컬 사본을 자기 경로로 로드한 뒤 **CDN URL 키로 캐시에 직접
+           * 심는다** — Texture.from(cdnUrl)/이후 Assets.load 가 그대로 찾는다.
+           */
+          try {
+            const tex = await Assets.load(`/effects/${path}`);
+            if (tex && !Assets.cache.has(u)) Assets.cache.set(u, tex);
+          } catch (e) { console.warn("[anss] texture load failed (cdn+local)", u, e); }
+        }));
+      })
       .then(() => (alive ? prepare(doc) : undefined))
       .then(() => { if (alive) readyRef.current = doc.effectId; });
     return () => { alive = false; };

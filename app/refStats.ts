@@ -1,3 +1,4 @@
+import { fetchGzipJson } from "./anss/fetchGzip";
 "use client";
 import { useEffect, useState } from "react";
 
@@ -18,6 +19,8 @@ export type RefStats = {
   defense?: Record<string, number>;
   trajectory?: string | null;
   lv0?: Record<string, number>;
+  /** 레퍼런스 상세 페이지에서 직접 읽은 특훈 Lv0..10 표. */
+  growth?: { labels: string[]; rows: { level: number; values: number[] }[] };
   pitchRanks?: string;
 };
 
@@ -25,14 +28,35 @@ let cache: Record<string, RefStats> | null | undefined;
 const waiters: ((v: Record<string, RefStats> | null) => void)[] = [];
 const detailCache = new Map<string, RefStats | null>();
 
+/** 예열용 — 훅과 같은 캐시를 채운다. Preload 가 쓴다. */
+export function loadRefStats(): Promise<Record<string, RefStats> | null> {
+  if (cache !== undefined) return Promise.resolve(cache);
+  return new Promise(resolve => {
+    waiters.push(resolve);
+    if (waiters.length === 1) {
+      void fetchGzipJson<Record<string, RefStats>>("/data/ref-stats.json.gz")
+        .catch(() => null)
+        .then(j => { cache = j; waiters.splice(0).forEach(w => w(j)); });
+    }
+  });
+}
+
+/**
+ * 카드 전체 표기값(목록·이펙트 화면용).
+ *
+ * [주의] 이 파일에는 **상세 화면 전용 필드가 빠져 있다** — `growth` · `lv0` ·
+ *   `refAptitude`. 세 필드가 원본 8.60MB 중 5.23MB(61%)였고 목록에서 읽는 곳이
+ *   없다. tools/slim_ref_stats.py 가 빼서 굽는다(gz 1.05 → 0.36MB).
+ *   카드 하나의 완전한 값이 필요하면 useRefStatsForId 를 쓴다 — 그쪽
+ *   `ref-shards/*` 는 완전판이다.
+ */
 export function useRefStats(): Record<string, RefStats> | null {
   const [v, setV] = useState<Record<string, RefStats> | null>(cache ?? null);
   useEffect(() => {
     if (cache !== undefined) { setV(cache); return; }
     waiters.push(setV);
     if (waiters.length === 1) {
-      fetch("/data/ref-stats.json")
-        .then(r => (r.ok ? r.json() : null))
+      fetchGzipJson<Record<string, RefStats>>("/data/ref-stats.json.gz")
         .catch(() => null)
         .then(j => { cache = j; waiters.splice(0).forEach(w => w(j)); });
     }
@@ -47,9 +71,9 @@ export function useRefStatsForId(id: string | undefined): RefStats | null {
     if (!id) { setValue(null); return; }
     if (detailCache.has(id)) { setValue(detailCache.get(id) ?? null); return; }
     let alive = true;
-    fetch(`/data/ref-shards/${id.slice(0, 2)}.json`)
-      .then(r => (r.ok ? r.json() : {}))
-      .then((shard: Record<string, RefStats>) => {
+    fetchGzipJson<Record<string, RefStats>>(`/data/ref-shards/${id.slice(0, 2)}.json.gz`)
+      .then((shard: Record<string, RefStats> | null) => {
+        shard = shard ?? {};
         const found = shard[id] ?? null;
         detailCache.set(id, found);
         if (alive) setValue(found);

@@ -1,4 +1,5 @@
 "use client";
+import { fetchGzipJson } from "./anss/fetchGzip";
 import { useEffect, useState } from "react";
 
 /**
@@ -15,14 +16,26 @@ export type Skill = { title: string; kind: string; desc: string; effect: string[
 let cache: Record<string, Skill> | null | undefined;
 const waiters: ((v: Record<string, Skill> | null) => void)[] = [];
 
+/** 예열용 — 훅과 같은 캐시를 채운다. Preload 가 쓴다. */
+export function loadSkills(): Promise<Record<string, Skill> | null> {
+  if (cache !== undefined) return Promise.resolve(cache);
+  return new Promise(resolve => {
+    waiters.push(resolve);
+    if (waiters.length === 1) {
+      void fetchGzipJson<Record<string, Skill>>("/data/skills.json.gz")
+        .catch(() => null)
+        .then(j => { cache = j; waiters.splice(0).forEach(w => w(j)); });
+    }
+  });
+}
+
 export function useSkills(): Record<string, Skill> | null {
   const [v, setV] = useState<Record<string, Skill> | null>(cache ?? null);
   useEffect(() => {
     if (cache !== undefined) { setV(cache); return; }
     waiters.push(setV);
     if (waiters.length === 1) {
-      fetch("/data/skills.json")
-        .then(r => (r.ok ? r.json() : null))
+      fetchGzipJson<Record<string, Skill>>("/data/skills.json.gz")
         .catch(() => null)
         .then(j => { cache = j; waiters.splice(0).forEach(w => w(j)); });
     }
@@ -42,19 +55,20 @@ export function findSkill(table: Record<string, Skill> | null, name: string): Sk
   return null;
 }
 
-/** 특수능력 목록. 3열로 깔고, 각 항목을 펼치면 설명이 나온다. */
+/** 특수능력 목록. 수가 적으므로 이름과 설명을 처음부터 함께 보여준다. */
 export function Skills({ names }: { names: string[] }) {
   const table = useSkills();
   if (!names.length) return null;
   return <div className="skill-grid">
     {names.map(n => {
       const s = findSkill(table, n);
+      // 아코디언 — 접힌 상태: 이름 한 줄 / 펼치면: 내용 (사용자 지시)
       return <details key={n} className="skill">
-        <summary>{n}</summary>
+        <summary><h4>{n}</h4>{s?.desc && <em className="skill-hint">{s.desc}</em>}</summary>
         {s ? <div className="skill-body">
-          <p>{s.desc}</p>
+          {s.desc && <p>{s.desc}</p>}
           {s.effect.length > 0 && <ul>{s.effect.map((e, i) => <li key={i}>{e.replace(/^・/, "")}</li>)}</ul>}
-        </div> : <div className="skill-body"><p className="none">설명 없음</p></div>}
+        </div> : null}
       </details>;
     })}
   </div>;

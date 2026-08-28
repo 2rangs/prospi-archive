@@ -42,20 +42,44 @@ export function useEffectPool(): EffectKey[] {
 let knownCache: Record<string, string> | null = null;
 let knownInflight: Promise<Record<string, string>> | null = null;
 
+/**
+ * 실측 카드의 종류 코드·리그. known-map.json 의 meta 블록이며
+ * tools/known_map_meta.py 가 ref-stats 에서 굽는다. 매칭 키를
+ * (group, variant, 종류) 로 넓히는 데 쓴다 — 상세 화면이 ref 전체를 읽지
+ * 않으므로 실측분만 여기에 들어 있다.
+ */
+export type KnownMeta = Record<string, { kind?: string; league?: string }>;
+let metaCache: KnownMeta | null = null;
+
+export function useKnownMeta(): KnownMeta {
+  const [m, setM] = useState<KnownMeta>(metaCache ?? {});
+  useEffect(() => {
+    let alive = true;
+    void loadKnown().then(j => { if (alive) setM(j.meta ?? {}); });
+    return () => { alive = false; };
+  }, []);
+  return m;
+}
+
+type KnownFile = { map?: Record<string, string>; meta?: KnownMeta };
+let knownFile: Promise<KnownFile> | null = null;
+/** 예열용 — 훅과 같은 캐시를 채운다. */
+export function loadKnown(): Promise<KnownFile> {
+  if (!knownFile) {
+    knownFile = fetch("/effects/known-map.json")
+      .then(r => (r.ok ? r.json() : {}))
+      .catch(() => ({} as KnownFile))
+      .then((j: KnownFile) => { knownCache = j.map ?? {}; metaCache = j.meta ?? {}; return j; });
+  }
+  return knownFile;
+}
+
 export function useKnownMap(): Record<string, string> {
   const [m, setM] = useState<Record<string, string>>(knownCache ?? {});
   useEffect(() => {
     let alive = true;
-    if (!knownInflight) {
-      knownInflight = fetch("/effects/known-map.json")
-        .then(r => (r.ok ? r.json() : { map: {} }))
-        .catch(() => ({ map: {} }))
-        .then((j: { map?: Record<string, string> }) => {
-          knownCache = j.map ?? {};
-          return knownCache;
-        });
-    }
-    knownInflight.then(k => { if (alive) setM(k); });
+    if (!knownInflight) knownInflight = loadKnown().then(j => j.map ?? {});
+    void knownInflight.then(k => { if (alive) setM(k); });
     return () => { alive = false; };
   }, []);
   return m;

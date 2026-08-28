@@ -42,3 +42,7 @@ yarn-error.log*
 /node_modules_broken_*/
 /.git-broken-*/
 .venv-tools/
+
+# python bytecode
+__pycache__/
+*.pyc

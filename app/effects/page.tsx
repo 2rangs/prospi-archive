@@ -1,4 +1,5 @@
 "use client";
+import { loadCards } from "../cardsData";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import OriginalCardEffect, { useAllEffectPlans } from "../OriginalCardEffect";
@@ -10,11 +11,21 @@ import { PLAYER_REV } from "../anss/version";
 import { FX_CARD_FILL } from "../anss/types";
 import { type Card } from "../search";
 import { useRefStats } from "../refStats";
-import { useEffectPool, useKnownMap } from "../anss/useEffectPool";
-import { decodeEffectId, resolveEffect } from "../anss/resolve";
+import { useEffectPool, useKnownMap, useKnownMeta } from "../anss/useEffectPool";
+import { cardKind, decodeEffectId, resolveEffect } from "../anss/resolve";
+import { teamOf } from "../teams";
 import { verdictOf, VERDICT_LABEL, type QualityTab, type Verdict } from "../anss/quality";
 
 const YEAR_OF_GROUP = (group: number) => 2014 + group;
+
+/**
+ * 카드 이미지 자체가 이펙트 구성의 일부인 콜라보 효과.
+ * 1285005의 MAJOR 캐릭터는 ANSS 스프라이트가 아니라 variant 1500의
+ * CL 카드 아트에 선수와 함께 들어 있으므로 일반 역추정 카드로 대체하면 안 된다.
+ */
+const EFFECT_CARD_OVERRIDES: Record<string, string> = {
+  "1285005": "1251041500", // 齋藤友貴哉 × 本田吾郎
+};
 
 
 
@@ -130,10 +141,11 @@ export default function EffectsPage() {
    * 이펙트의 group(=연도)과 같은 카드를 하나 골라 상세 화면과 같은 구도로 만든다.
    */
   const [cards, setCards] = useState<Card[]>([]);
-  useEffect(() => { fetch("/data/cards.json").then(r => r.json()).then(setCards).catch(() => undefined); }, []);
+  useEffect(() => { void loadCards().then(rows => { if (rows) setCards(rows); }); }, []);
   const refAll = useRefStats();
   const pool = useEffectPool();
   const known = useKnownMap();
+  const knownMeta = useKnownMeta();
   /**
    * 미리보기 카드 — **실제 선수 사진**이 나오게 고른다.
    *
@@ -147,6 +159,11 @@ export default function EffectsPage() {
    */
   const sampleCard = useMemo(() => {
     if (!cards.length || !activePlan) return undefined;
+    const exactCard = EFFECT_CARD_OVERRIDES[String(activePlan.effectId)];
+    if (exactCard) {
+      const original = cards.find(c => c.id === exactCard);
+      if (original) return original;
+    }
     const inGroup = cards.filter(c => c.group === activePlan.group);
     const real = inGroup.filter(c => c.playerId && !/^6\d{3}$/.test(String(c.playerId)));
     /**
@@ -172,7 +189,9 @@ export default function EffectsPage() {
       let bestScore = -1;
       let bestSpirits = -1;
       for (const c of real) {
-        const m = resolveEffect(c.group, c.variant, pool, known, c.id);
+        const r = refAll?.[c.id];
+        const m = resolveEffect(c.group, c.variant, pool, known, c.id,
+          { kind: cardKind(r?.series), league: teamOf(r?.team ?? "")?.league ?? null, meta: knownMeta });
         if (!m || m.level === "none") continue;
         const got = decodeEffectId(String(m.effectId));
         if (!got || !target) continue;
@@ -197,7 +216,7 @@ export default function EffectsPage() {
     return pick(real)
       ?? real.find(c => c.variant.startsWith("01"))
       ?? real[0] ?? inGroup[0] ?? cards[0];
-  }, [cards, activePlan, refAll, pool, known]);
+  }, [cards, activePlan, refAll, pool, known, knownMeta]);
 
   useEffect(() => { setMute(new Set()); }, [active]);
   // 파츠를 이름별로 묶은 목록 — 어느 레이어가 원본과 다른지 이름으로 짚기 위한 검사 도구

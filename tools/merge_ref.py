@@ -5,7 +5,7 @@
 2차 키: (정규화 이름, 연도) 가 양쪽 모두 유일할 때.
 결과: public/data/ref-stats.json  { ourCardId: {...ref fields} }
 """
-import argparse, json, re, collections, sys
+import argparse, json, re, collections, sys, unicodedata
 from pathlib import Path
 from card_rules import apply_card_rules, variant_family
 
@@ -14,7 +14,17 @@ REF = ROOT / "output" / "rakda3" / "cards.jsonl"
 CARDS = ROOT / "public" / "data" / "cards.json"
 OUT = ROOT / "public" / "data" / "ref-stats.json"
 
-norm = lambda s: re.sub(r"[\s　・.．]", "", s or "")
+# NFKC 를 먼저 접는다.
+# [문제] rakda3 의 伊藤 大海 는 海 가 U+FA45(CJK 호환한자)라 카드의 U+6D77 과
+#   문자열이 달랐다 — 이 선수의 카드 11장이 전부 미매칭으로 남았다.
+# [범위] 호환문자 이름은 rakda3 58건(伊藤大海·新垣渚·片山博視·笠原祥太郎·
+#   西田哲朗 등) · 카드 66건. NFKC 는 호환한자→정규자 결정론 접기라 오탐이
+#   없다(斎/斉 같은 진짜 이체자는 서로 다른 문자로 남는다).
+norm = lambda s: re.sub(r"[\s　・.．]", "", unicodedata.normalize("NFKC", s or ""))
+NAME_ALIASES = {
+    "佐藤由規": ("由規",),
+    "金子千尋": ("金子弌大",),
+}
 
 def surname(s):
     """성만. 레퍼런스는 외국인 선수를 **성만** 적는다.
@@ -29,7 +39,10 @@ def surname(s):
     return norm((s or "").split(" ")[0])
 
 def year_of(series):
-    m = re.match(r"(\d{4})S", series or "")
+    # 2015 카드는 `2015S1/S2`뿐 아니라 `2015SP(WS)`, `2015侍`처럼
+    # 연도 바로 뒤에 S가 오지 않는 시리즈명이 있다. 연도 자체가 선두에
+    # 확정적으로 있으므로 네 자리만 읽어야 2015 상세 행도 매칭된다.
+    m = re.match(r"(\d{4})", series or "")
     return int(m.group(1)) if m else None
 
 def series_marker(card):
@@ -45,6 +58,14 @@ def series_marker(card):
         return None
     if pre % 2 == 0:
         pre -= 1
+    # 연도 전용 art family. 2022의 47xx는 OBイチローセレクション,
+    # 91xx는 侍ジャパン이며 같은 variant 카드들의 확정 매칭으로 검증했다.
+    year_specific = {
+        (2022, 47): ("2022S2SP(OBI)", "exact"),
+        (2022, 91): ("2022S2SP(SM", "prefix"),
+    }
+    if (y, pre) in year_specific:
+        return year_specific[(y, pre)]
     markers = {
         1: f"{y}S1",
         3: f"{y}S1覚(",
@@ -136,8 +157,14 @@ def main():
     parser.add_argument("--input", type=Path, default=REF)
     parser.add_argument("--cards", type=Path, default=CARDS)
     parser.add_argument("--output", type=Path, default=OUT)
+    parser.add_argument("--details", type=Path, default=ROOT / "output" / "rakda3" / "details.jsonl")
     args = parser.parse_args()
     refs = [json.loads(l) for l in args.input.open(encoding="utf-8")]
+    details = {}
+    if args.details.exists():
+        for line in args.details.open(encoding="utf-8"):
+            row = json.loads(line)
+            details[int(row["refId"])] = row
     cards = json.load(args.cards.open(encoding="utf-8"))
     corrected = apply_card_rules(cards)
     if corrected:
@@ -171,10 +198,12 @@ def main():
             by_name[sn].append(r)
 
     out, hit_family, hit_def, hit_year, hit_kind, hit_part, miss = {}, 0, 0, 0, 0, 0, 0
+    type_recovered = 0
     for c in cards:
         r = None
         d = c.get("defense")
         names = [norm(c["name"])]
+        names.extend(x for x in NAME_ALIASES.get(names[0], ()) if x not in names)
         sn = surname(c["name"])
         if sn != names[0]:
             names.append(sn)
@@ -184,25 +213,31 @@ def main():
             if r:
                 hit_family += 1
                 break
-        if d and not has_family:
+        # 이미지 family 표는 연도별로 재사용된다(예: 31xx가 어떤 해에는 SM,
+        # 2023년에는 JP). family 추정이 빗나갔더라도 정확한 수비값 후보는 안전하다.
+        if d:
             for nm in names if r is None else ():
                 v = by_def.get((nm, d["catching"], d["throwing"], d["shoulder"]))
                 if not v:
                     continue
                 # 수비 일치가 여러 장이면 연도가 같은 것을 우선
                 same = [x for x in v if year_of(x["series"]) == c["year"]]
-                r = (same or v)[0] if (len(v) == 1 or same) else None
+                # 같은 연도에 수비값까지 같은 카드가 여러 장이면 성장 수치가
+                # 서로 다를 수 있으므로 임의로 첫 행을 고르지 않는다.
+                # 카드별 능력치·성장표는 연도에 따라 달라진다. 수비 3종이 같아도
+                # 다른 연도 행을 붙이는 것은 오매칭이므로 같은 연도 유일 후보만 허용한다.
+                r = same[0] if len(same) == 1 else None
                 if r:
                     hit_def += 1
                     break
-        if r is None and not has_family:
+        if r is None:
             for nm, tbl in ((names[0], ours_year),
                             *(((sn, ours_sur),) if len(names) > 1 else ())):
                 k = (nm, c["year"])
                 rv, cv = by_year.get(k, []), tbl.get(k, [])
                 if len(rv) == 1 and len(cv) == 1:
                     r = rv[0]; hit_year += 1; break
-        if r is None and not has_family:
+        if r is None:
             # 투타겸업은 같은 이름·연도에 양쪽 카드가 있으므로 이미지 family까지 쓴다.
             for nm in names:
                 r = exact_two_way_ref(c, by_year.get((nm, c["year"]), []))
@@ -210,7 +245,7 @@ def main():
                     hit_kind += 1
                     break
 
-        if r is None and not has_family:
+        if r is None:
             # 2.5차 - 유형(kind)으로 가른다.
             #
             # [문제] 大谷 翔平처럼 한 해에 투수 카드와 타자 카드가 같이 나오는
@@ -227,6 +262,12 @@ def main():
                       if x["kind"] == c.get("playerType")]
                 if len(rv) == 1:
                     r = rv[0]; hit_kind += 1; break
+
+        # 구종·타격 능력 같은 로컬 카드 데이터가 실제로 존재하면 그 유형이
+        # 수비값/이름 유일성보다 강한 증거다. 투타겸업의 반대 유형 행을 금지한다.
+        if (r is not None and r.get("kind") != c.get("playerType") and
+                (c.get("base") or c.get("pitching") or c.get("position") is not None)):
+            r = None
 
         if r is None:
             # 3차 - 부분 매칭.
@@ -252,6 +293,17 @@ def main():
                 continue
             miss += 1
             continue
+        # 로컬 PLAYERDATA 레코드가 아예 없어 기본값 `batter`만 남은 카드에는
+        # 이름·연도 기준으로 확정된 상세 페이지의 유형을 복구한다. 실제 로컬
+        # 투타 데이터가 존재하는 겸업 카드는 여기서 덮어쓰지 않는다.
+        if (r.get("kind") != c.get("playerType") and not c.get("base") and
+                not c.get("pitching") and c.get("position") is None):
+            c["playerType"] = r["kind"]
+            c["cardTypeSource"] = "rakda3-exact"
+            if r["kind"] == "pitcher":
+                c["position"] = 7
+                c["positionName"] = "투수"
+            type_recovered += 1
         e = dict(refId=r["ref_id"], series=r["series"], team=r["team"], pos=r["pos"],
                  spirits=r["spirits"], cost=r["cost"], hand=r["hand"],
                  abilities=r.get("abilities") or [],
@@ -269,11 +321,22 @@ def main():
             e["max"] = {k2: r[k2][1] for k2 in ("velocity","control","stamina") if r.get(k2)}
             e["defense"] = {k2: r[k2][1] for k2 in ("catch","throw","arm") if r.get(k2)}
             e["pitchRanks"] = r.get("pitchRanks")
+        detail = details.get(int(r["ref_id"]))
+        if detail and detail.get("growth"):
+            # 사이트 상세표의 Lv0..10 실측값. MAX 역산값보다 우선한다.
+            e["growth"] = detail["growth"]
+            rows = detail["growth"].get("rows") or []
+            if rows and rows[0].get("level") == 0:
+                keys = (("meet", "power", "speed") if r["kind"] == "batter"
+                        else ("velocity", "control", "stamina"))
+                e["lv0"] = dict(zip(keys, rows[0]["values"]))
         out[c["id"]] = e
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     json.dump(out, args.output.open("w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
-    print(f"카드유형교정 {corrected} · 시리즈키 {hit_family} · 수비키 {hit_def} · 연도키 {hit_year} · 유형키 {hit_kind} · 부분 {hit_part} · 미매칭 {miss}  -> {args.output} ({len(out)}건)")
+    if type_recovered:
+        json.dump(cards, args.cards.open("w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+    print(f"카드유형교정 {corrected} · 유형복구 {type_recovered} · 시리즈키 {hit_family} · 수비키 {hit_def} · 연도키 {hit_year} · 유형키 {hit_kind} · 부분 {hit_part} · 미매칭 {miss}  -> {args.output} ({len(out)}건)")
 
 if __name__ == "__main__":
     main()

@@ -11,7 +11,14 @@
 
 export type Ability = { meetR: number; meetL: number; power: number; run: number };
 export type Defense = { catching: number; throwing: number; shoulder: number; version: number };
-export type Pitch = { direction: number; arrow: string; kind: number; name: string; power: number; level: number; speed: number };
+/**
+ * power 는 카드 마스터에서 온 0~100 수치다. 마스터에 그 연도 리비전이 없어
+ * 레퍼런스(rakda3)에서 채운 카드는 수치 대신 **등급 문자**만 있으므로
+ * power 가 null 이고 rank 가 채워진다. 표시할 때는 rank 를 우선한다.
+ */
+export type Pitch = { direction: number; arrow: string; kind: number; name: string;
+  power: number | null; level: number; speed: number;
+  rank?: string | null; nameJa?: string; source?: string };
 export type Pitching = { maxSpeed: number; stamina: number; pitches: Pitch[] };
 export type PlayerType = "batter" | "pitcher";
 export type AptitudePos = "pitcher" | "catcher" | "first" | "second" | "third" | "short" | "left" | "center" | "right";
@@ -276,6 +283,28 @@ export function parseSeries(s?: string) {
   return { year: Number(m[1]), half: `S${m[2]}`, special: m[3].length > 0 };
 }
 
+/**
+ * 카드 종류(시리즈 코드) 계열.
+ *
+ * [근거] 게임 원본 카드 라벨 아틀라스 CARD2015L/TEX01 이 연도(2015~2030) ·
+ *   Series1/Series2 · 종류(TS · OB · WS)를 한 장에 담고 있다. 즉 게임 자신이
+ *   카드를 이 세 축으로 나눈다. 아틀라스는 2015년판이라 종류가 3개뿐이지만
+ *   현재 원장에는 SP 코드가 57종 있으므로, 같은 규칙(선두 알파벳 계열)으로
+ *   묶어 필터 축을 만든다.
+ * [주의] 이름은 붙이지 않는다 — 코드의 정식 명칭을 확인한 것이 TS/OB/WS 뿐이라
+ *   나머지를 지어내지 않고 게임이 쓰는 코드 그대로 보여 준다.
+ */
+const KIND_FAMILY = ["TS", "OB", "WS", "SL", "AN", "EX", "SM", "JP", "PCS", "BT", "ドラ"];
+
+/** "2025S1SP(SL1)" -> "SL" · "2025S2覚(若手)" -> "覚" · "2015SP(侍)" -> "侍" */
+export function seriesKind(series?: string): string | null {
+  const m = /(SP|覚)\(([^)]+)\)/.exec(series ?? "");
+  if (!m) return null;
+  if (m[1] === "覚") return "覚";
+  const code = m[2];
+  return KIND_FAMILY.find(k => code.startsWith(k)) ?? code;
+}
+
 export type Filters = {
   query: string;
   playerType: PlayerType | "all";
@@ -283,6 +312,8 @@ export type Filters = {
   variant: string;
   /** 빈 배열 = 조건 없음. 여러 개면 OR. */
   team: string[];
+  /** 카드 종류 계열. 빈 배열 = 조건 없음, 여러 개면 OR. */
+  kind: string[];
   half: string;          // "전체" | "S1" | "S2"
   special: string;       // "전체" | "sp" | "normal"
   spiritsMin: number;    // 0 이면 무시
@@ -294,13 +325,13 @@ export type Filters = {
 
 export const EMPTY_FILTERS: Filters = {
   query: "", playerType: "all", year: "전체", variant: "전체",
-  team: [], half: "전체", special: "전체", spiritsMin: 0,
+  team: [], kind: [], half: "전체", special: "전체", spiritsMin: 0,
   trajectory: [], stats: {}, equalStats: false,
 };
 
 /** ref 표기값이 있어야만 판정할 수 있는 필터가 하나라도 켜져 있는가. */
 export function usesRef(f: Filters) {
-  return f.team.length > 0 || f.half !== "전체" || f.special !== "전체"
+  return f.team.length > 0 || f.kind.length > 0 || f.half !== "전체" || f.special !== "전체"
     || f.spiritsMin > 0 || Object.keys(f.stats).length > 0 || f.equalStats;
 }
 
@@ -326,6 +357,10 @@ export function filterCards(cards: Card[], f: Filters, ref?: RefMap): Card[] {
     const r = ref?.[c.id];
     if (!r) return false;                      // 표기값이 없으면 판정 불가 -> 제외
     if (f.team.length && !(r.team && f.team.includes(r.team))) return false;
+    if (f.kind.length) {
+      const k = seriesKind(r.series);
+      if (!k || !f.kind.includes(k)) return false;
+    }
     if (f.spiritsMin > 0 && !(typeof r.spirits === "number" && r.spirits >= f.spiritsMin)) return false;
     if (f.half !== "전체" || f.special !== "전체") {
       const p = parseSeries(r.series);
