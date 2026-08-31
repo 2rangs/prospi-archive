@@ -35,6 +35,17 @@
 - 인수자가 새 토큰을 발급해야 하면 환경 비밀값/자격 증명 저장소에만 저장하고,
   핸드오프·이슈·채팅·쉘 로그에는 값을 붙여 넣지 않는다.
 
+### 현재 푸시 상태
+- 내용 커밋: `7c152779` (`Add missing effects and refresh player reference data`)
+- `origin` 푸시 시도는 2026-08-31에 로컬 Git 인증이 없어
+  `could not read Username for 'https://git.chatgpt-team.site'` 로 거부됐다.
+- macOS `osxkeychain` credential helper는 설정돼 있지만 해당 호스트 항목은 없었고,
+  사용 가능한 Git 토큰 환경 변수도 없었다.
+- 인증 세션을 복구한 뒤 실행:
+  `git push -u origin deployment`
+- 푸시 확인:
+  `git fetch origin deployment && test "$(git rev-parse HEAD)" = "$(git rev-parse origin/deployment)"`
+
 ## 역할
 프로스피A(プロスピA) 선수카드 아카이브 사이트의 CHK/ANIMSS05 이펙트 렌더러를
 원본 인게임 재생과 일치시키는 작업을 이어서 한다.
