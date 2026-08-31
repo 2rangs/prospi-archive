@@ -51,7 +51,7 @@ def main() -> int:
     body = json.dumps(slim, ensure_ascii=False, separators=(",", ":")).encode()
     out = DATA / "cards.json.gz"
     before = out.stat().st_size if out.exists() else 0
-    out.write_bytes(gzip.compress(body, 9))
+    out.write_bytes(gzip.compress(body, 9, mtime=0))
     pitches = sum(len(c.get("pitching", {}).get("pitches", []) or [])
                   for c in slim if isinstance(c.get("pitching"), dict))
     print(f"카드 {len(slim)} · 제거 필드 {DROP} · 구종 {pitches}건을 {KEEP_PITCH} 만 남김")

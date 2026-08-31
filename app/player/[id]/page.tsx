@@ -259,7 +259,7 @@ export default function PlayerPage() {
   useEffect(() => {
     // 카드 데이터가 갱신되면 브라우저 캐시 때문에 옛 샤드가 그대로 쓰인다.
     // cards.json 과 같은 방식으로 버전 꼬리표를 붙인다(구종 복구 48장, r111).
-    fetchGzipJson<Card[]>(`/data/card-shards/${params.id.slice(0, 2)}.json.gz?v=2138`).then((cards: Card[] | null) => {
+    fetchGzipJson<Card[]>(`/data/card-shards/${params.id.slice(0, 2)}.json.gz?v=20260831`).then((cards: Card[] | null) => {
       if (!cards) { setMissing(true); return; }
       const found = cards.find(item => item.id === params.id);
       if (found) setCard(found); else setMissing(true);
@@ -274,7 +274,7 @@ export default function PlayerPage() {
   useEffect(() => {
     if (!card?.playerId) { setVersions([]); return; }
     let alive = true;
-    fetch("/data/cards.json").then(r => r.json()).then((all: Card[]) => {
+    fetch("/data/cards.json?v=20260831").then(r => r.json()).then((all: Card[]) => {
       if (!alive) return;
       const list = all.filter(c => c.playerId === card.playerId)
         .sort((a, b) => b.year - a.year || a.variant.localeCompare(b.variant));

@@ -26,7 +26,7 @@ def dump_shards(source: str, folder: str, mapping: bool) -> None:
         # 상세 화면은 .json.gz 를 받는다(app/player/[id] fetchGzipJson).
         # json 만 갱신하고 gz 를 안 만들면 상세 샤드가 stale 로 남아 신규
         # 카드 상세가 안 열린다 — 반드시 함께 쓴다.
-        (out / f"{key}.json.gz").write_bytes(gzip.compress(payload, compresslevel=9))
+        (out / f"{key}.json.gz").write_bytes(gzip.compress(payload, compresslevel=9, mtime=0))
 
 
 dump_shards("cards.json", "card-shards", False)

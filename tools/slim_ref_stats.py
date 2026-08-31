@@ -36,7 +36,7 @@ def main() -> int:
     body = json.dumps(slim, ensure_ascii=False, separators=(",", ":")).encode()
     out = DATA / "ref-stats.json.gz"
     before = out.stat().st_size if out.exists() else 0
-    out.write_bytes(gzip.compress(body, 9))
+    out.write_bytes(gzip.compress(body, 9, mtime=0))
     kept = sum(len(v) for v in slim.values())
     dropped = sum(len(v) for v in full.values()) - kept
     print(f"항목 {len(slim)} · 필드 {kept}개 유지 / {dropped}개 제거 {DROP}")

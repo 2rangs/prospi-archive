@@ -61,8 +61,14 @@ def load_master(path):
 def main():
     cards = {str(c["id"]): c for c in json.loads((ROOT / "public/data/cards.json").read_text())}
     audit = json.loads((ROOT / "output/integrity/player-data-audit.json").read_text())
-    gap_ids = [i["cardId"] for i in audit.get("issues", [])
-               if isinstance(i, dict) and i.get("code") == "pitch_missing"]
+    # 이전 실행에서 이미 absence_proven 된 카드는 audit 의 issues 에서
+    # confirmedGaps 로 옮겨 간다. issues 만 다시 조사하면 증명 파일이
+    # "기존 공백" / "신규 공백" 사이를 번갈아 덮어써 감사 결과가 진동한다.
+    # 두 집합의 합집합을 매번 전수 재검증해 결과를 결정론적으로 만든다.
+    gap_ids = sorted({str(i["cardId"]) for i in audit.get("issues", [])
+                      if isinstance(i, dict) and i.get("code") == "pitch_missing"}
+                     | {str(i["cardId"]) for i in audit.get("confirmedGaps", [])
+                        if isinstance(i, dict) and i.get("cardId") is not None})
 
     rak = [json.loads(l) for l in (ROOT / "output/rakda3/cards.jsonl").open(encoding="utf-8")]
     rak_idx = collections.defaultdict(list)

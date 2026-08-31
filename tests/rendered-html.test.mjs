@@ -32,7 +32,10 @@ test("published card, reference and effect datasets agree", async () => {
     readFile(new URL("../public/effects/known-map.json", import.meta.url), "utf8").then(JSON.parse),
   ]);
   const cardIds = new Set(cards.map((card) => String(card.id)));
-  assert.equal(cards.length, 15_222);
+  // 원장은 최신화로 계속 증가한다. 예전 장수를 고정하면 정상적인
+  // 신규 카드도 회귀로 오판하므로, 최소 보장과 ID 유일성을 같이 검증한다.
+  assert.ok(cards.length >= 15_222);
+  assert.equal(cardIds.size, cards.length);
   assert.ok(Object.keys(refs).every((id) => cardIds.has(id)));
   const availableEffects = new Set(effectIds);
   assert.ok(Object.values(knownDoc.map).every((id) => /^\d{10}$/.test(id) || availableEffects.has(id)));

@@ -2153,6 +2153,11 @@ footer,footer span,footer p{color:var(--muted)}
   overflow-y:auto !important;overflow-x:hidden !important;scrollbar-width:thin;
   background:var(--surface);border:0;border-right:1px solid var(--line);border-radius:0;z-index:5}
 .detail-page .version-rail a{flex:0 0 auto;flex-direction:column;gap:3px;padding:5px;width:auto}
+/* 세로 레일에서 flex:0 0 auto 항목의 auto 높이가 레일 전체 높이로 stretch 돼
+   한 카드가 레일을 다 차지했다. 내용 높이로 고정해 항목당 한 칸이 되게 한다.
+   (이러면 25장이 쌓여 레일 overflow-y:auto 로 스크롤된다.) */
+.detail-page .version-rail a{height:max-content}
+.detail-page .version-rail span{flex:0 0 auto}
 .detail-page .version-rail img{width:70px;height:70px}
 @media(max-width:900px){
   .detail-page{grid-template-columns:1fr !important;

@@ -1,7 +1,7 @@
 "use client";
 import { loadCards } from "./cardsData";
 
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import AnssStage from "./anss/AnssStage";
 import { useAnss } from "./anss/useAnss";
 import { type KnownMeta, useEffectPool, useKnownMap, useKnownMeta } from "./anss/useEffectPool";
@@ -14,7 +14,7 @@ import { HeroStage } from "./heroStage";
 import { TRAJECTORY_ORDER, TrajArrow, Trajectory, trajColor } from "./trajectory";
 import { useScrollRestore, useUrlState } from "./useUrlState";
 import { type RefStats, useRefStats } from "./refStats";
-import { preloadTiles, useEffectFrontTile, useEffectTile } from "./anss/thumb";
+import { useEffectFrontTile, useEffectTile } from "./anss/thumb";
 
 /**
  * 메인 미리보기 카드. 실측 매핑이 있는 카드를 써서, 보여주는 이펙트가
@@ -122,7 +122,7 @@ function RowIcon({ card, effectId }: { card: Card; effectId: number | null }) {
       [처리] 사진이 뜨는 순간 행에 data-loaded 를 달아 스켈레톤을 없앤다.
         캐시로 이미 로드된 경우( load 이벤트가 안 오는 경우 )도 ref 에서 처리.
     */}
-    <img className="rp-art" loading="eager" fetchPriority="high" decoding="async"
+    <img className="rp-art" loading="lazy" fetchPriority="auto" decoding="async"
       ref={el => { if (el?.complete && el.naturalWidth > 0) el.closest(".row-photo")?.setAttribute("data-loaded", "1"); }}
       onLoad={e => e.currentTarget.closest(".row-photo")?.setAttribute("data-loaded", "1")}
       onError={e => e.currentTarget.closest(".row-photo")?.setAttribute("data-loaded", "1")}
@@ -321,8 +321,9 @@ export default function Home() {
     team: list(ui.team), kind: list(ui.kind), half: ui.half, special: ui.sp,
     spiritsMin: Number(ui.spirits) || 0, trajectory: list(ui.traj), stats, equalStats: ui.eq === "1",
   }), [query, playerType, year, variant, ui.team, ui.kind, ui.half, ui.sp, ui.spirits, ui.traj, ui.eq, stats]);
-  const groups = useMemo(() => searchPlayers(cards, f, refAll), [cards, f, refAll]);
-  const counts = useMemo(() => typeCounts(cards, f, refAll), [cards, f, refAll]);
+  const deferredFilter = useDeferredValue(f);
+  const groups = useMemo(() => searchPlayers(cards, deferredFilter, refAll), [cards, deferredFilter, refAll]);
+  const counts = useMemo(() => typeCounts(cards, deferredFilter, refAll), [cards, deferredFilter, refAll]);
   const teams = useMemo(() => {
     if (!refAll) return [] as string[];
     const c = new Map<string, number>();
@@ -374,19 +375,7 @@ export default function Home() {
    * [안전] 카드 목록 자체가 아직 없거나(pool 미도착) 프리로드가 실패해도
    *   화면이 막히지 않도록, 실패·빈 목록이면 즉시 통과시킨다.
    */
-  const wantKey = useMemo(
-    () => visible.map(g => {
-      const c = repCard(g, refAll);
-      return `${c.id}:${rowEffectId(c, pool, known, ctxOf(c, refAll?.[c.id], knownMeta)) ?? 0}`;
-    }).join(","),
-    [visible, pool, known, refAll, knownMeta]);
-  const [tilesFor, setTilesFor] = useState<string | null>(null);
-  useEffect(() => {
-    if (!visible.length) { setTilesFor(wantKey); return; }
-    let alive = true;
-    const entries = wantKey.split(",").filter(Boolean).map(t => t.split(":"));
-    const ids = entries.map(e => Number(e[1])).filter(n => n > 0);
-    /**
+  /**
      * 선수 아이콘 이미지도 같이 받는다 — 이것도 늦게 도착해 하나씩 튀어나온다.
      *
      * [문제] 여기서 받던 것은 **CL(대형)** 인데 행이 그리는 것은 `imageUrl(card)`
@@ -396,17 +385,6 @@ export default function Home() {
      * [처리] 행이 그리는 것과 **같은 URL** 을 예열한다. 카드 id 가 곧 파일명이라
      *   `CS{id}.CHK` 로 만들 수 있다(전 15,222장 형식 동일).
      */
-    const arts = entries.map(e => e[0]).filter(Boolean).map(id => new Promise<void>(done => {
-      const im = new Image();
-      im.onload = () => done(); im.onerror = () => done();
-      im.src = `/api/card-image?group=${Number(id.length === 9 ? id.slice(0, 1) : id.slice(0, 2))}&file=${encodeURIComponent(`CS${id}.CHK`)}`;
-    }));
-    if (!ids.length && !arts.length) { setTilesFor(wantKey); return; }
-    Promise.all([preloadTiles(ids).catch(() => undefined), ...arts])
-      .then(() => { if (alive) setTilesFor(wantKey); });
-    return () => { alive = false; };
-  }, [wantKey, visible.length]);
-  const tilesReady = tilesFor === wantKey;
   // 모든 탭 공통 열 (사용자 지정 배치): 선수 · 시리즈 · 스피리츠 · 탄도/구속 · 능력+스킬
   const leadCol = playerType === "pitcher" ? t("colSpeedKmh")
     : playerType === "batter" ? t("colTraj") : t("colTrajSpeed");
@@ -592,9 +570,7 @@ export default function Home() {
     </section>
     <section className={`player-table ${tableKind}`}>
       <div className="table-head">{columns.map((column, index) => <span key={`${column}-${index}`}>{column}</span>)}</div>
-      {!tilesReady && visible.length > 0 &&
-        <p className="table-loading" role="status">{t("loading")}</p>}
-      {tilesReady && visible.map(group => <PlayerGroupRow key={group.key} group={group} refAll={refAll} pool={pool} known={known} knownMeta={knownMeta}
+      {visible.map(group => <PlayerGroupRow key={group.key} group={group} refAll={refAll} pool={pool} known={known} knownMeta={knownMeta}
         open={openKey === group.key}
         onToggle={() => setUi({ open: openKey === group.key ? "" : group.key })}
         showType={playerType === "all"}/>)}

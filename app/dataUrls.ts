@@ -14,4 +14,4 @@
  * [갱신] slim-1 = tools/slim_cards.py 로 상세 전용 값을 뺀 목록용 원장
  *   (gz 1.61 → 0.78MB). 내용이 바뀌었으므로 토큰을 올려 캐시를 비운다.
  */
-export const CARDS_URL = "/data/cards.json.gz?v=slim-2-2138";
+export const CARDS_URL = "/data/cards.json.gz?v=slim-2-20260831";

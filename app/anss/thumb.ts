@@ -413,11 +413,16 @@ function releaseSlotIfUnused(effectId: number) {
  * 슬롯·캔버스를 건너뛴다. 문서·텍스처 캐시는 유지되므로 다시 보이면 즉시 잇는다.
  */
 const visibleCanvases = new WeakSet<HTMLCanvasElement>();
+const canvasEffects = new WeakMap<HTMLCanvasElement, number>();
 const io = typeof IntersectionObserver !== "undefined"
   ? new IntersectionObserver(entries => {
       for (const e of entries) {
         const cv = e.target as HTMLCanvasElement;
-        if (e.isIntersecting) visibleCanvases.add(cv);
+        if (e.isIntersecting) {
+          visibleCanvases.add(cv);
+          const id = canvasEffects.get(cv);
+          if (id != null) void mount(id);
+        }
         else visibleCanvases.delete(cv);
       }
     }, { rootMargin: "120px" })
@@ -500,9 +505,10 @@ export function useEffectTile(effectId: number | null | undefined) {
     let set = sinks.get(effectId);
     if (!set) { set = new Set(); sinks.set(effectId, set); }
     set.add(el);
+    canvasEffects.set(el, effectId);
     sizeTile(el);
     io?.observe(el);
-    void mount(effectId);
+    if (!io) void mount(effectId);
     return () => {
       io?.unobserve(el);
       const cur = sinks.get(effectId);
@@ -524,9 +530,10 @@ export function useEffectFrontTile(effectId: number | null | undefined) {
     let set = frontSinks.get(effectId);
     if (!set) { set = new Set(); frontSinks.set(effectId, set); }
     set.add(el);
+    canvasEffects.set(el, effectId);
     sizeTile(el);
     io?.observe(el);
-    void mount(effectId);
+    if (!io) void mount(effectId);
     return () => {
       io?.unobserve(el);
       const cur = frontSinks.get(effectId);
