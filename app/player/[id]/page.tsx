@@ -9,7 +9,7 @@ import { useEffectPool, useKnownMap, useKnownMeta } from "../../anss/useEffectPo
 import { MATCH_LABEL, cardKind, effectCandidates, resolveEffect } from "../../anss/resolve";
 import { teamOf } from "../../teams";
 import { FX_CARD_FILL, fxCanvasFor, fxScaleFor } from "../../anss/types";
-import { APTITUDE_LABEL, type Card, type Pitch, teamLabel } from "../../search";
+import { APTITUDE_LABEL, type AptitudePos, type Card, type Pitch, teamLabel } from "../../search";
 import { PLAYER_NOTE, PLAYER_REV } from "../../anss/version";
 import { useRefStatsForId } from "../../refStats";
 import { Grade, grade } from "../../grade";
@@ -41,6 +41,12 @@ const meet = (card: Card) => card.base ? Math.round((card.base.meetR + card.base
 const maxPitchPower = (card: Card) =>
   card.pitching?.pitches.reduce((best, pitch) => Math.max(best, pitch.power ?? 0), 0);
 const imageUrl = (card: Card) => `/api/card-image?group=${card.group}&file=${encodeURIComponent(card.largeFile)}`;
+
+/** 원본 수비 화면의 포지션 배치(화면 좌상단 기준 %). */
+const DEFENSE_POS: Record<AptitudePos, [number, number]> = {
+  pitcher: [50, 57], catcher: [50, 83], first: [72, 57], second: [62, 39],
+  third: [28, 57], short: [38, 39], left: [20, 24], center: [50, 15], right: [80, 24],
+};
 
 /**
  * 능력 한 칸. 막대는 뺐다 — 0~100 스케일이 게임 표기와 맞지 않아
@@ -595,6 +601,23 @@ export default function PlayerPage() {
         </div>}
         {card.playerType === "batter" && <section className="batter-defense">
           <h3>{t("secDefense")}</h3>
+          {card.aptitude && <div className="defense-field" aria-label={t("secAptitude")}>
+            <svg className="defense-diamond" viewBox="0 0 100 70" aria-hidden="true">
+              <path d="M50 61 18 35 50 9 82 35Z"/>
+              <path d="M50 61V35M18 35h64M50 9v26"/>
+              <rect x="47" y="57" width="6" height="6"/><rect x="79" y="32" width="6" height="6"/>
+              <rect x="47" y="6" width="6" height="6"/><rect x="15" y="32" width="6" height="6"/>
+            </svg>
+            {APTITUDE_LABEL.filter(([k]) => card.aptitude?.[k]).map(([k]) => {
+              const value = card.aptitude![k]!;
+              const [x, y] = DEFENSE_POS[k];
+              return <span className="defense-position" key={k} style={{left:`${x}%`,top:`${y}%`}}
+                title={`${ta(k)} ${value}`}>
+                <Grade value={value}/><b>{value}</b><small>{ta(k)}</small>
+              </span>;
+            })}
+            <div className="defense-tabs" aria-hidden="true"><b>守備</b><span>走塁</span><span>盗塁</span></div>
+          </div>}
           <div className="stat-grid defense-stat-grid">
             <div className="sgcol">
               <StatCell label={t("colCatch")} value={ref?.defense?.catch ?? card.defense?.catching}/>
@@ -602,13 +625,6 @@ export default function PlayerPage() {
               <StatCell label={t("colArm")} value={ref?.defense?.arm ?? card.defense?.shoulder}/>
             </div>
           </div>
-          {card.aptitude && <>
-            <h3>{t("secAptitude")} <small>{t("secAptitudeSub")}</small></h3>
-            <div className="apt-grid">
-              {APTITUDE_LABEL.filter(([k]) => card.aptitude?.[k]).map(([k]) =>
-                <span key={k}><b>{ta(k)}</b><Grade value={card.aptitude![k]!}/><i>{card.aptitude![k]}</i></span>)}
-            </div>
-          </>}
         </section>}
         {card.playerType === "pitcher" && pitching ? <>
           {!ref && <>

@@ -2326,6 +2326,77 @@ footer,footer span,footer p{color:var(--muted)}
   border-top:1px solid var(--line)
 }
 .batter-defense .defense-stat-grid{margin-bottom:14px}
+.defense-field{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/8.2;
+  min-height:250px;
+  overflow:hidden;
+  margin:0 0 12px;
+  background:#18311f url('/ui/player-defense-stadium.png') center 72%/100% auto no-repeat;
+  border:1px solid var(--line)
+}
+.defense-field::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.2),transparent 35%,rgba(0,0,0,.18))
+}
+.defense-diamond{
+  position:absolute;
+  z-index:1;
+  left:18%;
+  top:13%;
+  width:64%;
+  height:72%;
+  fill:rgba(255,255,255,.13);
+  stroke:rgba(255,255,255,.72);
+  stroke-width:.65
+}
+.defense-diamond rect{fill:rgba(255,255,255,.86);stroke:none}
+.defense-position{
+  position:absolute;
+  z-index:2;
+  transform:translate(-50%,-50%);
+  display:grid;
+  grid-template-columns:22px auto;
+  grid-template-areas:"grade value" "name name";
+  align-items:center;
+  gap:0 3px;
+  filter:drop-shadow(0 1px 2px #000)
+}
+.defense-position .grade{grid-area:grade;width:22px;height:22px}
+.defense-position b{
+  grid-area:value;
+  min-width:32px;
+  padding:2px 4px;
+  color:#fff;
+  background:rgba(0,0,0,.82);
+  font:850 16px/1.1 ui-monospace,monospace;
+  text-align:center
+}
+.defense-position small{
+  grid-area:name;
+  justify-self:center;
+  margin-top:2px;
+  padding:1px 4px;
+  color:rgba(255,255,255,.78);
+  background:rgba(0,0,0,.5);
+  font:700 8px/1.2 system-ui
+}
+.defense-tabs{
+  position:absolute;
+  z-index:3;
+  right:8px;
+  bottom:7px;
+  display:flex;
+  border:1px solid rgba(255,255,255,.2);
+  background:rgba(10,12,15,.78)
+}
+.defense-tabs>*{padding:4px 8px;color:#7e828a;font:750 10px/1 system-ui;border-left:1px solid rgba(255,255,255,.12)}
+.defense-tabs>*:first-child{border-left:0}
+.defense-tabs b{color:#fff;background:rgba(255,255,255,.12)}
 .batter-defense .apt-grid{
   grid-template-columns:repeat(auto-fit,minmax(116px,1fr));
   gap:1px;
@@ -2342,4 +2413,6 @@ footer,footer span,footer p{color:var(--muted)}
 @media(max-width:560px){
   .detail-side .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .detail-side .stat-grid .scell:last-child:nth-child(odd){grid-column:1/-1}
+  .defense-field{min-height:210px}
+  .defense-position{transform:translate(-50%,-50%) scale(.88)}
 }
