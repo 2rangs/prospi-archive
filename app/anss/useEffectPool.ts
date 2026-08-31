@@ -14,7 +14,7 @@ let inflight: Promise<EffectKey[]> | null = null;
 export function loadEffectPool(): Promise<EffectKey[]> {
   if (cached) return Promise.resolve(cached);
   if (!inflight) {
-    inflight = fetch("/effects/effect-keys.json")
+    inflight = fetch("/effects/effect-keys.json?v=2138")
       .then(r => (r.ok ? r.json() : []))
       .catch(() => [] as string[])
       .then((ids: string[]) => {

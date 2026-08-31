@@ -34,7 +34,7 @@ export function loadRefStats(): Promise<Record<string, RefStats> | null> {
   return new Promise(resolve => {
     waiters.push(resolve);
     if (waiters.length === 1) {
-      void fetchGzipJson<Record<string, RefStats>>("/data/ref-stats.json.gz")
+      void fetchGzipJson<Record<string, RefStats>>("/data/ref-stats.json.gz?v=2138")
         .catch(() => null)
         .then(j => { cache = j; waiters.splice(0).forEach(w => w(j)); });
     }
@@ -56,7 +56,7 @@ export function useRefStats(): Record<string, RefStats> | null {
     if (cache !== undefined) { setV(cache); return; }
     waiters.push(setV);
     if (waiters.length === 1) {
-      fetchGzipJson<Record<string, RefStats>>("/data/ref-stats.json.gz")
+      fetchGzipJson<Record<string, RefStats>>("/data/ref-stats.json.gz?v=2138")
         .catch(() => null)
         .then(j => { cache = j; waiters.splice(0).forEach(w => w(j)); });
     }
@@ -71,7 +71,7 @@ export function useRefStatsForId(id: string | undefined): RefStats | null {
     if (!id) { setValue(null); return; }
     if (detailCache.has(id)) { setValue(detailCache.get(id) ?? null); return; }
     let alive = true;
-    fetchGzipJson<Record<string, RefStats>>(`/data/ref-shards/${id.slice(0, 2)}.json.gz`)
+    fetchGzipJson<Record<string, RefStats>>(`/data/ref-shards/${id.slice(0, 2)}.json.gz?v=2138`)
       .then((shard: Record<string, RefStats> | null) => {
         shard = shard ?? {};
         const found = shard[id] ?? null;

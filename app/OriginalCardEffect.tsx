@@ -103,7 +103,7 @@ let planRequest: Promise<Record<string, EffectPlan>> | null = null;
 function loadPlans() {
   if (planCache) return Promise.resolve(planCache);
   if (!planRequest) {
-    planRequest = fetch("/effects/layers.json")
+    planRequest = fetch("/effects/layers.json?v=2138")
       .then(response => response.json())
       .then((plans: Record<string, EffectPlan>) => { planCache = plans; return plans; })
       .catch(() => ({}));
