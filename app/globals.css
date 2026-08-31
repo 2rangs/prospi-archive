@@ -2254,3 +2254,60 @@ footer,footer span,footer p{color:var(--muted)}
   .detail-page .detail-side{padding:18px 14px}
   .detail-side .pitch-fans{grid-template-columns:1fr !important}
 }
+
+/* 선수 선택은 이펙트 무대와 겹치지 않는다. 카드 아래의 독립 가로 레일로 두고,
+   큰 파티클은 카드 열 바깥에서 잘리지 않게 한다. */
+.detail-page{
+  grid-template-columns:minmax(560px,620px) minmax(0,1fr) !important;
+  align-items:start
+}
+.detail-page .detail-art{
+  display:flex !important;
+  flex-direction:column;
+  align-self:start !important;
+  height:auto !important;
+  padding:14px 18px 12px !important;
+  overflow:visible;
+  gap:12px
+}
+.detail-page .detail-art .card-frame{
+  order:1;
+  width:min(100%,390px) !important;
+  margin:0 auto !important
+}
+.detail-page .version-rail{
+  order:2;
+  position:static !important;
+  inset:auto !important;
+  width:100% !important;
+  max-height:none !important;
+  display:flex !important;
+  flex-direction:row !important;
+  gap:6px;
+  padding:9px 8px;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  border:1px solid var(--line);
+  background:var(--surface)
+}
+.detail-page .version-rail .vr-title{display:none}
+.detail-page .version-rail a{width:72px;min-width:72px;padding:5px}
+.detail-page .version-rail img{width:58px;height:58px}
+.detail-page .detail-side{align-self:start;min-height:0}
+
+@media(max-width:1080px){
+  .detail-page{grid-template-columns:minmax(440px,48%) minmax(0,1fr) !important}
+  .detail-page .detail-art{padding:12px !important}
+  .detail-page .detail-art .card-frame{width:min(100%,360px) !important}
+}
+
+@media(max-width:900px){
+  .detail-page{grid-template-columns:1fr !important}
+  .detail-page .detail-art{overflow:hidden}
+  .detail-page .detail-art .card-frame{width:min(100%,380px) !important}
+}
+@media(max-width:560px){
+  .detail-page .detail-art .card-frame{width:min(100%,340px) !important}
+  .detail-page .version-rail a{width:64px;min-width:64px}
+  .detail-page .version-rail img{width:50px;height:50px}
+}
