@@ -573,11 +573,11 @@ export default function PlayerPage() {
                 <StatCell label={t("colSpeedKmh")} value={card.pitching?.maxSpeed} suffix="km/h"/>
               </>}
             </div>
-            <div className="sgcol">
+            {ref.kind !== "batter" && <div className="sgcol">
               <StatCell label={t("colCatch")} value={ref.defense?.catch ?? card.defense?.catching}/>
               <StatCell label={t("colThrow")} value={ref.defense?.throw ?? card.defense?.throwing}/>
               <StatCell label={t("colArm")} value={ref.defense?.arm ?? card.defense?.shoulder}/>
-            </div>
+            </div>}
           </div>
           </div>
           {(ref.abilities?.length ?? 0) > 0 && <div className="quad-cell">
@@ -593,6 +593,23 @@ export default function PlayerPage() {
             <small className="skill-tier-note">{t("skillTierNote")}</small>
           </div>}
         </div>}
+        {card.playerType === "batter" && <section className="batter-defense">
+          <h3>{t("secDefense")}</h3>
+          <div className="stat-grid defense-stat-grid">
+            <div className="sgcol">
+              <StatCell label={t("colCatch")} value={ref?.defense?.catch ?? card.defense?.catching}/>
+              <StatCell label={t("colThrow")} value={ref?.defense?.throw ?? card.defense?.throwing}/>
+              <StatCell label={t("colArm")} value={ref?.defense?.arm ?? card.defense?.shoulder}/>
+            </div>
+          </div>
+          {card.aptitude && <>
+            <h3>{t("secAptitude")} <small>{t("secAptitudeSub")}</small></h3>
+            <div className="apt-grid">
+              {APTITUDE_LABEL.filter(([k]) => card.aptitude?.[k]).map(([k]) =>
+                <span key={k}><b>{ta(k)}</b><Grade value={card.aptitude![k]!}/><i>{card.aptitude![k]}</i></span>)}
+            </div>
+          </>}
+        </section>}
         {card.playerType === "pitcher" && pitching ? <>
           {!ref && <>
             <h3>{t("secPlayerBase")} <small>{t("secPlayerBaseSub")}</small></h3>
@@ -635,23 +652,6 @@ export default function PlayerPage() {
               <StatRow label={t("colMeet")} value={meet(card)}/>
               <StatRow label={t("colPower")} value={card.base?.power}/>
               <StatRow label={t("colSpeed")} value={card.base?.run}/>
-            </div>
-          </>}
-          {!ref?.max && <>
-            <h3>{t("secDefense")}</h3>
-            <div className="stat-grid">
-              <div className="sgcol">
-                <StatCell label={t("colCatch")} value={card.defense?.catching}/>
-                <StatCell label={t("colThrow")} value={card.defense?.throwing}/>
-                <StatCell label={t("colArm")} value={card.defense?.shoulder}/>
-              </div>
-            </div>
-          </>}
-          {card.aptitude && <>
-            <h3>{t("secAptitude")} <small>{t("secAptitudeSub")}</small></h3>
-            <div className="apt-grid">
-              {APTITUDE_LABEL.filter(([k]) => card.aptitude?.[k]).map(([k]) =>
-                <span key={k}><b>{ta(k)}</b><Grade value={card.aptitude![k]!}/><i>{card.aptitude![k]}</i></span>)}
             </div>
           </>}
         </>}

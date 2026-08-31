@@ -2311,3 +2311,35 @@ footer,footer span,footer p{color:var(--muted)}
   .detail-page .version-rail a{width:64px;min-width:64px}
   .detail-page .version-rail img{width:50px;height:50px}
 }
+
+/* 능력치는 가용 폭을 전부 사용한다. 타자는 주 능력과 수비를 분리해
+   투수의 구종 차트가 놓이는 세로 위치에 수비·적성 묶음을 둔다. */
+.detail-side .stat-grid{
+  width:100%;
+  grid-template-columns:repeat(auto-fit,minmax(142px,1fr))
+}
+.detail-side .scell{min-height:46px;padding:12px 13px}
+.detail-side .scell span{overflow:visible;text-overflow:clip}
+.batter-defense{
+  margin-top:16px;
+  padding-top:2px;
+  border-top:1px solid var(--line)
+}
+.batter-defense .defense-stat-grid{margin-bottom:14px}
+.batter-defense .apt-grid{
+  grid-template-columns:repeat(auto-fit,minmax(116px,1fr));
+  gap:1px;
+  padding:1px;
+  background:var(--line)
+}
+.batter-defense .apt-grid span{
+  min-height:44px;
+  border:0;
+  border-radius:0;
+  background:var(--surface);
+  padding:10px 12px
+}
+@media(max-width:560px){
+  .detail-side .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .detail-side .stat-grid .scell:last-child:nth-child(odd){grid-column:1/-1}
+}
