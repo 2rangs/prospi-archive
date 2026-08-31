@@ -2193,3 +2193,64 @@ footer,footer span,footer p{color:var(--muted)}
 .detail-side .pitch-fans{grid-template-columns:repeat(auto-fit,minmax(300px,1fr)) !important;gap:18px}
 .detail-side .pitch-fan{margin:8px 0 16px;padding:12px 8px 8px}
 
+/* ===== 상세 화면 비율 보정 (2026-08-31) =====
+   카드와 우측 데이터가 각자 1fr 로 끝없이 커지던 규칙을 정리한다.
+   왼쪽은 카드 원본 비율을 유지하는 제한 폭, 오른쪽은 남는 폭을 사용한다. */
+.detail-page{
+  width:min(1380px,calc(100% - 40px)) !important;
+  grid-template-columns:minmax(420px,540px) minmax(0,1fr) !important;
+  gap:0
+}
+.detail-page .detail-art{
+  padding:16px 18px 16px 102px !important;
+  display:flex !important;
+  align-items:flex-start !important;
+  justify-content:center !important
+}
+.detail-page .detail-art .card-frame{
+  width:min(100%,410px) !important;
+  flex:0 0 auto
+}
+.detail-page .version-rail{width:90px !important;padding:10px 7px}
+.detail-page .version-rail img{width:58px;height:58px}
+.detail-page .detail-side{
+  padding:20px 22px;
+  position:static;
+  max-height:none;
+  overflow:visible
+}
+.detail-head h1{font-size:clamp(27px,2.2vw,34px)}
+.detail-side .pitch-fans{
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:12px !important
+}
+.detail-side .pitch-fan{margin:4px 0 10px;padding:8px 6px 6px}
+
+@media(max-width:1080px){
+  .detail-page{
+    grid-template-columns:minmax(360px,44%) minmax(0,1fr) !important;
+    width:min(calc(100% - 28px),980px) !important
+  }
+  .detail-page .detail-art{padding-left:86px !important}
+  .detail-page .version-rail{width:76px !important}
+  .detail-page .version-rail img{width:50px;height:50px}
+  .detail-page .detail-art .card-frame{width:min(100%,380px) !important}
+  .detail-side .pitch-fans{grid-template-columns:1fr !important}
+}
+
+@media(max-width:900px){
+  .detail-page{width:min(720px,calc(100% - 24px)) !important}
+  .detail-page .detail-art{display:block !important;padding:12px 14px !important}
+  .detail-page .detail-art .card-frame{width:min(100%,390px) !important;margin:0 auto !important}
+  .detail-page .version-rail{width:auto !important;padding:7px !important}
+  .detail-page .version-rail img{width:54px;height:54px}
+  .detail-side .pitch-fans{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+}
+
+@media(max-width:560px){
+  .detail-page{width:100% !important}
+  .detail-page .detail-head{padding:15px 16px}
+  .detail-page .detail-art .card-frame{width:min(100%,350px) !important}
+  .detail-page .detail-side{padding:18px 14px}
+  .detail-side .pitch-fans{grid-template-columns:1fr !important}
+}
