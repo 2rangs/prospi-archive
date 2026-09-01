@@ -40,6 +40,7 @@ export default function EffectsPage() {
   const [anim, setAnim] = useState(true);
   const [rebuilt, setRebuilt] = useState(true);
   const [backdrop, setBackdrop] = useState(true);
+  const [showPlayer, setShowPlayer] = useState(true);
   const [speed, setSpeed] = useState(100);   // 원본 30fps 대비 %
   const [mute, setMute] = useState<Set<string>>(new Set());
   const [renderScale, setRenderScale] = useState(100);  // 내부 렌더 해상도 %
@@ -245,7 +246,7 @@ export default function EffectsPage() {
           {active != null && (rebuilt
             ? <AnssStage doc={anssDoc} width={fxBox.w} height={fxBox.h}
                 scale={fxBox.scale * FX_CARD_FILL * (zoom / 100)} cardArtScale={1 / FX_CARD_FILL}
-                cardArt={sampleCard ? `/api/card-image?group=${sampleCard.group}&file=${encodeURIComponent(sampleCard.largeFile)}` : undefined}
+                cardArt={showPlayer && sampleCard ? `/api/card-image?group=${sampleCard.group}&file=${encodeURIComponent(sampleCard.largeFile)}` : undefined}
                 backdrop={backdrop} speed={speed / 100} mute={mute} renderScale={renderScale / 100}/>
             : gl
             ? <AnimSSPlayerGL key={active} effectId={active} size={320}/>
@@ -331,6 +332,7 @@ export default function EffectsPage() {
           <button onClick={() => { setGroup("전체"); setSeries("전체"); setRank("전체"); setCurrent(null); }}>필터 초기화</button>
           <button onClick={() => setRebuilt(v => !v)}>{rebuilt ? "재작성 플레이어" : "이전 플레이어"}</button>
           <button onClick={() => setBackdrop(v => !v)}>{backdrop ? "배경 레이어 ON" : "배경 레이어 OFF"}</button>
+          <button onClick={() => setShowPlayer(v => !v)}>{showPlayer ? "선수 ON" : "선수 OFF"}</button>
           <label className="fx-speed">
             <span>크기</span>
             <input type="range" min={50} max={300} step={5} value={zoom}

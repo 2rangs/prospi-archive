@@ -1,0 +1,10 @@
+{
+  "note": "Texture->mesh mapping is manual for now. Names captured from GetSURHeader could not be joined to uploads 1:1 (4009 SUR records vs 1670 uploads, no unique dimensions), so these three atlases were identified visually from the decoded set.",
+  "maps": {
+    "MATCH_bust.geo": "player_uni_home.png",
+    "MATCH_leg1.geo": "player_uni_home.png",
+    "MATCH_belt0.geo": "player_uni_home.png",
+    "MATCH_neck0.geo": "player_uni_home.png",
+    "MATCH_facelow.geo": "player_face.png"
+  }
+}
