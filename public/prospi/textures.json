@@ -1,10 +1,163 @@
 {
-  "note": "Texture->mesh mapping is manual for now. Names captured from GetSURHeader could not be joined to uploads 1:1 (4009 SUR records vs 1670 uploads, no unique dimensions), so these three atlases were identified visually from the decoded set.",
-  "maps": {
-    "MATCH_bust.geo": "player_uni_home.png",
-    "MATCH_leg1.geo": "player_uni_home.png",
-    "MATCH_belt0.geo": "player_uni_home.png",
-    "MATCH_neck0.geo": "player_uni_home.png",
-    "MATCH_facelow.geo": "player_face.png"
+ "_note": "Mesh -> texture wiring. `maps` only holds slots whose PNG has been positively identified; the rest fall back to role colour. Pixel captures and name records could not be joined 1:1 (4,009 names vs 1,670 uploads, no unique dimension), so `slots` records the logical texture each mesh wants and is the part to fill in next.",
+ "maps": {
+  "MATCH_bust1.geo": "player_uni_home.png",
+  "MATCH_bust.geo": "player_uni_home.png",
+  "MATCH_leg8.geo": "player_uni_home.png",
+  "MATCH_leg0.geo": "player_uni_home.png",
+  "MATCH_leg5.geo": "player_uni_home.png",
+  "MATCH_leg1.geo": "player_uni_home.png",
+  "MATCH_leg4.geo": "player_uni_home.png",
+  "MATCH_neck1.geo": "player_uni_home.png",
+  "MATCH_leg2.geo": "player_uni_home.png",
+  "MATCH_neck0.geo": "player_uni_home.png",
+  "MATCH_bustlow.geo": "player_uni_home.png",
+  "MATCH_bust1low.geo": "player_uni_home.png",
+  "MATCH_leg2low.geo": "player_uni_home.png",
+  "MATCH_leg4low.geo": "player_uni_home.png",
+  "MATCH_leg1low.geo": "player_uni_home.png",
+  "MATCH_leg0low.geo": "player_uni_home.png",
+  "MATCH_belt0.geo": "player_uni_home.png",
+  "MATCH_belt3.geo": "player_uni_home.png",
+  "MATCH_belt2.geo": "player_uni_home.png",
+  "MATCH_belt1.geo": "player_uni_home.png",
+  "MATCH_belt4.geo": "player_uni_home.png",
+  "MATCH_name_W13.geo": "player_number.png",
+  "MATCH_belt3l.geoGADR ": "player_uni_home.png",
+  "MATCH_name_W12.geo": "player_number.png",
+  "MATCH_facelow.geo": "player_face.png",
+  "MATCH_name_W11.geo": "player_number.png",
+  "MATCH_neck1l.geoGADR ": "player_uni_home.png",
+  "MATCH_name_W10.geo": "player_number.png",
+  "MATCH_name_W09.geo": "player_number.png",
+  "MATCH_belt5.geo": "player_uni_home.png",
+  "MATCH_neck0l.geoGADR ": "player_uni_home.png",
+  "MATCH_name_W08.geo": "player_number.png",
+  "MATCH_belt0l.geoGADR ": "player_uni_home.png",
+  "MATCH_name13.geoGADR ": "player_number.png",
+  "MATCH_name_W06.geo": "player_number.png",
+  "MATCH_belt4l.geoGADR ": "player_uni_home.png",
+  "MATCH_name11.geoGADR ": "player_number.png",
+  "MATCH_name_W05.geo": "player_number.png",
+  "MATCH_name10.geoGADR ": "player_number.png",
+  "MATCH_name09.geoGADR ": "player_number.png",
+  "MATCH_name_W04.geo": "player_number.png",
+  "MATCH_name_F12.geo": "player_number.png",
+  "MATCH_name08.geoGADR ": "player_number.png",
+  "MATCH_name_F11.geo": "player_number.png",
+  "MATCH_name_W03.geo": "player_number.png",
+  "MATCH_backno1.geo": "player_number.png",
+  "MATCH_name06.geoGADR ": "player_number.png",
+  "MATCH_name_F07.geo": "player_number.png",
+  "MATCH_fnumal2.geo": "player_number.png",
+  "MATCH_name04.geoGADR ": "player_number.png",
+  "MATCH_fnumulc2.geo": "player_number.png",
+  "MATCH_fnumbrc2.geo": "player_number.png",
+  "MATCH_fnumlbl2.geo": "player_number.png",
+  "MATCH_fnumur2.geo": "player_number.png",
+  "MATCH_name_W02.geo": "player_number.png",
+  "MATCH_fnumlbr2.geo": "player_number.png",
+  "MATCH_fnumal1.geo": "player_number.png",
+  "MATCH_fnumul2.geo": "player_number.png",
+  "MATCH_fnumbrc1.geo": "player_number.png",
+  "MATCH_name03.geoGADR ": "player_number.png",
+  "MATCH_fnumur1.geo": "player_number.png",
+  "MATCH_fnumr2.geoGADR ": "player_number.png",
+  "MATCH_fnumul1.geo": "player_number.png",
+  "MATCH_fnumbl1.geo": "player_number.png",
+  "MATCH_fnuml2.geoGADR ": "player_number.png",
+  "MATCH_backno0.geo": "player_number.png",
+  "MATCH_fnuml1.geoGADR ": "player_number.png",
+  "MATCH_fnumbr1.geo": "player_number.png",
+  "MATCH_fnumeagles2.geo": "player_number.png",
+  "MATCH_fnumll1.geo": "player_number.png",
+  "MATCH_fnumlr1.geo": "player_number.png",
+  "MATCH_fnumr1.geoGADR ": "player_number.png",
+  "MATCH_fnumll2.geo": "player_number.png",
+  "MATCH_name02.geoGADR ": "player_number.png",
+  "MATCH_name01.geoGADR ": "player_number.png",
+  "MATCH_name_F02.geo": "player_number.png"
+ },
+ "slots": {
+  "PLAYER_H1_number": {
+   "meshes": 48,
+   "file": "player_number.png",
+   "known": false
+  },
+  "PLAYER_H1_uni": {
+   "meshes": 27,
+   "file": "player_uni_home.png",
+   "known": false
+  },
+  "bch_bench_etc_01": {
+   "meshes": 27,
+   "file": null,
+   "known": false
+  },
+  "PLAYER_cap": {
+   "meshes": 23,
+   "file": null,
+   "known": false
+  },
+  "if_net01_alpha": {
+   "meshes": 17,
+   "file": null,
+   "known": true
+  },
+  "MATCH_arm00": {
+   "meshes": 13,
+   "file": null,
+   "known": true
+  },
+  "of_light02_smdv": {
+   "meshes": 10,
+   "file": null,
+   "known": true
+  },
+  "MATCH_glove05": {
+   "meshes": 9,
+   "file": null,
+   "known": true
+  },
+  "bcn_ground_dirt": {
+   "meshes": 5,
+   "file": null,
+   "known": true
+  },
+  "ma_soto_build01": {
+   "meshes": 4,
+   "file": null,
+   "known": true
+  },
+  "bch_wall_00": {
+   "meshes": 4,
+   "file": null,
+   "known": true
+  },
+  "GROUND_S_flag_NPB": {
+   "meshes": 3,
+   "file": null,
+   "known": true
+  },
+  "ground_turf_multi": {
+   "meshes": 3,
+   "file": null,
+   "known": false
+  },
+  "cloud1_parts0": {
+   "meshes": 2,
+   "file": null,
+   "known": true
+  },
+  "FACE_face": {
+   "meshes": 1,
+   "file": "player_face.png",
+   "known": false
+  },
+  "bch_rail_00": {
+   "meshes": 1,
+   "file": null,
+   "known": true
   }
+ }
 }

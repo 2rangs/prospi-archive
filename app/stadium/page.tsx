@@ -191,7 +191,7 @@ export default function StadiumPage() {
         fetch("/prospi/index.json").then((r) => r.json()),
         fetch("/prospi/skeleton.json").then((r) => r.json()),
         fetch("/prospi/player.json").then((r) => r.json()),
-        fetch("/prospi/textures.json").then((r) => r.json()).catch(() => ({ maps: {} })),
+        fetch("/prospi/textures.json").then((r) => r.json()).catch(() => ({ maps: {} as Record<string, string> })),
       ]);
       const texLoader = new THREE.TextureLoader();
       const texCache = new Map<string, THREE.Texture>();
