@@ -50,7 +50,13 @@ const worker = {
       // Sites 런타임에는 Cache API 또는 Cloudflare 전용 `default` 캐시가 없을
       // 수 있다. 캐시는 성능 최적화일 뿐 응답의 필수 조건이 아니므로, 사용할
       // 수 있을 때만 읽고 쓴다. (무조건 참조하면 production 에서 error 1101.)
-      const cache = (globalThis.caches as unknown as { default?: Cache } | undefined)?.default;
+      let cache: Cache | undefined;
+      try {
+        cache = (globalThis.caches as unknown as { default?: Cache } | undefined)?.default;
+      } catch {
+        // Sites는 CacheStorage를 노출하면서 default getter 접근은 막을 수 있다.
+        cache = undefined;
+      }
       if (cache) {
         const cached = await cache.match(request);
         if (cached) return cached;
