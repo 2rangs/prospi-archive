@@ -46,10 +46,14 @@ const worker = {
        *   내용이라 영구 캐시해도 안전하다. 두 번째 방문자부터는 원본에
        *   나가지 않고 워커 CPU 도 거의 쓰지 않는다.
        */
-      // caches.default 는 Cloudflare 확장이라 표준 CacheStorage 타입에 없다.
-      const cache = (caches as unknown as { default: Cache }).default;
-      const cached = await cache.match(request);
-      if (cached) return cached;
+      // Sites 런타임에는 Cache API 또는 Cloudflare 전용 `default` 캐시가 없을
+      // 수 있다. 캐시는 성능 최적화일 뿐 응답의 필수 조건이 아니므로, 사용할
+      // 수 있을 때만 읽고 쓴다. (무조건 참조하면 production 에서 error 1101.)
+      const cache = (globalThis.caches as unknown as { default?: Cache } | undefined)?.default;
+      if (cache) {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+      }
       const chunks: Uint8Array[] = [];
       for (let part = 1; part <= 8; part += 1) {
         const source = `https://d2tii5d4auswg2.cloudfront.net/arb/cdn/ver2026/CARD${String(group).padStart(2, "0")}/${file}.${String(part).padStart(3, "0")}`;
@@ -97,7 +101,7 @@ const worker = {
       const out = new Response(payload.slice(start, end), {
         headers: { "content-type": "image/png", "cache-control": "public, max-age=31536000, immutable" },
       });
-      ctx.waitUntil(cache.put(request, out.clone()));
+      if (cache) ctx.waitUntil(cache.put(request, out.clone()));
       return out;
     }
 
