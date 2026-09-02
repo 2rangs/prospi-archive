@@ -46,3 +46,10 @@ yarn-error.log*
 # python bytecode
 __pycache__/
 *.pyc
+
+# local extraction intermediates (production uses the packed effect assets)
+/public/effects/anim/
+/public/effects/anim-s/
+
+# accidental exporter output when invoked with --help
+/--help/

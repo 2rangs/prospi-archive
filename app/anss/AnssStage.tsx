@@ -1419,6 +1419,10 @@ export default function AnssStage({
         draws.forEach((dr, order) => {
           // 조상 그룹 블렌드까지 반영한 값 (evaluate 의 plan.blend)
           const blend = pixiBlend(dr.blend ?? dr.part.bl);
+          const sw = d.stageW || BASE_W, sh = d.stageH || BASE_H;
+          const dw = dr.cell.w * Math.hypot(dr.a, dr.b);
+          const dh = dr.cell.h * Math.hypot(dr.c, dr.d);
+          const isBackdropPlate = blend === "normal" && dw >= sw * 0.9 && dh >= sh * 0.9;
           /**
            * 배경 레이어 끄기 = **화면을 통째로 덮는 판만** 버린다.
            *
@@ -1434,10 +1438,7 @@ export default function AnssStage({
            * [되돌리기] backdrop 을 켜면(기본값) 아무 것도 버리지 않는다.
            */
           if (!backdropRef.current && blend === "normal") {
-            const sw = d.stageW || BASE_W, sh = d.stageH || BASE_H;
-            const dw = dr.cell.w * Math.hypot(dr.a, dr.b);
-            const dh = dr.cell.h * Math.hypot(dr.c, dr.d);
-            if (dw >= sw * 0.9 && dh >= sh * 0.9) { dbg.dropMix++; return; }
+            if (isBackdropPlate) { dbg.dropMix++; return; }
           }
           if (muteRef.current?.has(dr.part.n)) { dbg.dropMute++; return; }
           const tex = cellTexture(dr.cell, dr.vcol, blend === "add");
@@ -1684,7 +1685,11 @@ export default function AnssStage({
           sp.blendMode = blend;
           sp.visible = true;
           // back 파츠는 카드보다 아래, front 파츠는 위
-          sp.zIndex = dr.part.role === "front" ? 100000 + order : order;
+          // 화면 전체를 채우는 일반 블렌드 판은 배경이다. 평탄화된 파츠 배열에서
+          // 뒤늦게 등장해도 지도·광원·파티클을 덮지 않도록 최하단에 둔다.
+          sp.zIndex = isBackdropPlate
+            ? -100000 + order
+            : dr.part.role === "front" ? 100000 + order : order;
           // evaluate() already folded the pivot into dr.x / dr.y.
           // flip the frame, not the texture: negate the y row and y translation
           // Matrix 를 프레임마다 새로 만들지 않고 하나를 덮어쓴다

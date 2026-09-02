@@ -1,13 +1,9 @@
 "use client";
 /**
- * 인게임 타석 — 추출한 실제 경기장/선수 메시 위에서 도는 투타.
+ * V로드 3D 타석 — v2.
  *
- * /vroad 의 물리·판정과 /stadium 의 추출 에셋을 합친 것. RES 팩 암호는 못 깼지만
- * 런타임 캡처로 지오메트리는 확보했으므로, 절차적으로 그리던 잔디·담장·스탠드를
- * 게임 본체의 메시로 갈아끼웠다.
- *
- * 좌표계: 물리는 미터, 추출 메시는 1유닛=10cm 라 STADIUM_SCALE 0.1 로 맞춘다.
- * 두 좌표계 모두 홈플레이트가 원점이라 그 외 보정은 없다.
+ * 프로스피 네이티브 3D 엔진/모델은 암호화 RES 팩+무소스로 이식 불가라,
+ * **실제 카드 스탯으로 구동되는** 타석을 Three.js 로 새로 구현한다.
  * 타격 모델은 프로스피와 같은 2축:
  *   미트 커서(마우스로 코스 조준) × 타이밍(Space). 미트 스탯이 커서 크기와
  *   타이밍 허용창을 키우고, 파워가 타구 초속을 키워 비거리로 안타/홈런을 가른다.
@@ -25,33 +21,7 @@ type Card = {
 };
 const cardArt = (c: Card) => `/api/card-image?group=${c.group}&file=${encodeURIComponent(c.largeFile)}`;
 
-const PLATE_Z = 0, MOUND_Z = -18.44, G = 9.8;
-/**
- * Fence distance by spray angle, measured off the extracted field itself
- * (the warning-track outer edge, which is where the wall sits).
- *
- * The park is perfectly symmetric at every angle, so it is NOT Es Con Field,
- * whose real dimensions are asymmetric (LF 97 m, CF 121 m, RF 100 m). The
- * measurements — 122.5 m to centre, 107.8 m in the power alleys, ~100 m down the
- * lines — match Tokyo Dome. An earlier note in the handoff called this Es Con
- * because TEAM_maku_fighters loaded alongside it, but that banner just reflects
- * the team the tutorial had us pick, not the venue.
- *
- * Angle is degrees from centre field, positive toward right.
- */
-const FENCE_PROFILE: Record<number, number> = {
-  "-45": 100.0, "-30": 107.8, "-15": 117.1, "0": 122.5,
-  "15": 117.1, "30": 107.8, "45": 100.0,
-};
-function fenceAt(x: number, z: number): number {
-  const deg = Math.max(-45, Math.min(45, Math.atan2(x, -z) * 180 / Math.PI));
-  const lo = Math.floor(deg / 15) * 15;
-  const hi = Math.min(45, lo + 15);
-  const a = FENCE_PROFILE[lo] ?? 100, b = FENCE_PROFILE[hi] ?? 100;
-  return a + (b - a) * Math.min(1, Math.max(0, (deg - lo) / 15));
-}
-/** deepest point, for camera framing only */
-const FENCE = 122.5;
+const PLATE_Z = 0, MOUND_Z = -18.44, FENCE = 110, G = 9.8;
 const ZONE_Y = 1.05, ZONE_HALF_W = 0.55, ZONE_HALF_H = 0.6;
 const BREAK_DIR: Record<string, [number, number]> = {
   "←": [-1, 0], "↙": [-0.7, -0.7], "↓": [0, -1], "↘": [0.7, -0.7], "→": [1, 0], "●": [0, 0.15],
@@ -124,124 +94,68 @@ export default function VRoad() {
       l.position.set(x, 55, z); l.target.position.set(0, 0, MOUND_Z); scene.add(l); scene.add(l.target);
     }
 
-    /**
-     * Real stadium, streamed in from the extracted meshes.
-     *
-     * The capture is in the game's own units where 1 = 10 cm (pitching rubber at
-     * z = -180, floodlight 451 tall), while this scene is metric (MOUND_Z =
-     * -18.44). So the whole set scales by 0.1 and lands exactly on the physics
-     * coordinates — home plate is the origin in both.
-     */
-    const STADIUM_SCALE = 0.1;
-    const stadium = new THREE.Group();
-    stadium.scale.setScalar(STADIUM_SCALE);
-    scene.add(stadium);
-    /**
-     * The extracted player parts are not drawn here.
-     *
-     * They come out of the capture in a rest pose with no skinning, so they
-     * cannot swing, and standing one in the box just puts a frozen T-pose on top
-     * of the rig that does animate. The stadium has no such problem — it is
-     * static geometry, which is why it swaps in cleanly.
-     *
-     * Replacing the rig with the real mesh needs the JIF skeleton bound to the
-     * vertices (bone weights live in the VBO but the palette was never captured).
-     */
-    const players = new THREE.Group();
-    players.scale.setScalar(STADIUM_SCALE);
-    players.visible = false;
-    scene.add(players);
-
-    function stripToTris(idx: number[]): number[] {
-      const out: number[] = [];
-      for (let i = 0; i + 2 < idx.length; i++) {
-        const a = idx[i], b = idx[i + 1], c = idx[i + 2];
-        if (a === b || b === c || a === c) continue;
-        if (i % 2 === 0) out.push(a, b, c); else out.push(a, c, b);
-      }
-      return out;
+    const grass = new THREE.Mesh(new THREE.CircleGeometry(FENCE + 10, 64),
+      new THREE.MeshStandardMaterial({ color: 0x2c7a30, roughness: 1 }));
+    grass.rotation.x = -Math.PI / 2; grass.receiveShadow = true; grass.position.z = -35; scene.add(grass);
+    // 잔디 줄무늬
+    for (let i = -10; i <= 10; i++) {
+      const st = new THREE.Mesh(new THREE.PlaneGeometry(6, 200),
+        new THREE.MeshStandardMaterial({ color: i % 2 ? 0x2f8234 : 0x2a7530, transparent: true, opacity: 0.5 }));
+      st.rotation.x = -Math.PI / 2; st.position.set(i * 6, 0.005, -60); grass.add(st);
     }
-    function roleColor(n: string): number {
-      const s = n.toLowerCase();
-      if (s.includes("grass") || s.includes("turf")) return 0x3f7d33;
-      if (s.includes("soil") || s.includes("ground_") || s.includes("mound")) return 0x8a5a38;
-      if (s.includes("light")) return 0xbfc6cc;
-      if (s.includes("seat") || s.includes("stand") || s.includes("bench")) return 0x2f4f6b;
-      if (s.includes("net") || s.includes("fence") || s.includes("wire")) return 0x9aa5ad;
-      if (s.includes("wall")) return 0x1f4a3d;
-      if (s.includes("sb_") || s.includes("scorebord")) return 0x1a1c1f;
-      return 0x7e878f;
+    const dirt = new THREE.Mesh(new THREE.CircleGeometry(29, 48),
+      new THREE.MeshStandardMaterial({ color: 0x8a5a3b, roughness: 1 }));
+    dirt.rotation.x = -Math.PI / 2; dirt.position.set(0, 0.01, MOUND_Z / 2); scene.add(dirt);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+    for (const s of [-1, 1]) scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+      [new THREE.Vector3(0, 0.02, 0), new THREE.Vector3(s * 80, 0.02, -80)]), lineMat));
+    // ===== ES CON FIELD HOKKAIDO (에스콘필드) 재현 =====
+    // 좌표: 홈=z0, 외야=-z, 좌익=-x(3루), 우익=+x(1루). 참고: HKS 설계, 갈색 삼각
+    // 지붕(헛간 모티프)+세계최대 유리 파사드(70×180m)+좌익 너머 Tower Eleven(#11).
+    const stadium = new THREE.Group(); scene.add(stadium);
+    // 외야 담장
+    const fence = new THREE.Mesh(new THREE.TorusGeometry(FENCE, 0.95, 8, 80, Math.PI * 0.64),
+      new THREE.MeshStandardMaterial({ color: 0x0e2a16 }));
+    fence.rotation.x = -Math.PI / 2; fence.rotation.z = Math.PI * 0.18; fence.position.y = 1.7; stadium.add(fence);
+    // 3단 관중석 보울
+    for (let t = 0; t < 3; t++) {
+      const r0 = FENCE + 14 + t * 22, r1 = r0 + 26;
+      const bowl = new THREE.Mesh(
+        new THREE.CylinderGeometry(r1, r0, 13 + t * 6, 72, 1, true, -Math.PI * 0.62, Math.PI * 1.24),
+        new THREE.MeshStandardMaterial({ color: t % 2 ? 0x243040 : 0x1a2330, side: THREE.DoubleSide, roughness: 1 }));
+      bowl.position.set(0, 7 + t * 10, -18); stadium.add(bowl);
     }
-
-    (async () => {
-      try {
-        const [manifest, place, texCfg] = await Promise.all([
-          fetch("/prospi/index.json").then(r => r.json()),
-          fetch("/prospi/player.json").then(r => r.json()).catch(() => []),
-          fetch("/prospi/textures.json").then(r => r.json()).catch(() => ({ maps: {} })),
-        ]);
-        const placeByFile = new Map<string, any>((place as any[]).map(p => [p.file, p]));
-        const singles = new Set<string>((place as any[]).filter(p => p.single).map(p => p.file));
-        const loader = new THREE.TextureLoader();
-        const texCache = new Map<string, THREE.Texture>();
-        const getTex = (f: string) => {
-          let t = texCache.get(f);
-          if (!t) {
-            t = loader.load(`/prospi/tex/${f}`);
-            t.colorSpace = THREE.SRGBColorSpace;
-            t.flipY = false;
-            texCache.set(f, t);
-          }
-          return t;
-        };
-        // the far city/sky billboards swallow the batter camera, so leave them out
-        const wanted = (manifest as any[]).filter(m =>
-          !/soto|city|buil|SKYF|cloud|shadow_model/i.test(m.name));
-
-        for (const rec of wanted) {
-          const d = await fetch(`/prospi/${rec.file}`).then(r => r.json());
-          if (!d.indices || d.indices.length < 3) continue;
-          const pos = new Float32Array(d.verts.length * 3);
-          for (let i = 0; i < d.verts.length; i++) {
-            pos[i * 3] = d.verts[i][0]; pos[i * 3 + 1] = d.verts[i][1]; pos[i * 3 + 2] = d.verts[i][2];
-          }
-          const g = new THREE.BufferGeometry();
-          g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-          if (d.uvs && d.uvs.length === d.verts.length) {
-            const uv = new Float32Array(d.uvs.length * 2);
-            for (let i = 0; i < d.uvs.length; i++) { uv[i * 2] = d.uvs[i][0]; uv[i * 2 + 1] = d.uvs[i][1]; }
-            g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-          }
-          g.setIndex(stripToTris(d.indices));
-          g.computeVertexNormals();
-          const tf = (texCfg as any).maps?.[d.name];
-          const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({
-            color: tf ? 0xffffff : roleColor(d.name),
-            map: tf && g.getAttribute("uv") ? getTex(tf) : null,
-            side: THREE.DoubleSide,
-          }));
-          const isPlayerPart = /^(MATCH_|FACE_|PLAYER)/.test(d.name);
-          if (isPlayerPart) {
-            if (!singles.has(rec.file)) continue;   // one curated player, not the whole part library
-            const p = placeByFile.get(rec.file);
-            if (p?.anchor && p?.basis) {
-              const [ex, ey, ez] = p.basis, a = p.anchor;
-              mesh.matrix.set(ex[0], ey[0], ez[0], a[0],
-                              ex[1], ey[1], ez[1], a[1],
-                              ex[2], ey[2], ez[2], a[2], 0, 0, 0, 1);
-              mesh.matrixAutoUpdate = false;
-            }
-            players.add(mesh);
-          } else {
-            stadium.add(mesh);
-          }
-        }
-        // stand the extracted player in the batter's box, facing the mound
-        players.position.set(-0.75, 0, 0.15);
-      } catch {
-        /* fall back to a bare field if the extracted set is unavailable */
-      }
-    })();
+    // 세계 최대 유리 파사드 (외야측, 경사 유리벽) — 자연광이 쏟아지는 밝은 시그니처
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(168, 62),
+      new THREE.MeshStandardMaterial({ color: 0xbfe0f5, transparent: true, opacity: 0.62, roughness: 0.08, metalness: 0.25, side: THREE.DoubleSide, emissive: 0x6fa8d8, emissiveIntensity: 0.9 }));
+    glass.position.set(0, 30, -128); glass.rotation.x = -0.28; stadium.add(glass);
+    const frameMat = new THREE.LineBasicMaterial({ color: 0x21384a, transparent: true, opacity: 0.7 });
+    for (let i = -8; i <= 8; i++) {
+      const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(i * 10.5, -31, 0), new THREE.Vector3(i * 10.5, 31, 0)]), frameMat);
+      l.position.copy(glass.position); l.rotation.copy(glass.rotation); stadium.add(l);
+    }
+    for (let j = -3; j <= 3; j++) {
+      const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-84, j * 10, 0), new THREE.Vector3(84, j * 10, 0)]), frameMat);
+      l.position.copy(glass.position); l.rotation.copy(glass.rotation); stadium.add(l);
+    }
+    // 갈색 삼각 지붕(헛간 모티프) — 유리 파사드 위를 덮는 큰 경사 지붕 + 첨두 능선
+    const roof = new THREE.Mesh(new THREE.PlaneGeometry(198, 60),
+      new THREE.MeshStandardMaterial({ color: 0x7a5533, roughness: 0.95, side: THREE.DoubleSide }));
+    roof.position.set(0, 55, -96); roof.rotation.x = -0.62; stadium.add(roof);
+    const ridge = new THREE.Mesh(new THREE.BoxGeometry(198, 2.2, 2.5), new THREE.MeshStandardMaterial({ color: 0x5f4128 }));
+    ridge.position.set(0, 66, -78); stadium.add(ridge);
+    const fascia = new THREE.Mesh(new THREE.BoxGeometry(200, 4, 2), new THREE.MeshStandardMaterial({ color: 0x2a2f38 }));
+    fascia.position.set(0, 44, -110); stadium.add(fascia);
+    // Tower Eleven (좌익 3루 너머 5층 다목적 건물)
+    const tower = new THREE.Group();
+    const bldg = new THREE.Mesh(new THREE.BoxGeometry(30, 32, 22), new THREE.MeshStandardMaterial({ color: 0x39424f, roughness: 0.8 }));
+    bldg.position.y = 16; tower.add(bldg);
+    for (let f = 0; f < 5; f++) {
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(28, 4.4),
+        new THREE.MeshStandardMaterial({ color: 0x8fc0e0, emissive: 0x2a4258, transparent: true, opacity: 0.85 }));
+      win.position.set(0, 5 + f * 6, 11.1); tower.add(win);
+    }
+    tower.position.set(-92, 0, -104); tower.rotation.y = 0.5; stadium.add(tower);
 
     const plate = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.7), new THREE.MeshStandardMaterial({ color: 0xf0f0f0 }));
     plate.position.set(0, 0.03, PLATE_Z); scene.add(plate);
@@ -424,7 +338,7 @@ export default function VRoad() {
       // 파울: 45도 파울라인 밖
       if (Math.abs(land.x) > Math.abs(land.z) + 2) return finish("파울", "foul");
       let text: string, kind: string;
-      if (carry && dist > fenceAt(land.x, land.z)) { text = `홈런! 🎉 ${dist.toFixed(0)}m`; kind = "hr"; }
+      if (carry && dist > FENCE) { text = `홈런! 🎉 ${dist.toFixed(0)}m`; kind = "hr"; }
       else if (la < 8) {
         // 땅볼: 대부분 아웃, 세게 맞으면 안타(내야/외야 땅볼)
         if (hard && dist > 34 && rnd < 0.4) { text = `안타 (땅볼)`; kind = "single"; }

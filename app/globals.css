@@ -9,6 +9,9 @@ button{cursor:pointer}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:11px;line-height:1.05;letter-spacing:.12em}
 .brand b{font-size:13px}
 nav{display:flex;gap:34px;margin-left:8vw;height:100%;align-items:center}
+.primary-nav{gap:clamp(14px,1.8vw,28px);margin-left:clamp(24px,4vw,64px)}
+.primary-nav a{white-space:nowrap}
+.topbar .live{margin-left:auto}
 .live span,.green-dot{display:inline-block;width:7px;height:7px;background:var(--green);border-radius:50%;margin-right:8px;box-shadow:0 0 0 4px #d8f3e8}
 .eyebrow{font:700 11px/1 monospace;letter-spacing:.19em;color:var(--red);margin:0 0 22px}
 .hero-stats div{display:flex;flex-direction:column}

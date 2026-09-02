@@ -390,7 +390,7 @@ export default function Home() {
     : playerType === "batter" ? t("colTraj") : t("colTrajSpeed");
   const columns = [t("colPlayer"), t("colSeries"), t("colSpirits"), leadCol, t("colStats"), ""];
   const tableKind = playerType;
-  return <main><header className="topbar"><a className="brand" href="#top"><span className="brand-glyph">P</span><span>PROSPI<br/><b>{t("brandSub")}</b></span></a><nav><a className="active" href="#players">{t("navPlayers")}</a><a href="/effects">{t("navEffects")}</a><a href="#about">{t("navAbout")}</a></nav><div className="live"><span/> APP DATA · 2026</div><LangSwitch/><ThemeSwitch/></header>
+  return <main><header className="topbar"><a className="brand" href="#top"><span className="brand-glyph">P</span><span>PROSPI<br/><b>{t("brandSub")}</b></span></a><nav className="primary-nav"><a className="active" href="#players">{t("navPlayers")}</a><a href="/gallery">{t("navGallery")}</a><a href="/effects">{t("navEffects")}</a><a href="/stadium">{t("navStadium")}</a><a href="/vroad">{t("navVroad")}</a><a href="#about">{t("navAbout")}</a></nav><div className="live"><span/> APP DATA · 2026</div><LangSwitch/><ThemeSwitch/></header>
     <section className="hero" id="top">
       {/* 배너 배경 = 카드 배경 이펙트. 원래 있던 거대한 "A" 글자를 대신한다. */}
       {/*

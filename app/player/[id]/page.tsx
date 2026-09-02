@@ -42,6 +42,26 @@ const maxPitchPower = (card: Card) =>
   card.pitching?.pitches.reduce((best, pitch) => Math.max(best, pitch.power ?? 0), 0);
 const imageUrl = (card: Card) => `/api/card-image?group=${card.group}&file=${encodeURIComponent(card.largeFile)}`;
 
+/**
+ * 타자의 주 수비 포지션 = 守備適性 딕셔너리에서 값이 가장 높은 포지션(투수 제외).
+ * [왜 positionName 을 안 쓰나] 카드 마스터의 position(+0x14) 은 신규/조인 불완전
+ *   카드에서 0(=투수)으로 잘못 붙는 경우가 있어 타자가 "투수"로 표시됐다.
+ *   적성 워드는 선수 레코드에서 직접 뽑은 값이라 더 신뢰할 수 있다.
+ * APTITUDE_LABEL 순서(포수→…→우익)대로 훑어 동점이면 앞선(더 안쪽) 포지션을 남긴다.
+ */
+const primaryFieldPos = (card: Card): AptitudePos | null => {
+  const apt = card.aptitude;
+  if (!apt) return null;
+  let best: AptitudePos | null = null;
+  let bestVal = -1;
+  for (const [key] of APTITUDE_LABEL) {
+    if (key === "pitcher") continue;
+    const value = apt[key];
+    if (value != null && value > bestVal) { bestVal = value; best = key; }
+  }
+  return best;
+};
+
 /** 원본 수비 화면의 포지션 배치(화면 좌상단 기준 %). */
 const DEFENSE_POS: Record<AptitudePos, [number, number]> = {
   pitcher: [50, 57], catcher: [50, 83], first: [72, 57], second: [62, 39],
@@ -403,7 +423,16 @@ export default function PlayerPage() {
           {ref?.spirits != null && <span className="spirit"><b>{t("spirits")}</b><i>{ref.spirits.toLocaleString()}</i></span>}
           {ref?.cost != null && <span><b>{t("cost")}</b><i>{ref.cost}</i></span>}
           {ref?.hand && <span><b>{ref.kind === "batter" ? t("bats") : t("throws")}</b><i>{tv(ref.hand)}</i></span>}
-          {ref?.pos && <span><b>{t("position")}</b><i>{tv(ref.pos)}</i></span>}
+          {(() => {
+            // 포지션: rakda 표기값(ref.pos) 우선, 없으면 타자는 수비적성 최고
+            // 포지션을 보여준다(투수는 rakda 값만).
+            let label: string | null = ref?.pos ? tv(ref.pos) : null;
+            if (!label && card.playerType === "batter") {
+              const pos = primaryFieldPos(card);
+              if (pos) label = ta(pos);
+            }
+            return label ? <span><b>{t("position")}</b><i>{label}</i></span> : null;
+          })()}
         </div>
       </header>
       <div className="detail-art">
@@ -428,11 +457,10 @@ export default function PlayerPage() {
               cardArtScale={1 / FX_CARD_FILL}
               offsetX={fxX} offsetY={fxY} speed={fxSpeed / 100} intensity={fxLight / 100}
               cardArt={imageUrl(card)} mute={mute} renderScale={0.75}
-              /* 이펙트가 가진 **불투명 배경 레이어**(일반 블렌드 판)를 끈다.
-                 그 판을 그리면 우리가 뒤에 깐 구장 배경이 통째로 가려져
-                 이펙트가 검은 바탕처럼 보인다. /effects 의 "배경 레이어
-                 ON/OFF" 토글과 같은 스위치다. */
-              backdrop={false}/>
+              /* 상세 카드는 원본 합성 순서를 따른다. WS처럼 화면 크기 배경판 위에
+                 가산 지도·지구광·파티클을 쌓는 이펙트는 배경판을 빼면 색과 밀도가
+                 크게 사라진다. 구장 배경은 이 원본 판보다 아래의 폴백이다. */
+              backdrop/>
           </span>
           <span className="detail-series">{card.playerType === "pitcher" ? t("tabPitcher") : t("tabBatter")}</span>
           <span className="effect-id-label"><i/> EFFECT {effectId ?? "—"} · {PLAYER_REV}</span>
