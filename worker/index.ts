@@ -30,6 +30,7 @@ const worker = {
     const url = new URL(request.url);
 
     if (url.pathname === "/api/card-image") {
+      try {
       const group = Number(url.searchParams.get("group"));
       const file = url.searchParams.get("file") ?? "";
       if (!Number.isInteger(group) || group < 1 || group > 12 || !/^(CS|CL)\d+\.CHK$/.test(file)) {
@@ -103,6 +104,14 @@ const worker = {
       });
       if (cache) ctx.waitUntil(cache.put(request, out.clone()));
       return out;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("card-image proxy failed", message);
+        return new Response(`card image proxy failed: ${message}`, {
+          status: 502,
+          headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+        });
+      }
     }
 
     if (url.pathname === "/_vinext/image") {
