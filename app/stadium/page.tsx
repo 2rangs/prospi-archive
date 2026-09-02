@@ -136,8 +136,20 @@ export default function VRoad() {
     const stadium = new THREE.Group();
     stadium.scale.setScalar(STADIUM_SCALE);
     scene.add(stadium);
+    /**
+     * The extracted player parts are not drawn here.
+     *
+     * They come out of the capture in a rest pose with no skinning, so they
+     * cannot swing, and standing one in the box just puts a frozen T-pose on top
+     * of the rig that does animate. The stadium has no such problem — it is
+     * static geometry, which is why it swaps in cleanly.
+     *
+     * Replacing the rig with the real mesh needs the JIF skeleton bound to the
+     * vertices (bone weights live in the VBO but the palette was never captured).
+     */
     const players = new THREE.Group();
     players.scale.setScalar(STADIUM_SCALE);
+    players.visible = false;
     scene.add(players);
 
     function stripToTris(idx: number[]): number[] {
