@@ -40,7 +40,7 @@ const meet = (card: Card) => card.base ? Math.round((card.base.meetR + card.base
 // 레퍼런스로 채운 카드는 power 가 없다(등급 문자만) — 그런 값은 건너뛴다.
 const maxPitchPower = (card: Card) =>
   card.pitching?.pitches.reduce((best, pitch) => Math.max(best, pitch.power ?? 0), 0);
-const imageUrl = (card: Card) => `/api/card-image?group=${card.group}&file=${encodeURIComponent(card.largeFile)}`;
+const imageUrl = (card: Card) => `/api/card-image?group=${card.group}&file=${encodeURIComponent(card.largeFile)}&v=2`;
 
 /**
  * 타자의 주 수비 포지션 = 守備適性 딕셔너리에서 값이 가장 높은 포지션(투수 제외).
@@ -443,7 +443,7 @@ export default function PlayerPage() {
           const on = v.id === card.id;
           return <a key={v.id} href={`/player/${v.id}`} className={on ? "on" : ""}
             title={`${v.year} · VAR ${v.variant}`}>
-            <img src={`/api/card-image?group=${v.group}&file=${encodeURIComponent(v.file)}`}
+            <img src={`/api/card-image?group=${v.group}&file=${encodeURIComponent(v.file)}&v=2`}
               alt="" decoding="async"
               onError={e => { e.currentTarget.style.visibility = "hidden"; }}/>
             <span><b>{v.year}</b><small>VAR {v.variant}</small></span>

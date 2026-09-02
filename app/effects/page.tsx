@@ -246,7 +246,7 @@ export default function EffectsPage() {
           {active != null && (rebuilt
             ? <AnssStage doc={anssDoc} width={fxBox.w} height={fxBox.h}
                 scale={fxBox.scale * FX_CARD_FILL * (zoom / 100)} cardArtScale={1 / FX_CARD_FILL}
-                cardArt={showPlayer && sampleCard ? `/api/card-image?group=${sampleCard.group}&file=${encodeURIComponent(sampleCard.largeFile)}` : undefined}
+                cardArt={showPlayer && sampleCard ? `/api/card-image?group=${sampleCard.group}&file=${encodeURIComponent(sampleCard.largeFile)}&v=2` : undefined}
                 backdrop={backdrop} speed={speed / 100} mute={mute} renderScale={renderScale / 100}/>
             : gl
             ? <AnimSSPlayerGL key={active} effectId={active} size={320}/>

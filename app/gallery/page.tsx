@@ -27,7 +27,7 @@ type Card = {
 
 /** Same route the rest of the site uses to serve card art out of the CHK packs. */
 const imageUrl = (card: Card, large: boolean) =>
-  `/api/card-image?group=${card.group}&file=${encodeURIComponent(large ? card.largeFile : card.file)}`;
+  `/api/card-image?group=${card.group}&file=${encodeURIComponent(large ? card.largeFile : card.file)}&v=2`;
 
 const PAGE = 60;
 

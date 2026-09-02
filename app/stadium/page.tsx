@@ -23,7 +23,7 @@ type Card = {
   base?: { meetR: number; meetL: number; power: number; run: number } | null;
   pitching?: { maxSpeed: number; stamina: number; pitches: Pitch[] } | null;
 };
-const cardArt = (c: Card) => `/api/card-image?group=${c.group}&file=${encodeURIComponent(c.largeFile)}`;
+const cardArt = (c: Card) => `/api/card-image?group=${c.group}&file=${encodeURIComponent(c.largeFile)}&v=2`;
 
 const PLATE_Z = 0, MOUND_Z = -18.44, G = 9.8;
 /**

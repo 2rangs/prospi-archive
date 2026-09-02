@@ -38,7 +38,7 @@ import { teamOf } from "./teams";
 /** URL 에 콤마로 실린 다중 선택 값을 배열로. */
 const list = (v: unknown) => String(v ?? "").split(",").filter(Boolean);
 
-const imageUrl = (card: Card, large = false) => `/api/card-image?group=${card.group}&file=${encodeURIComponent(large ? card.largeFile : card.file)}`;
+const imageUrl = (card: Card, large = false) => `/api/card-image?group=${card.group}&file=${encodeURIComponent(large ? card.largeFile : card.file)}&v=2`;
 const meet = (card: Card) => card.base ? Math.round((card.base.meetR + card.base.meetL) / 2) : undefined;
 const maxPitchPower = (card: Card) => card.pitching?.pitches.reduce((best, pitch) => Math.max(best, pitch.power ?? 0), 0);
 
@@ -401,7 +401,7 @@ export default function Home() {
       */}
       {/* 배너 인물 2인. ?layout=1 로 열면 화면에서 직접 구도를 잡을 수 있다. */}
       <HeroStage layout={layoutMode}
-        src={id => `/api/card-image?group=${Number(id.length === 9 ? id.slice(0, 1) : id.slice(0, 2))}&file=${encodeURIComponent(`CL${id}.CHK`)}`}/>
+        src={id => `/api/card-image?group=${Number(id.length === 9 ? id.slice(0, 1) : id.slice(0, 2))}&file=${encodeURIComponent(`CL${id}.CHK`)}&v=2`}/>
       {/*
         오른쪽 = 선수 + 배경 이펙트를 **한 캔버스에서** 합성한다.
         따로 얹으면 좌표계가 달라 중심이 어긋난다(이전에 캐릭터가
@@ -410,7 +410,7 @@ export default function Home() {
       <span className="hero-media" aria-hidden>
         {heroDoc && <AnssStage doc={heroDoc} width={HERO_FX.w} height={HERO_FX.h}
           scale={HERO_SCALE} originY={0.5} speed={1}
-          cardArt={`/api/card-image?group=8&file=${encodeURIComponent("CL814762700.CHK")}`}/>}
+          cardArt={`/api/card-image?group=8&file=${encodeURIComponent("CL814762700.CHK")}&v=2`}/>} 
       </span>
       <div className="hero-copyblock">
         <p className="eyebrow"><i/>{t("heroEyebrow")}</p>
