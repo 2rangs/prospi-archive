@@ -15,6 +15,7 @@ import { TRAJECTORY_ORDER, TrajArrow, Trajectory, trajColor } from "./trajectory
 import { useScrollRestore, useUrlState } from "./useUrlState";
 import { type RefStats, useRefStats } from "./refStats";
 import { useEffectFrontTile, useEffectTile } from "./anss/thumb";
+import { isNewCard } from "./newContent";
 
 /**
  * 메인 미리보기 카드. 실측 매핑이 있는 카드를 써서, 보여주는 이펙트가
@@ -130,13 +131,14 @@ function RowIcon({ card, effectId }: { card: Card; effectId: number | null }) {
     {/* 사인·로고 등 front 파츠는 인게임처럼 사진 **위**에 얹는다 */}
     {effectId != null && <canvas className="rp-fx rp-fx-front" ref={fxFrontRef} aria-hidden/>}
     <NameStrip card={card}/>
+    {isNewCard(card.id) && <i className="new-badge new-card-image-badge">NEW!</i>}
   </span>;
 }
 
 
 function PlayerRow({ card, nested = false, ref: refStats, effectId }: { card: Card; nested?: boolean; ref?: RefStats | null; effectId?: number | null }) {
   return <a className={`player-row${nested ? " card-row" : ""}`} href={`/player/${card.id}`}>
-    <span className="player-identity"><RowIcon card={card} effectId={effectId ?? null}/><span><strong>{card.name}</strong><PlayerMeta team={refStats?.team} fallback={card.roman || `ID ${card.playerId || card.id}`}/></span></span>
+    <span className="player-identity"><RowIcon card={card} effectId={effectId ?? null}/><span><span className="player-name-line"><strong>{card.name}</strong>{isNewCard(card.id) && <i className="new-badge">NEW!</i>}</span><PlayerMeta team={refStats?.team} fallback={card.roman || `ID ${card.playerId || card.id}`}/></span></span>
     {/* 카드 시즌 종류 — rakda3 표기(2026S1 · 2015SP(侍) · OB 등). 없으면 연도. */}
     <span className="series-cell"><b>{refStats?.series ?? card.year}</b><small>VAR {card.variant}</small></span>
     <StatCells card={card} ref={refStats}/>
@@ -252,6 +254,7 @@ function PlayerGroupRow({ group, open, onToggle, showType, refAll, pool, known, 
   })();
   const topEffect = rowEffectId(top, pool, known, ctxOf(top, refAll?.[top.id], knownMeta));
   const many = group.cards.length > 1;
+  const hasNewCard = group.cards.some(card => isNewCard(card.id));
   const span = group.minYear === group.maxYear ? `${group.maxYear}` : `${group.minYear}–${group.maxYear}`;
   return <>
     <div className={`player-row group-row${open ? " open" : ""}`}
@@ -265,7 +268,7 @@ function PlayerGroupRow({ group, open, onToggle, showType, refAll, pool, known, 
       <span className="player-identity">
         <RowIcon card={top} effectId={topEffect}/>
         <span>
-          <strong>{group.name}</strong>
+          <span className="player-name-line"><strong>{group.name}</strong>{hasNewCard && <i className="new-badge">NEW!</i>}</span>
           <small className="player-meta">
             {showType && <em className={`type-chip ${group.playerType}`}>{t(group.playerType === "pitcher" ? "tabPitcher" : "tabBatter")}</em>}
             <TeamBadge code={topRef?.team}/>
@@ -390,7 +393,7 @@ export default function Home() {
     : playerType === "batter" ? t("colTraj") : t("colTrajSpeed");
   const columns = [t("colPlayer"), t("colSeries"), t("colSpirits"), leadCol, t("colStats"), ""];
   const tableKind = playerType;
-  return <main><header className="topbar"><a className="brand" href="#top"><span className="brand-glyph">P</span><span>PROSPI<br/><b>{t("brandSub")}</b></span></a><nav className="primary-nav"><a className="active" href="#players">{t("navPlayers")}</a><a href="/gallery">{t("navGallery")}</a><a href="/effects">{t("navEffects")}</a><a href="/stadium">{t("navStadium")}</a><a href="/vroad">{t("navVroad")}</a><a href="#about">{t("navAbout")}</a></nav><div className="live"><span/> APP DATA · 2026</div><LangSwitch/><ThemeSwitch/></header>
+  return <main><header className="topbar"><a className="brand" href="#top"><span className="brand-glyph">P</span><span>PROSPI<br/><b>{t("brandSub")}</b></span></a><nav className="primary-nav"><a className="active" href="#players">{t("navPlayers")}</a><a href="/gallery">{t("navGallery")}</a><a href="/effects">{t("navEffects")}</a><a href="#about">{t("navAbout")}</a></nav><div className="live"><span/> APP DATA · 2026</div><LangSwitch/><ThemeSwitch/></header>
     <section className="hero" id="top">
       {/* 배너 배경 = 카드 배경 이펙트. 원래 있던 거대한 "A" 글자를 대신한다. */}
       {/*

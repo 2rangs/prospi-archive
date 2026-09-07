@@ -17,6 +17,7 @@ import { PITCH_NAME_JA } from "../../pitchNames";
 import { Skills } from "../../skills";
 import { Trajectory } from "../../trajectory";
 import { LangSwitch, ThemeSwitch, useT } from "../../i18n";
+import { isNewCard, isNewEffect } from "../../newContent";
 
 
 /**
@@ -410,7 +411,7 @@ export default function PlayerPage() {
       <header className="detail-head">
         <div className="dh-id">
           <p className="reading">{card.roman || `IMAGE ${card.id}`}</p>
-          <h1>{card.name}</h1>
+          <h1>{card.name}{isNewCard(card.id) && <i className="new-badge">NEW!</i>}</h1>
         </div>
         <div className="detail-tags">
           <span>{ref?.series ?? card.year}</span>
@@ -463,7 +464,7 @@ export default function PlayerPage() {
               backdrop/>
           </span>
           <span className="detail-series">{card.playerType === "pitcher" ? t("tabPitcher") : t("tabBatter")}</span>
-          <span className="effect-id-label"><i/> EFFECT {effectId ?? "—"} · {PLAYER_REV}</span>
+          <span className="effect-id-label"><i/> EFFECT {effectId ?? "—"} · {PLAYER_REV}{isNewEffect(effectId) && <b className="new-badge">NEW!</b>}</span>
         </div>
         <div className="card-caption original">
           <span className="cap-strip cap-strip-series"><img src={imageUrl(card)} alt={`${card.year} 시리즈 표기 원본`}/></span>

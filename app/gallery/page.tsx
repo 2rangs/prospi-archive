@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { isNewCard } from "../newContent";
 /** Series/kind come from the label the game engraves into the card art, not from
  *  the scraped ref-stats table - that table only had a series string for 10,354
  *  of 15,445 cards, so a third of the ledger fell out of every filter.
@@ -180,8 +181,9 @@ export default function GalleryPage() {
         {shown.map((c) => (
           <a key={String(c.id)} href={`/player/${c.id}`}
              style={{ textDecoration: "none", color: "inherit" }}>
-            <div style={{ background: "#121722", border: "1px solid #222a33", borderRadius: 8,
+            <div style={{ position: "relative", background: "#121722", border: "1px solid #222a33", borderRadius: 8,
                           overflow: "hidden" }}>
+              {isNewCard(c.id) && <i className="new-badge gallery-new-badge">NEW!</i>}
               <img src={imageUrl(c, large)} alt={c.name} loading="lazy"
                    style={{ width: "100%", display: "block",
                             aspectRatio: large ? "1 / 2" : "1 / 1",

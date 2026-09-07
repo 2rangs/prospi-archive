@@ -15,6 +15,7 @@ import { useEffectPool, useKnownMap, useKnownMeta } from "../anss/useEffectPool"
 import { cardKind, decodeEffectId, resolveEffect } from "../anss/resolve";
 import { teamOf } from "../teams";
 import { verdictOf, VERDICT_LABEL, type QualityTab, type Verdict } from "../anss/quality";
+import { isNewEffect } from "../newContent";
 
 const YEAR_OF_GROUP = (group: number) => 2014 + group;
 
@@ -205,6 +206,11 @@ export default function EffectsPage() {
           : got.group === target.group && got.series === target.series && got.sub === target.sub ? 3
           : got.group === target.group && got.series === target.series ? 2
           : -1;
+        // Do not let the spirits tie-breaker promote an unrelated fallback.
+        // This used to pair 1282105 with 1297584500 merely because both were
+        // recent group-12 assets, even though no card/effect relationship was
+        // present in the captured map.
+        if (score < 0) continue;
         const spirits = refAll?.[c.id]?.spirits ?? 0;
         if (score > bestScore || (score === bestScore && spirits > bestSpirits)) {
           best = c;
@@ -405,7 +411,7 @@ export default function EffectsPage() {
                         marks[String(p.effectId)] ? "edited" : ""]
                        .filter(Boolean).join(" ")}
             onClick={() => setCurrent(p.effectId)}>
-            <b>{p.effectId}</b>
+            <span className="fx-grid-id"><b>{p.effectId}</b>{isNewEffect(p.effectId) && <i className="new-badge">NEW!</i>}</span>
             <small>G{p.group} · {p.series} · R{p.rank}</small>
             <em>{p.layers.length} layers</em>
           </button>)}
