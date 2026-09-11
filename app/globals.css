@@ -218,6 +218,8 @@ footer>span{margin-left:auto}
 .fx-count{font:800 9px/1 monospace;color:#8d9298;letter-spacing:.1em;margin:14px 0 10px}
 .fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:7px;max-height:56vh;overflow-y:auto;padding-right:4px}
 .fx-grid button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;border:1px solid #e0e2e5;background:#fff;padding:9px 10px;text-align:left;cursor:pointer}
+/* 692개 버튼 중 스크롤 밖 항목은 레이아웃·페인트를 건너뛴다. */
+.fx-grid button{content-visibility:auto;contain-intrinsic-size:62px 112px;contain:layout paint style}
 .fx-grid button:hover{border-color:#b6babf;background:#fafbfb}
 .fx-grid button.active{border-color:var(--red);background:#fff6f6}
 .fx-grid-id,.player-name-line{display:flex;align-items:center;gap:7px;min-width:0}
@@ -1498,7 +1500,8 @@ footer,footer span,footer p{color:var(--muted)}
   background:var(--bg);color:var(--ink)}
 .preload-mark{margin:0;font:900 clamp(24px,4vw,44px)/1 system-ui,sans-serif;letter-spacing:-.05em}
 .preload-bar{width:min(280px,60vw);height:2px;background:var(--line);overflow:hidden}
-.preload-bar i{display:block;height:100%;background:var(--ink);transition:width .2s ease}
+.preload-bar i{display:block;width:38%;height:100%;background:var(--ink);animation:preload-slide 1s ease-in-out infinite}
+@keyframes preload-slide{0%{transform:translateX(-110%)}100%{transform:translateX(370%)}}
 .preload-pct{margin:0;font:700 10px/1 ui-monospace,monospace;letter-spacing:.2em;color:var(--muted)}
 
 /* 이펙트 품질 탭 (app/anss/quality.ts · docs §39)
